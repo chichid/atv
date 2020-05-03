@@ -40,5 +40,5 @@ const server = httpFactory.createServer({
 	cert: fs.readFileSync(__dirname + '/assets/certificates/kortv.pem')
 }, app);
 
-server.listen(PORT, () => console.log('server started'));
+server.listen(PORT, () => console.log('server started on port ' + PORT));
 

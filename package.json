@@ -2,10 +2,10 @@
   "name": "atv-test",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node index.js",
-    "watch": "nodemon node index.js",
+    "start": "node src/index.js",
+    "watch": "nodemon node src/index.js",
     "test": "echo \"Error: no test specified\" && exit 0"
   },
   "repository": {

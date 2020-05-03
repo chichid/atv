@@ -1,3 +1,3 @@
 #EXTM3U
-#EXTINF:0 tvg-logo="https://upload.wikimedia.org/wikipedia/fr/thumb/7/75/RTL9_%282011%29.svg/512px-RTL9_%282011%29.svg.png",RTL9 (standard)
-rtsp://mafreebox.freebox.fr/fbxtv_pub/stream?namespace=1&service=210&flavour=sd
+#EXTINF:0 tvg-logo="https://www.tv-logo.com/pt-data/uploads/images/logo/rtl9.jpg",RTL9 (standard)
+http://vvn.neoredi.com/iptv/ch282?code=170345558869467&key=57552

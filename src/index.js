@@ -3,6 +3,7 @@ const https = require('https');
 const http = require('http');
 const express = require('express');
 const path = require('path');
+const { castUrl } = require('./airplay-cast');
 
 const isLocal = process.env.PORT ? false: true;
 const PORT = process.env.PORT || 443
@@ -18,20 +19,42 @@ const pathMap = {
 	'xml': '/assets/templates',
 };
 
-app.use((req, res) => {
+app.get((req, res, next) => {
 	const ext = path.extname(req.originalUrl).replace('.', '');
 	const fileName = path.basename(req.originalUrl);
 	const filePath = path.join(__dirname, pathMap[ext] || '/assets', pathMap[ext] ? fileName : req.originalUrl);
-  const file = fs.readFileSync(filePath);
 
-	res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Content-Type", mimeMap[ext] || 'text/plain');
-  res.removeHeader("Connection");
-  res.removeHeader("X-Powered-By");
-  res.removeHeader("Content-Length");
-  res.removeHeader("Transfer-Encoding");
+  try {
+    const file = fs.readFileSync(filePath);
 
-  res.end(file.toString());
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", mimeMap[ext] || 'text/plain');
+    res.removeHeader("Connection");
+    res.removeHeader("X-Powered-By");
+    res.removeHeader("Content-Length");
+    res.removeHeader("Transfer-Encoding");
+
+    res.end(file.toString());
+  } catch(e) {
+    console.error(e);
+  }
+
+  next();
+});
+
+app.use(express.json()) 
+
+app.post('/play', async (req, res) => {
+  const videoUrl = req.body.videoUrl;
+
+  try {
+    await castUrl(videoUrl);
+    res.end();
+  } catch(e) {
+    console.error(e);
+    res.writeHead(500);
+    res.end(JSON.stringify(e));
+  }
 });
 
 const httpFactory = isLocal ? https : http;

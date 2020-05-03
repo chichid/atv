@@ -20,7 +20,8 @@
   "homepage": "https://github.com/chichid/atv-test#readme",
   "dependencies": {
     "airplay-protocol": "^2.0.2",
-    "express": "^4.17.1"
+    "express": "^4.17.1",
+    "handlebars": "^4.7.6"
   },
   "devDependencies": {
     "nodemon": "^2.0.3"

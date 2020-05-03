@@ -75,7 +75,6 @@ const loadChannels = async () => {
     console.log('[context] loading channels...');
     CHANNELS = [];
     for (const m3uSource of M3U_SOURCES) {
-      console.log(m3uSource);
       const channels = await readM3u(m3uSource);
       CHANNELS = [...CHANNELS, ...channels];
     }

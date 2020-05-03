@@ -3,17 +3,17 @@
   <head>
   </head>
   <body>
-		<scroller id="Channels_Grid">
+    <scroller id="Channels_Grid">
       <header>
-        <simpleHeader>
-          <title>It's working!</title>
-        </simpleHeader>
-			</header>
+	<simpleHeader>
+	  <title>It's working!</title>
+	</simpleHeader>
+      </header>
       <items>
-        <collectionDivider alignment="left" accessibilityLabel="Show_Bookcase_Divider">
-          <title>Hello World!</title>
-        </collectionDivider>
+	<collectionDivider alignment="left" accessibilityLabel="Show_Bookcase_Divider">
+	  <title>Hello World from Heroku!</title>
+	</collectionDivider>
       </items>
-		</scroller>
+    </scroller>
   </body>
 </atv>

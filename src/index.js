@@ -148,6 +148,12 @@ app.use(async (req, res, next) => {
 	const filePath = path.join(__dirname, pathMap[ext] || '/assets', pathMap[ext] ? fileName : req.originalUrl);
 
   try {
+    if !fs.existsSync(filePath) {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+
     const fileContent = fs.readFileSync(filePath).toString();
     const template = handlebars.compile(fileContent);
     const context = await getContext();

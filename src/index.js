@@ -6,14 +6,16 @@ const path = require('path');
 const handlebars = require('handlebars');
 const { castUrl } = require('./airplay-cast');
 
-const isLocal = process.env.PORT ? false: true;
-const PORT = process.env.PORT || 443
-const M3U_SOURCES = ["https://iptvcat.com/morocco?.m3u8 "];
+const PROFILE = process.env.PROFILE;
+const USE_SSL = process.env.USE_SSL === 'true' ? true : false;
+const PORT = process.env.PORT || (USE_SSL ? 443 : 80);
+const M3U_DIR = "src/config/m3u";
+const HOME_URL = process.env.HOME_URL;
 const app = express();
 
 const mimeMap = {
 	'js': 'text/javascript',
-	'xml': 'text/xml',
+	'xml': 'text/xml', 
 };
 
 const pathMap = {
@@ -21,32 +23,49 @@ const pathMap = {
 	'xml': '/assets/templates',
 };
 
-const HOME_URL = isLocal ? 'https://kortv.com' : 'https://chichid-atv2.herokuapp.com';
 let CHANNELS = null;
 
 const get = url => new Promise((resolve, reject) => {
-  const httpFactory = url.startsWith('https://') ? https : http;
-  
-  httpFactory.get(url, (res) => {
-		let data = '';
+  if (url.startsWith('https://') || url.startsWith('http://')) {
+    const httpFactory = url.startsWith('https://') ? https : http;
 
-		res.on('data', (chunk) => {
-			data += chunk;
-		});
+    httpFactory.get(url, (res) => {
+      let data = '';
 
-		res.on('end', () => {
-      resolve(data);
-		});
-  }).on('error', () => reject());
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        resolve(data);
+      });
+    }).on('error', () => reject());
+  } else if (url.startsWith('file://')){
+    fs.readFile(url.replace('file://', ''), (err, data) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data.toString());
+      } 
+    });
+  } else {
+    reject(`[get] Unsupported protocol in url: ${url}`);
+  }
 });
 
 const readM3u = async (url) => {
   const m3u = await get(url);
-  const lines = m3u.split('\n');
+  const lines = m3u.split('\n').filter(l => l ? true : false);
+
+  console.log(lines);
 
   const channels = [];
 
-  for (let current_line = 2; current_line < lines.length; current_line += 2) {
+  for (let current_line = 0; current_line < lines.length; ++current_line) {
+		if (!lines[current_line].startsWith("#EXTINF")) {
+      continue;
+		}
+
     const keyVals = {};
 
     const parts = lines[current_line].split(' ');
@@ -74,8 +93,13 @@ const loadChannels = async () => {
   if (!CHANNELS) {
     console.log('[context] loading channels...');
     CHANNELS = [];
-    for (const m3uSource of M3U_SOURCES) {
-      const channels = await readM3u(m3uSource);
+    const m3us = fs.readdirSync(M3U_DIR);
+
+    for (const m3uSource of m3us) {
+      const source = 'file://' + M3U_DIR + '/' + m3uSource;
+      console.log('[context] loading m3u source ' + source + '...');
+
+      const channels = await readM3u(source);
       CHANNELS = [...CHANNELS, ...channels];
     }
   }
@@ -157,12 +181,12 @@ app.post('/reloadChannels', async (req, res) => {
   res.end();
 });
 
-const httpFactory = isLocal ? https : http;
+const httpFactory = USE_SSL ? https : http;
 
 const server = httpFactory.createServer({
 	key: fs.readFileSync(__dirname + '/assets/certificates/kortv.key'),
 	cert: fs.readFileSync(__dirname + '/assets/certificates/kortv.pem')
 }, app);
 
-server.listen(PORT, () => console.log('server started on port ' + PORT));
+server.listen(PORT, () => console.log('server started on port ' + PORT + ' using ' + (USE_SSL ? 'https' : 'http')));
 

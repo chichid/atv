@@ -9,7 +9,7 @@ const { castUrl } = require('./airplay-cast');
 const PROFILE = process.env.PROFILE;
 const USE_SSL = process.env.USE_SSL === 'true' ? true : false;
 const PORT = process.env.PORT || (USE_SSL ? 443 : 80);
-const M3U_DIR = path.join(__dirname, "src/config/m3u");
+const M3U_DIR = path.join(__dirname, "/config/m3u");
 const HOME_URL = process.env.HOME_URL;
 const app = express();
 

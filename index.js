@@ -24,6 +24,7 @@ app.use((req, res) => {
 	const filePath = path.join(__dirname, pathMap[ext] || '/assets', pathMap[ext] ? fileName : req.originalUrl);
   const file = fs.readFileSync(filePath);
 
+	res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Content-Type", mimeMap[ext] || 'text/plain');
   res.removeHeader("Connection");
   res.removeHeader("X-Powered-By");

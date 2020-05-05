@@ -1,21 +1,29 @@
 const AirPlay = require('airplay-protocol');
-const airplay = new AirPlay('192.168.2.39');
 
-module.exports = {
-  castUrl
+export const atvPlay = (config) => async (req, res) => {
+  console.log(`[post] /play with url: ${req.body.videoUrl}`);
+
+  const videoUrl = req.body.videoUrl;
+
+  try {
+    await castUrl(config.AppleTvAddress, videoUrl);
+    res.end();
+  } catch (e) {
+    console.error(e);
+    res.writeHead(500);
+    res.end(JSON.stringify(e));
+  }
 };
 
-function castUrl(url) {
-  console.log(`[airplay-cast] castUrl ${url}`);
+const castUrl = (appleTvAddress, url) => new Promise((resolve, reject) => {
+  const airplay = new AirPlay(appleTvAddress);
 
-  return new Promise((r, f) => {
-    airplay.play(url, function (err) {
-      if (err) {
-        console.error(`Error playing video: ${url} \n ${err} `);
-        f(err);
-      }
+  airplay.play(url, (err) => {
+    if (err) {
+      console.error(`Error playing video: ${url} \n ${err} `);
+      reject(err);
+    }
 
-      r();
-    });
+    resolve();
   });
-}
+});

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <atv>
   <head>
-    <script src="{{HOME_URL}}/utils.js" />
+    <script src="{{BaseUrl}}/utils.js" />
   </head>
   <body>
     <scroller id="mainScroller">
@@ -9,7 +9,7 @@
         <!-- movie list -->
         <grid id="tvGrid">
           <items>
-            {{#each CHANNELS}}
+            {{#each Channels }}
             <moviePoster id="{{name}}" onSelect="playVideo('{{url}}')">
               <title>{{name}}</title>
               <image>{{logo}}</image>

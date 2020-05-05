@@ -3,29 +3,41 @@
   "version": "1.0.0",
   "description": "",
   "main": "src/index.js",
+  "author": "",
+  "license": "ISC",
+  "homepage": "https://github.com/chichid/atv-test#readme",
   "scripts": {
-    "start": "cross-env HOME_URL='https://chichid-atv2.herokuapp.com' USE_SSL=false node src/index.js",
-    "start:ssl": "cross-env HOME_URL='https://chichid-atv2.herokuapp.com' USE_SSL=true node src/index.js",
-    "watch": "cross-env HOME_URL='https://kortv.com' USE_SSL=true nodemon node src/index.js",
+    "start": "cross-env BASE_URL='https://chichid-atv2.herokuapp.com' USE_SSL=false node -r esm src/index.js",
+    "start:ssl": "cross-env BASE_URL='https://chichid-atv2.herokuapp.com' USE_SSL=true node -r esm src/index.js",
+    "watch": "cross-env BASE_URL='https://kortv.com' USE_SSL=true nodemon -r esm src/index.js",
+    "lint": "eslint src",
     "test": "echo \"Error: no test specified\" && exit 0"
+  },
+  "hooks": {
+    "pre-commit": "npm run lint"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/chichid/atv-test.git"
   },
-  "author": "",
-  "license": "ISC",
   "bugs": {
     "url": "https://github.com/chichid/atv-test/issues"
   },
-  "homepage": "https://github.com/chichid/atv-test#readme",
   "dependencies": {
     "airplay-protocol": "^2.0.2",
     "cross-env": "^7.0.2",
+    "esm": "^3.2.25",
     "express": "^4.17.1",
-    "handlebars": "^4.7.6"
+    "handlebars": "^4.7.6",
+    "husky": "^4.2.5"
   },
   "devDependencies": {
+    "eslint": "^6.8.0",
+    "eslint-config-standard": "^14.1.1",
+    "eslint-plugin-import": "^2.20.2",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.0.1",
     "nodemon": "^2.0.3"
   }
 }

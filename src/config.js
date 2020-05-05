@@ -7,6 +7,7 @@ const SSL = {
 };
 
 const MimeMap = {
+  default: 'text/plain',
   js: 'text/javascript',
   xml: 'text/xml',
 };

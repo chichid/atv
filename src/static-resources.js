@@ -1,17 +1,21 @@
 const fs = require('fs');
 const path = require('path');
 const handlebars = require('handlebars');
-const { getContext } = require('model');
+const { getContext } = require('./model');
 
-export const getStatic = (config) => async (req, res, next) => {
-  if (req.method.toUpperCase() !== 'GET') {
-    next();
-    return;
-  }
+export const getStaticResource = (config) => async (req, res, next) => {
+  console.log(`[static-resources] getStaticResource ${req.path}`);
+  const filePath = path.join(__dirname, req.path);
+  await loadFile(config, req, res, filePath);
+};
 
-  console.log(`[get] ${req.originalUrl}`);
-  const filePath = path.join(__dirname, config.AssetsFolder, req.originalUrl);
+export const getApplicationJs = (config) => async (req, res) => {
+  console.log('[static-resources] getApplicationJs');
+  const filePath = path.join(__dirname, config.AssetsFolder, '/js/application.js');
+  await loadFile(config, req, res, filePath);
+};
 
+const loadFile = async (config, req, res, filePath) => {
   try {
     if (!fs.existsSync(filePath)) {
       res.writeHead(404);

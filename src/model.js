@@ -1,10 +1,10 @@
 const { loadChannels } = require('./channels');
 
 export const getContext = async (config) => {
-  const Channels = await loadChannels();
+  const Channels = await loadChannels(config);
 
   return {
-    Config: config,
+    config,
     Channels,
   };
 };

@@ -4,15 +4,15 @@ const http = require('http');
 const https = require('https');
 
 export const setHeaders = (config) => (req, res, next) => {
-  const ext = path.extname(req.originalUrl).replace('.', '');
-
   res.removeHeader('Connection');
   res.removeHeader('X-Powered-By');
   res.removeHeader('Content-Length');
   res.removeHeader('Transfer-Encoding');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Allow-Headers');
-  res.setHeader('Content-Type', config.MimeConfig[ext] || 'text/plain');
+
+  const ext = path.extname(req.originalUrl).replace('.', '');
+  res.setHeader('Content-Type', config.MimeMap[ext] || config.MimeMap.default);
 
   next();
 };

@@ -4,12 +4,13 @@ const { get } = require('./utils');
 const PAGE_SIZE = 100;
 let CHANNELS = null;
 
-export const reloadChannels = (config) => async () => {
+export const reloadChannels = (config) => async (req, res) => {
   CHANNELS = null;
-  await loadChannels();
+  await loadChannels(config);
+  res.end();
 };
 
-const loadChannels = async (config) => {
+export const loadChannels = async (config) => {
   if (!CHANNELS) {
     console.log('[model] loadChannels, loading channels...');
 

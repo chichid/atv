@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <atv>
   <head>
-    <script src="{{BaseUrl}}/utils.js" />
+    <script src="{{config.BaseUrl}}/assets/js/utils.js" />
   </head>
   <body>
     <scroller id="mainScroller">

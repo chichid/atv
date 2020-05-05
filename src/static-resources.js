@@ -6,16 +6,16 @@ const { getContext } = require('./model');
 export const getStaticResource = (config) => async (req, res, next) => {
   console.log(`[static-resources] getStaticResource ${req.path}`);
   const filePath = path.join(__dirname, req.path);
-  await loadFile(config, req, res, filePath);
+  await sendFile(config, req, res, filePath);
 };
 
 export const getApplicationJs = (config) => async (req, res) => {
   console.log('[static-resources] getApplicationJs');
   const filePath = path.join(__dirname, config.AssetsFolder, '/js/application.js');
-  await loadFile(config, req, res, filePath);
+  await sendFile(config, req, res, filePath);
 };
 
-const loadFile = async (config, req, res, filePath) => {
+const sendFile = async (config, req, res, filePath) => {
   try {
     if (!fs.existsSync(filePath)) {
       res.writeHead(404);

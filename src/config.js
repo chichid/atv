@@ -1,5 +1,7 @@
 const path = require('path');
 
+const BaseUrl = process.env.BASE_URL;
+
 const SSL = {
   Enabled: !!process.env.USE_SSL,
   Key: path.join(__dirname, '/assets/certificates/kortv.key'),
@@ -16,7 +18,8 @@ export const CONFIG = {
   AssetsFolder: 'assets',
   AppleTvAddress: '192.168.2.39',
   M3uDir: path.join(__dirname, '/config/m3u'),
-  BaseUrl: process.env.BASE_URL,
+  BaseUrl,
+  MainTemplate: BaseUrl + '/assets/templates/index.xml',
   Profile: process.env.PROFILE,
   Port: process.env.PORT || (SSL.Enabled ? 443 : 80),
   SSL,

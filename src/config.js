@@ -17,7 +17,7 @@ const MimeMap = {
 export const CONFIG = {
   AssetsFolder: 'assets',
   AppleTvAddress: '192.168.2.39',
-  M3uDir: path.join(__dirname, '/config/m3u'),
+  M3uDir: path.join(__dirname, '../data/m3u'),
   BaseUrl,
   MainTemplate: BaseUrl + '/assets/templates/index.xml',
   Profile: process.env.PROFILE,

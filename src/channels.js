@@ -13,20 +13,30 @@ export const reloadChannels = (config) => async (req, res) => {
 export const loadChannels = async (config) => {
   if (!CHANNELS) {
     console.log('[model] loadChannels, loading channels...');
-
-    CHANNELS = [];
-    const m3us = fs.readdirSync(config.M3uDir);
-
-    for (const m3uSource of m3us) {
-      const source = 'file://' + config.M3uDir + '/' + m3uSource;
-      console.log('[model] loadChannels, adding m3u source ' + source + '...');
-
-      const channels = await readM3u(source);
-      CHANNELS = [...CHANNELS, ...channels];
-    }
+    const channels = loadM3uLists(config);
+    CHANNELS = filterChannels(config, channels);
   }
 
   return CHANNELS;
+};
+
+const filterChannels = async (config, channels) => {
+  return channels;
+};
+
+const loadM3uLists = async (config) => {
+  let channels = [];
+  const m3uFiles = fs.readdirSync(config.M3uDir);
+
+  for (const m3uSource of m3uFiles) {
+    const source = m3uSource.indexOf('://') !== -1 ? m3uSource : 'file://' + config.M3uDir + '/' + m3uSource;
+    console.log('[model] loadChannels, adding m3u source ' + source + '...');
+
+    const m3uChannels = await readM3u(source);
+    channels = [...channels, ...m3uChannels];
+  }
+
+  return channels;
 };
 
 const readM3u = async (url) => {

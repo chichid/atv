@@ -3,6 +3,6 @@ function playVideo(videoUrl) {
   xhr.open('POST', '{{HOME_URL}}/play', true);
   xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
   xhr.send(JSON.stringify({
-    'videoUrl': videoUrl 
+    'videoUrl': decodeURIComponent(videoUrl)
   }));
 }

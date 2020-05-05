@@ -1,6 +1,6 @@
-const fs = require('fs');
+const fs = require('fs')
 const https = require('https');
-const http = require('http');
+const http = require('follow-redirects').http;
 const express = require('express');
 const path = require('path');
 const handlebars = require('handlebars');
@@ -57,30 +57,25 @@ const readM3u = async (url) => {
   const m3u = await get(url);
   const lines = m3u.split('\n').filter(l => l ? true : false);
 
-  console.log(lines);
-
   const channels = [];
+  const PAGE_SIZE = 100;
 
-  for (let current_line = 0; current_line < lines.length; ++current_line) {
+  for (let current_line = 0; channels.length < PAGE_SIZE && current_line < lines.length; ++current_line) {
 		if (!lines[current_line].startsWith("#EXTINF")) {
       continue;
 		}
 
-    const keyVals = {};
-
-    const parts = lines[current_line].split(' ');
-    parts.forEach(p => {
-      const keyVal = p.split('=');
-      const key = keyVal[0];
-      const val = keyVal[1];
-      keyVals[key] = val;
-    });
+    const parts = lines[current_line].split(',');
+	  const info = parts[0].trim();
+	  const name = parts[1].trim().replace(/,/g, '');
+		const logo = info.match('tvg-logo="([^"]*)"')[1] || "";
+		const url = lines[current_line+1].replace('\n', '').trim();
 
     const channel = {
       id: channels.length, 
-      name: lines[current_line].split(',')[1],
-      logo: (keyVals['tvg-logo'] || "").replace(/"/g, ""),
-      url: lines[current_line+1]
+			name,
+      logo,
+      url 
     };
 
     channels.push(channel);

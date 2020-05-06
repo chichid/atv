@@ -29,7 +29,7 @@ const filterChannels = async (config, channels) => {
     const sources = channels.filter(sc =>
       isSource(sc, channel.name) ||
       (channel.alternateNames && channel.alternateNames.some(na => isSource(sc, na))
-    ));
+      ));
 
     if (sources.length > 0) {
       // TODO this is the right spot to introduce some preferred source setting

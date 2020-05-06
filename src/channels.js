@@ -27,7 +27,7 @@ export const loadChannels = async (config) => {
     console.log('[model] loading channels...');
     const m3uChannels = await loadM3uLists(config);
     const filteredChannels = await filterChannels(config, m3uChannels);
-    allChannels = groupChannels(config, filteredChannels);
+    allChannels = await groupChannels(config, filteredChannels);
     console.log('[model] channels loaded successfully.');
   }
 
@@ -145,6 +145,7 @@ const readChannelSelection = async (config) => {
 };
 
 const addChannelSelection = async (config, { groupId, channelName, alternateNames }) => {
+  const payloadAlternateNames = alternateNames || [];
   const channels = await readChannelSelection(config);
   const { channelSelection } = channels;
 
@@ -158,7 +159,7 @@ const addChannelSelection = async (config, { groupId, channelName, alternateName
       group.channels = [];
     }
 
-    const channelNames = [channelName, ...alternateNames].map(c => c.toLowerCase());
+    const channelNames = [channelName, ...payloadAlternateNames].map(c => c.toLowerCase());
 
     const channel = group.channels.find(c =>
       channelNames.indexOf(c.name.toLowerCase()) !== -1 ||
@@ -166,17 +167,15 @@ const addChannelSelection = async (config, { groupId, channelName, alternateName
     );
 
     if (channel) {
-      const alternateNames = channel.alternateNames || [];
+      const updatedAlternateNames = channel.alternateNames || [];
       const capitalizeWord = w => w[0].toUpperCase() + w.slice(1).toLowerCase();
       const capitalize = c => c.split(' ').map(capitalizeWord).join(' ');
 
       const alternateNameSet = new Set([
         capitalize(channel.name),
-        ...alternateNames.map(capitalize),
+        ...updatedAlternateNames.map(capitalize),
         ...channelNames.map(capitalize)
       ]);
-
-      console.log(alternateNameSet);
 
       channel.alternateNames = [...alternateNameSet].slice(1);
     } else {

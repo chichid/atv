@@ -2,7 +2,7 @@
   "channelSelection": [ 
     {
       "id": "morroco",
-      "categoryName": "Chaines Marocaines",
+      "groupName": "Chaines Marocaines",
       "channels": [{
         "name": "2M Maroc",
         "alternateNames": ["2M Monde"]
@@ -10,16 +10,16 @@
     },
     {
       "id": "rotana",
-      "categoryName": "Chaines Arabe",
+      "groupName": "Chaines Arabe",
       "channels": [{
         "name": "Rotana Cinema"
       }]
     },
     {
       "id": "france",
-      "categoryName": "Chaines Francaise",
+      "groupName": "Chaines Francaise",
       "channels": [{
-        "name": "RTL9",
+        "name": "RTL 9",
         "alternateNames": ["RTL 9"]
       }]
     }

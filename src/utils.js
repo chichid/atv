@@ -17,6 +17,21 @@ export const setHeaders = (config) => (req, res, next) => {
   next();
 };
 
+export const writeFile = async (file, content) => new Promise((resolve, reject) => {
+  fs.writeFile(file, content, (err) => {
+    if (err) {
+      reject(err);
+    } else {
+      resolve();
+    }
+  });
+});
+
+export const writeJson = async (file, json, format) => {
+  const serializedContent = format ? JSON.stringify(json) : JSON.stringify(json, null, ' ');
+  await writeFile(file, serializedContent);
+};
+
 export const get = url => new Promise((resolve, reject) => {
   if (url.startsWith('https://') || url.startsWith('http://')) {
     const httpFactory = url.startsWith('https://') ? https : http;

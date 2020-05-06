@@ -1,27 +1,40 @@
 {
-  "channelSelection": [ 
+ "channelSelection": [
+  {
+   "id": "morroco",
+   "groupName": "Chaines Marocaines",
+   "channels": [
     {
-      "id": "morroco",
-      "groupName": "Chaines Marocaines",
-      "channels": [{
-        "name": "2M Maroc",
-        "alternateNames": ["2M Monde"]
-      }]
-    },
-    {
-      "id": "rotana",
-      "groupName": "Chaines Arabe",
-      "channels": [{
-        "name": "Rotana Cinema"
-      }]
-    },
-    {
-      "id": "france",
-      "groupName": "Chaines Francaise",
-      "channels": [{
-        "name": "RTL 9",
-        "alternateNames": ["RTL9"]
-      }]
+     "name": "2M Maroc",
+     "alternateNames": [
+      "2M Monde"
+     ]
     }
-  ]
+   ]
+  },
+  {
+   "id": "rotana",
+   "groupName": "Rotana",
+   "channels": [
+    {
+     "name": "Rotana Cinema",
+     "alternateNames": [
+      "Rotana Khalijah"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "france",
+   "groupName": "Chaines Francaise",
+   "channels": [
+    {
+     "name": "RTL 9",
+     "alternateNames": [
+      "RTL9"
+     ]
+    }
+   ]
+  }
+ ]
 }

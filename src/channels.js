@@ -1,5 +1,5 @@
 const fs = require('fs');
-const { get } = require('./utils');
+const { get, writeJson } = require('./utils');
 
 let allChannels = null;
 
@@ -7,6 +7,19 @@ export const reloadChannels = (config) => async (req, res) => {
   allChannels = null;
   await loadChannels(config);
   res.end();
+};
+
+export const putSelectionChannel = (config) => async (req, res) => {
+  const channel = req.body;
+  try {
+    const updatedChannelSelection = await addChannelSelection(config, channel);
+    res.type('json');
+    res.json(updatedChannelSelection);
+  } catch (e) {
+    console.error(e);
+    res.writeHead(500);
+    res.end(e.message);
+  }
 };
 
 export const loadChannels = async (config) => {
@@ -22,7 +35,7 @@ export const loadChannels = async (config) => {
 };
 
 const filterChannels = async (config, channels) => {
-  const { channelSelection } = await getChannelSelection(config);
+  const { channelSelection } = await readChannelSelection(config);
 
   const channelSources = channelSelection.flatMap(group => group.channels.map(channel => {
     const isSource = (sc, nameAlternative) => sc.name.toLowerCase().indexOf(nameAlternative.toLowerCase()) !== -1;
@@ -55,7 +68,7 @@ const groupChannels = async (config, channels) => {
   // For example the same channel coming from different m3us must not be listed multiple times
   const groups = channels.reduce((acc, channel) => {
     if (!acc[channel.groupName]) {
-      acc[channel.groupName] = [channel]
+      acc[channel.groupName] = [channel];
     } else {
       acc[channel.groupName].push(channel);
     }
@@ -63,15 +76,10 @@ const groupChannels = async (config, channels) => {
     return acc;
   }, {});
 
-  return Object.keys(groups).map(groupName => ({ 
-    groupName, 
+  return Object.keys(groups).map(groupName => ({
+    groupName,
     channels: groups[groupName],
   }));
-};
-
-const getChannelSelection = async (config) => {
-  const channelsSelection = await get('file://' + config.ChannelList);
-  return JSON.parse(channelsSelection);
 };
 
 const loadM3uLists = async (config) => {
@@ -129,4 +137,62 @@ const readM3u = async (source) => {
   }
 
   return channels;
+};
+
+const readChannelSelection = async (config) => {
+  const channelsSelection = await get('file://' + config.ChannelList);
+  return JSON.parse(channelsSelection);
+};
+
+const addChannelSelection = async (config, { groupId, channelName, alternateNames }) => {
+  const channels = await readChannelSelection(config);
+  const { channelSelection } = channels;
+
+  const updatedSelection = [...channelSelection];
+  const group = updatedSelection.find(g => g.id === groupId);
+
+  if (!group) {
+    throw new Error(`Group not found ${groupId}`);
+  } else {
+    if (!group.channels) {
+      group.channels = [];
+    }
+
+    const channelNames = [channelName, ...alternateNames].map(c => c.toLowerCase());
+
+    const channel = group.channels.find(c =>
+      channelNames.indexOf(c.name.toLowerCase()) !== -1 ||
+      (c.alternateNames && channelNames.some(cn => c.alternateNames.some(an => cn.toLowerCase() === an.toLowerCase())))
+    );
+
+    if (channel) {
+      const alternateNames = channel.alternateNames || [];
+      const capitalizeWord = w => w[0].toUpperCase() + w.slice(1).toLowerCase();
+      const capitalize = c => c.split(' ').map(capitalizeWord).join(' ');
+
+      const alternateNameSet = new Set([
+        capitalize(channel.name),
+        ...alternateNames.map(capitalize),
+        ...channelNames.map(capitalize)
+      ]);
+
+      console.log(alternateNameSet);
+
+      channel.alternateNames = [...alternateNameSet].slice(1);
+    } else {
+      group.channels.push({
+        name: channelName,
+        alternateNames
+      });
+    }
+  }
+
+  const updatedChannels = {
+    ...channels,
+    channelSelection: updatedSelection,
+  };
+
+  writeJson(config.ChannelList, updatedChannels);
+
+  return updatedSelection;
 };

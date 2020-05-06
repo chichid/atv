@@ -6,18 +6,27 @@
   <body>
     <scroller id="mainScroller">
       <items>
-        <!-- movie list -->
-        <grid id="tvGrid">
-          <items>
-            {{#each Channels }}
-            <moviePoster id="{{name}}" onSelect="playVideo('{{url}}')">
-              <title>{{name}}</title>
-              <image>{{logo}}</image>
-              <defaultImage>resource://Poster.png</defaultImage>
-            </moviePoster>
-            {{/each}}
-          </items>
-        </grid>
+        {{#each groups}}
+        <collectionDivider alignment="left" accessibilityLabel="{{groupName}}">
+          <title>{{groupName}}</title>
+        </collectionDivider>
+
+        <shelf id="channelsShelf">
+          <sections>
+            <shelfSection>
+              <items>
+                {{#each channels }}
+                <sixteenByNinePoster id="{{name}}" alwaysShowTitles="true" onSelect="playVideo('{{url}}')">
+                  <title>{{name}}</title>
+                  <image src720="{{logo}}" src1080="{{logo}}" />
+                  <defaultImage>resource://16x9.png</defaultImage>
+                </sixteenByNinePoster>
+                {{/each}}
+              </items>
+            </shelfSection>
+          </sections>
+        </shelf>
+        {{/each}}
       </items>
     </scroller>
   </body>

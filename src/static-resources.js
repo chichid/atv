@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const handlebars = require('handlebars');
-const { getContext } = require('./model');
+const { getContext } = require('./context');
 
 export const getStaticResource = (config) => async (req, res, next) => {
   console.log(`[static-resources] getStaticResource ${req.path}`);

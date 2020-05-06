@@ -53,7 +53,20 @@ const filterChannels = async (config, channels) => {
 const groupChannels = async (config, channels) => {
   // TODO implement channel deduplication and grouping
   // For example the same channel coming from different m3us must not be listed multiple times
-  return channels;
+  const groups = channels.reduce((acc, channel) => {
+    if (!acc[channel.groupName]) {
+      acc[channel.groupName] = [channel]
+    } else {
+      acc[channel.groupName].push(channel);
+    }
+
+    return acc;
+  }, {});
+
+  return Object.keys(groups).map(groupName => ({ 
+    groupName, 
+    channels: groups[groupName],
+  }));
 };
 
 const getChannelSelection = async (config) => {

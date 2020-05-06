@@ -3,7 +3,7 @@ const path = require('path');
 const BaseUrl = process.env.BASE_URL;
 
 const SSL = {
-  Enabled: !!process.env.USE_SSL,
+  Enabled: process.env.USE_SSL === "true",
   Key: path.join(__dirname, '/assets/certificates/kortv.key'),
   Cert: path.join(__dirname, '/assets/certificates/kortv.pem'),
 };

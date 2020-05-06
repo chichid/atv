@@ -18,6 +18,7 @@ export const CONFIG = {
   AssetsFolder: 'assets',
   AppleTvAddress: '192.168.2.39',
   M3uDir: path.join(__dirname, '../data/m3u'),
+  ChannelList: path.join(__dirname, '../data/channels.json'),
   BaseUrl,
   MainTemplate: BaseUrl + '/assets/templates/index.xml',
   Profile: process.env.PROFILE,

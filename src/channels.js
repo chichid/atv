@@ -1,27 +1,66 @@
 const fs = require('fs');
 const { get } = require('./utils');
 
-const PAGE_SIZE = 100;
-let CHANNELS = null;
+let allChannels = null;
 
 export const reloadChannels = (config) => async (req, res) => {
-  CHANNELS = null;
+  allChannels = null;
   await loadChannels(config);
   res.end();
 };
 
 export const loadChannels = async (config) => {
-  if (!CHANNELS) {
-    console.log('[model] loadChannels, loading channels...');
-    const channels = loadM3uLists(config);
-    CHANNELS = filterChannels(config, channels);
+  if (!allChannels) {
+    console.log('[model] loading channels...');
+    const m3uChannels = await loadM3uLists(config);
+    const filteredChannels = await filterChannels(config, m3uChannels);
+    allChannels = groupChannels(config, filteredChannels);
+    console.log('[model] channels loaded successfully.');
   }
 
-  return CHANNELS;
+  return allChannels;
 };
 
 const filterChannels = async (config, channels) => {
+  const { channelSelection } = await getChannelSelection(config);
+
+  const channelSources = channelSelection.flatMap(group => group.channels.map(channel => {
+    const isSource = (sc, nameAlternative) => sc.name.toLowerCase().indexOf(nameAlternative.toLowerCase()) !== -1;
+    const sources = channels.filter(sc =>
+      isSource(sc, channel.name) ||
+      (channel.alternateNames && channel.alternateNames.some(na => isSource(sc, na))
+      ));
+
+    if (sources.length > 0) {
+      // TODO this is the right spot to introduce some preferred source setting
+      const alternativeSources = sources.slice(1);
+
+      return {
+        ...sources[0],
+        alternativeSources,
+        alternativeUrls: alternativeSources.map(s => s.url),
+        alternativeLogos: alternativeSources.map(s => s.logo),
+      };
+    } else {
+      console.warn(`[channels] channel ${channel.name} doesn't have any sources`);
+      return null;
+    }
+  }));
+
+  console.log(channelSources);
+
+  return channelSources.filter(c => c !== null);
+};
+
+const groupChannels = async (config, channels) => {
+  // TODO implement channel deduplication and grouping
+  // For example the same channel coming from different m3us must not be listed multiple times
   return channels;
+};
+
+const getChannelSelection = async (config) => {
+  const channelsSelection = await get('file://' + config.ChannelList);
+  return JSON.parse(channelsSelection);
 };
 
 const loadM3uLists = async (config) => {
@@ -39,28 +78,40 @@ const loadM3uLists = async (config) => {
   return channels;
 };
 
-const readM3u = async (url) => {
-  const m3u = await get(url);
+const readM3u = async (source) => {
+  const m3u = await get(source);
   const lines = m3u.split('\n').filter(l => !!l);
 
   const channels = [];
 
-  for (let current_line = 0; channels.length < PAGE_SIZE && current_line < lines.length; ++current_line) {
+  for (let current_line = 0; current_line < lines.length; ++current_line) {
     if (!lines[current_line].startsWith('#EXTINF')) {
       continue;
     }
 
-    const parts = lines[current_line].split(',');
-    const info = parts[0].trim();
-    const name = parts[1].trim().replace(/,/g, '');
-    const logo = info.match('tvg-logo="([^"]*)"')[1] || '';
-    const url = lines[current_line + 1].replace('\n', '').trim();
+    const line = lines[current_line];
+    const parts = line.split(',');
+    const logo = line.match('tvg-logo="([^"]*)"')[1] || '';
+    const group = line.match('group-title="([^"]*)"')[1] || '';
+    const url = lines[current_line + 1]
+      .replace('\n', '')
+      .trim();
+    const name = parts[1]
+      .trim()
+      .replace(/,/g, '')
+      .replace(/\r/g, '')
+      .replace(/\n/g, '')
+      .split('|')
+      .pop()
+      .trim();
 
     const channel = {
-      id: channels.length,
+      id: name + '_' + channels.length,
       name,
       logo,
-      url
+      group,
+      url,
+      source,
     };
 
     channels.push(channel);

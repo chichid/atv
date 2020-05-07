@@ -17,7 +17,7 @@
             <squarePoster id="{{name}}" alwaysShowTitles="true" onSelect="playVideo('{{url}}')">
               <title>{{name}}</title>
               <image src720="{{logo}}" src1080="{{logo}}" />
-              <defaultImage>resource://16x9.png</defaultImage>
+              <defaultImage>resource://Square.png</defaultImage>
             </squarePoster>
             {{/each}}
           </items>

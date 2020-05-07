@@ -2,7 +2,7 @@
  "channelSelection": [
   {
    "id": "morroco",
-   "groupName": "Chaines Marocaines",
+   "groupName": "Chaînes Marocaines",
    "channels": [
     {
      "name": "2M Maroc",
@@ -14,7 +14,7 @@
   },
   {
    "id": "rotana",
-   "groupName": "Rotana",
+   "groupName": "MBC/Rotana",
    "channels": [
     {
      "name": "Rotana Cinema",
@@ -35,14 +35,35 @@
   },
   {
    "id": "france",
-   "groupName": "Chaines Francaise",
+   "groupName": "Chaînes Françaises",
    "channels": [
-    {
-     "name": "RTL 9",
-     "alternateNames": [
-      "RTL9"
-     ]
-    }
+      {"name":"TF1 "},
+      {"name":"FRANCE 2 "},
+      {"name":"M6 "},
+      {"name":"TF1 SERIES FILMS"},
+      {"name":"W9 "},
+      {"name":"1 "},
+      {"name":"TEVA "},
+      {"name":"RTL9 "},
+      {"name":"CINE+ POLAR "},
+      {"name":"SERIE CLUB "},
+      {"name":"EURONEWS "},
+      {"name":"TV5 MONDE EUROPE"},
+      {"name":"FRANCE 24 "},
+      {"name":"M6 MUSIC "},
+      {"name":"NRJ HITS "},
+      {"name":"MTV HITS "},
+      {"name":"DISNEY CHANNEL"},
+      {"name":"DISNEY CHANNEL +1"},
+      {"name":"DISNEY CINEMA "},
+      {"name":"TELETOON +1 "},
+      {"name":"EUROSPORT 1 "},
+      {"name":"CANAL+ "},
+      {"name":"CANAL+ CINEMA "},
+      {"name":"CANAL+ FAMILY "},
+      {"name":"CINE+ EMOTION "},
+      {"name":"CINE+ FAMIZ "},
+      {"name":"NATIONAL GEO "}
    ]
   }
  ]

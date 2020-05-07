@@ -2,14 +2,14 @@ const fs = require('fs');
 const { get, writeJson } = require('./utils');
 
 let allChannels = null;
-let picons = {
+const picons = {
   all: null,
   cache: {},
 };
 
 export const reloadChannels = (config) => async (req, res) => {
   allChannels = null;
-  allPicons = null;
+  picons.all = null;
   await loadChannels(config);
   res.end();
 };
@@ -87,8 +87,8 @@ const getPicon = (config, channel) => {
     .toLowerCase()
     .indexOf(normalizeChannelName(channelName)) !== -1;
 
-  const logo = picons.all.find(p => 
-    isPiconForChannel(p, channel.name) || 
+  const logo = picons.all.find(p =>
+    isPiconForChannel(p, channel.name) ||
     (channel.alternateNames && channel.alternateNames.some(an => isPiconForChannel(p, an)))
   );
 

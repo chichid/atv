@@ -2,10 +2,12 @@ const path = require('path');
 
 const BaseUrl = process.env.BASE_URL;
 
+const AppleTvBootstraperFolder = '/appletv-bootstraper';
+
 const SSL = {
   Enabled: process.env.USE_SSL === 'true',
-  Key: path.join(__dirname, '/appletv-bootstraper/certificates/kortv.key'),
-  Cert: path.join(__dirname, '/appletv-bootstraper/certificates/kortv.pem'),
+  Key: path.join(__dirname, AppleTvBootstraperFolder + '/certificates/kortv.key'),
+  Cert: path.join(__dirname, AppleTvBootstraperFolder + '/certificates/kortv.pem'),
 };
 
 const MimeMap = {
@@ -16,6 +18,7 @@ const MimeMap = {
 
 export const CONFIG = {
   AssetsFolder: 'assets',
+  AppleTvBootstraperFolder,
   AppleTvAddress: '192.168.2.39',
   M3uDir: path.join(__dirname, '../data/m3u'),
   ChannelList: path.join(__dirname, '../data/channels.json'),

@@ -11,7 +11,7 @@ export const getStaticResource = (config) => async (req, res, next) => {
 
 export const getApplicationJs = (config) => async (req, res) => {
   console.log('[static-resources] getApplicationJs');
-  const filePath = path.join(__dirname, config.AssetsFolder, '/js/application.js');
+  const filePath = path.join(__dirname, config.AppleTvBootstraperFolder, 'application.js');
   await sendFile(config, req, res, filePath);
 };
 

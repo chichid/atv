@@ -41,8 +41,8 @@ const filterChannels = async (config, channels) => {
     const isSource = (sc, nameAlternative) => sc.name.toLowerCase().indexOf(nameAlternative.toLowerCase()) !== -1;
     const sources = channels.filter(sc =>
       isSource(sc, channel.name) ||
-      (channel.alternateNames && channel.alternateNames.some(na => isSource(sc, na))
-      ));
+      (channel.alternateNames && channel.alternateNames.some(na => isSource(sc, na)))
+    );
 
     if (sources.length > 0) {
       // TODO this is the right spot to introduce some preferred source setting
@@ -50,6 +50,7 @@ const filterChannels = async (config, channels) => {
 
       return {
         ...sources[0],
+        name: channel.name,
         groupName: group.groupName,
         alternativeUrls: alternativeSources.map(s => s.url),
         alternativeLogos: alternativeSources.map(s => s.logo),

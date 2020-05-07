@@ -22,6 +22,8 @@ export const CONFIG = {
   AppleTvAddress: '192.168.2.39',
   M3uDir: path.join(__dirname, '../data/m3u'),
   ChannelList: path.join(__dirname, '../data/channels.json'),
+  PiconsDir: path.join(__dirname, '../data/picons'),
+  PiconsBaseUrl: 'resource://',
   BaseUrl,
   MainTemplate: BaseUrl + '/assets/templates/index.xml',
   Profile: process.env.PROFILE,

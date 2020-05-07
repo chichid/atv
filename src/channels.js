@@ -2,9 +2,14 @@ const fs = require('fs');
 const { get, writeJson } = require('./utils');
 
 let allChannels = null;
+let picons = {
+  all: null,
+  cache: {},
+};
 
 export const reloadChannels = (config) => async (req, res) => {
   allChannels = null;
+  allPicons = null;
   await loadChannels(config);
   res.end();
 };
@@ -24,6 +29,8 @@ export const putSelectionChannel = (config) => async (req, res) => {
 
 export const loadChannels = async (config) => {
   if (!allChannels) {
+    console.log('[model] loading picons...');
+    await loadPicons(config);
     console.log('[model] loading channels...');
     const m3uChannels = await loadM3uLists(config);
     const filteredChannels = await filterChannels(config, m3uChannels);
@@ -47,12 +54,12 @@ const filterChannels = async (config, channels) => {
     if (sources.length > 0) {
       // TODO this is the right spot to introduce some preferred source setting
       const alternativeSources = sources.slice(1);
-      const logo = channel.logo ? getLogo(config, channel) : sources[0].logo;
+      const picon = getPicon(config, channel);
 
       return {
         ...sources[0],
-        name: channel.name,
-        logo,
+        name: channel.name.trim(),
+        logo: picon || sources[0].logo || '',
         groupName: group.groupName,
         alternativeUrls: alternativeSources.map(s => s.url),
         alternativeLogos: alternativeSources.map(s => s.logo),
@@ -66,8 +73,40 @@ const filterChannels = async (config, channels) => {
   return channelSources.filter(c => c !== null);
 };
 
-const getLogo = async (config, channel) => {
-  return channel.logo;
+const getPicon = (config, channel) => {
+  if (picons.cache[channel.name.toLowerCase()]) {
+    return picons.cache[channel.name];
+  }
+
+  const normalizeChannelName = (channelName) => channelName
+    .toLowerCase()
+    .replace(/ /g, '')
+    .replace(/\+/g, 'plus');
+
+  const isPiconForChannel = (picon, channelName) => picon
+    .toLowerCase()
+    .indexOf(normalizeChannelName(channelName)) !== -1;
+
+  const logo = picons.all.find(p => 
+    isPiconForChannel(p, channel.name) || 
+    (channel.alternateNames && channel.alternateNames.some(an => isPiconForChannel(p, an)))
+  );
+
+  if (logo) {
+    picons.cache[channel.name.toLowerCase()] = logo;
+  } else {
+    console.log(`[channels] could not find picon for ${channel.name}`);
+  }
+
+  return logo ? (config.PiconsBaseUrl + logo) : null;
+};
+
+const loadPicons = async (config) => {
+  if (picons.all === null) {
+    picons.all = fs.readdirSync(config.PiconsDir);
+  }
+
+  return picons;
 };
 
 const groupChannels = async (config, channels) => {

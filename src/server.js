@@ -5,9 +5,9 @@ const http = require('http');
 export const startServer = (config, app) => {
   const httpFactory = config.SSL.Enabled ? https : http;
 
-  const server = httpFactory.createServer({
+  const server = httpFactory.createServer(!config.SSL.Enabled ? null : {
     key: fs.readFileSync(config.SSL.Key),
-    cert: fs.readFileSync(config.SSL.Cert)
+    cert: fs.readFileSync(config.SSL.Cert),
   }, app);
 
   server.listen(config.Port, () =>

@@ -14,11 +14,11 @@
         <grid id="channelsGrid-{{groupName}}">
           <items>
             {{#each channels }}
-            <squarePoster id="{{name}}" alwaysShowTitles="true" onSelect="playVideo('{{url}}')">
+            <fourByThreePoster id="{{name}}" alwaysShowTitles="true" onSelect="playVideo('{{url}}')">
               <title>{{name}}</title>
               <image src720="{{logo}}" src1080="{{logo}}" />
-              <defaultImage>resource://Square.png</defaultImage>
-            </squarePoster>
+              <defaultImage>resource://4x3.png</defaultImage>
+            </fourByThreePoster>
             {{/each}}
           </items>
         </grid>

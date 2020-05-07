@@ -11,21 +11,17 @@
           <title>{{groupName}}</title>
         </collectionDivider>
 
-        <shelf id="channelsShelf">
-          <sections>
-            <shelfSection>
-              <items>
-                {{#each channels }}
-                <sixteenByNinePoster id="{{name}}" alwaysShowTitles="true" onSelect="playVideo('{{url}}')">
-                  <title>{{name}}</title>
-                  <image src720="{{logo}}" src1080="{{logo}}" />
-                  <defaultImage>resource://16x9.png</defaultImage>
-                </sixteenByNinePoster>
-                {{/each}}
-              </items>
-            </shelfSection>
-          </sections>
-        </shelf>
+        <grid id="channelsGrid-{{groupName}}">
+          <items>
+            {{#each channels }}
+            <sixteenByNinePoster id="{{name}}" alwaysShowTitles="true" onSelect="playVideo('{{url}}')">
+              <title>{{name}}</title>
+              <image src720="{{logo}}" src1080="{{logo}}" />
+              <defaultImage>resource://16x9.png</defaultImage>
+            </sixteenByNinePoster>
+            {{/each}}
+          </items>
+        </grid>
         {{/each}}
       </items>
     </scroller>

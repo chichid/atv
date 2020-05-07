@@ -45,7 +45,10 @@ const filterChannels = async (config, channels) => {
   const { channelSelection } = await readChannelSelection(config);
 
   const channelSources = channelSelection.flatMap(group => group.channels.map(channel => {
-    const isSource = (sc, nameAlternative) => sc.name.toLowerCase().indexOf(nameAlternative.toLowerCase()) !== -1;
+    const isSource = (sc, nameAlternative) => sc.name
+      .toLowerCase()
+      .indexOf(nameAlternative.toLowerCase()) !== -1;
+
     const sources = channels.filter(sc =>
       isSource(sc, channel.name) ||
       (channel.alternateNames && channel.alternateNames.some(na => isSource(sc, na)))
@@ -98,7 +101,7 @@ const getPicon = (config, channel) => {
     console.log(`[channels] could not find picon for ${channel.name}`);
   }
 
-  return logo ? (config.PiconsBaseUrl + logo) : null;
+  return logo ? (config.PiconsBaseUrl + '/' + logo).replace(':///', '://') : null;
 };
 
 const loadPicons = async (config) => {

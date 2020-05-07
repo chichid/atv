@@ -47,10 +47,12 @@ const filterChannels = async (config, channels) => {
     if (sources.length > 0) {
       // TODO this is the right spot to introduce some preferred source setting
       const alternativeSources = sources.slice(1);
+      const logo = channel.logo? getLogo(config, channel) : sources[0].logo; 
 
       return {
         ...sources[0],
         name: channel.name,
+        logo, 
         groupName: group.groupName,
         alternativeUrls: alternativeSources.map(s => s.url),
         alternativeLogos: alternativeSources.map(s => s.logo),
@@ -62,6 +64,10 @@ const filterChannels = async (config, channels) => {
   }));
 
   return channelSources.filter(c => c !== null);
+};
+
+const getLogo = async (config, channel) => {
+  return channel.logo;
 };
 
 const groupChannels = async (config, channels) => {

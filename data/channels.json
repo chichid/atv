@@ -1,62 +1,187 @@
 {
- "channelSelection": [
-  {
-   "id": "morroco",
-   "groupName": "Chaînes Marocaines",
-   "channels": [
+  "channelSelection": [
     {
-     "name": "2M Maroc",
-     "alternateNames": [
-      "2M Monde"
-     ]
-    }
-   ]
-  },
-  {
-   "id": "rotana",
-   "groupName": "MBC/Rotana",
-   "channels": [
-    {
-     "name": "Rotana Cinema",
-     "alternateNames": []
+      "id": "arabe",
+      "groupName": "Chaînes Arabes",
+      "channels": [
+        {
+          "name": "2M MAROC",
+          "alternateNames": [
+            "2M Monde"
+          ]
+        },
+        {
+          "name": "AFLAM TV 7"
+        },
+        {
+          "name": "MBC 5 F"
+        },
+        {
+          "name": "CBC DRAMA"
+        },
+        {
+          "name": "MELODY CINEMA"
+        },
+        {
+          "name": "MELODY CLASSIC"
+        },
+        {
+          "name": "NBN LEBANON "
+        },
+        {
+          "name": "LBC SAT "
+        },
+        {
+          "name": "MTV LEBANON "
+        },
+        {
+          "name": "MBC 1"
+        },
+        {
+          "name": "MBC 2"
+        },
+        {
+          "name": "MBC 3"
+        },
+        {
+          "name": "MBC 4"
+        },
+        {
+          "name": "MBC 5"
+        },
+        {
+          "name": "MBC ACTION"
+        },
+        {
+          "name": "MBC BOLLYWOOD"
+        },
+        {
+          "name": "MBC DRAMA"
+        },
+        {
+          "name": "MBC MASR"
+        },
+        {
+          "name": "ROTANA CINEMA "
+        },
+        {
+          "name": "ROTANA DRAMA "
+        },
+        {
+          "name": "ROTANA CLASSIC "
+        },
+        {
+          "name": "ROTANA AFLAM "
+        },
+        {
+          "name": "ROTANA MUSIC "
+        },
+        {
+          "name": "ROTANA CLIP"
+        },
+        {
+          "name": "ART AFLAM 1"
+        },
+        {
+          "name": "ART CINEMA"
+        },
+        {
+          "name": "ZEE AFLAM"
+        },
+        {
+          "name": "DUBAI TV "
+        },
+        {
+          "name": "DUBAI ONE"
+        }
+      ]
     },
     {
-      "name": "ROTANA DRAMA"
+      "id": "france",
+      "groupName": "Chaînes Françaises",
+      "channels": [
+        {
+          "name": "TF1 "
+        },
+        {
+          "name": "FRANCE 2 "
+        },
+        {
+          "name": "M6 "
+        },
+        {
+          "name": "TF1 SERIES FILMS"
+        },
+        {
+          "name": "W9 "
+        },
+        {
+          "name": "1 "
+        },
+        {
+          "name": "TEVA "
+        },
+        {
+          "name": "RTL9 "
+        },
+        {
+          "name": "CINE+ POLAR "
+        },
+        {
+          "name": "SERIE CLUB "
+        },
+        {
+          "name": "EURONEWS "
+        },
+        {
+          "name": "TV5 MONDE EUROPE"
+        },
+        {
+          "name": "FRANCE 24 "
+        },
+        {
+          "name": "M6 MUSIC "
+        },
+        {
+          "name": "NRJ HITS "
+        },
+        {
+          "name": "MTV HITS "
+        },
+        {
+          "name": "DISNEY CHANNEL"
+        },
+        {
+          "name": "DISNEY CHANNEL +1"
+        },
+        {
+          "name": "DISNEY CINEMA "
+        },
+        {
+          "name": "TELETOON +1 "
+        },
+        {
+          "name": "EUROSPORT 1 "
+        },
+        {
+          "name": "CANAL+ "
+        },
+        {
+          "name": "CANAL+ CINEMA "
+        },
+        {
+          "name": "CANAL+ FAMILY "
+        },
+        {
+          "name": "CINE+ EMOTION "
+        },
+        {
+          "name": "CINE+ FAMIZ "
+        },
+        {
+          "name": "NATIONAL GEO "
+        }
+      ]
     }
-   ]
-  },
-  {
-   "id": "france",
-   "groupName": "Chaînes Françaises",
-   "channels": [
-      {"name":"TF1 "},
-      {"name":"FRANCE 2 "},
-      {"name":"M6 "},
-      {"name":"TF1 SERIES FILMS"},
-      {"name":"W9 "},
-      {"name":"1 "},
-      {"name":"TEVA "},
-      {"name":"RTL9 "},
-      {"name":"CINE+ POLAR "},
-      {"name":"SERIE CLUB "},
-      {"name":"EURONEWS "},
-      {"name":"TV5 MONDE EUROPE"},
-      {"name":"FRANCE 24 "},
-      {"name":"M6 MUSIC "},
-      {"name":"NRJ HITS "},
-      {"name":"MTV HITS "},
-      {"name":"DISNEY CHANNEL"},
-      {"name":"DISNEY CHANNEL +1"},
-      {"name":"DISNEY CINEMA "},
-      {"name":"TELETOON +1 "},
-      {"name":"EUROSPORT 1 "},
-      {"name":"CANAL+ "},
-      {"name":"CANAL+ CINEMA "},
-      {"name":"CANAL+ FAMILY "},
-      {"name":"CINE+ EMOTION "},
-      {"name":"CINE+ FAMIZ "},
-      {"name":"NATIONAL GEO "}
-   ]
-  }
- ]
+  ]
 }

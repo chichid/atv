@@ -62,7 +62,7 @@ const filterChannels = async (config, channels) => {
       return {
         ...sources[0],
         name: channel.name.trim(),
-        logo: picon || sources[0].logo || '',
+        logo: picon || channel.logo || sources[0].logo || '',
         groupName: group.groupName,
         alternativeUrls: alternativeSources.map(s => s.url),
         alternativeLogos: alternativeSources.map(s => s.logo),

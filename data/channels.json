@@ -14,13 +14,14 @@
           "name": "AFLAM TV 7"
         },
         {
-          "name": "MBC 5 F"
+          "name": "MBC 5"
         },
         {
           "name": "CBC DRAMA"
         },
         {
-          "name": "MELODY CINEMA"
+          "name": "MELODY CINEMA",
+          "alternateNames": ["Melody Aflam"]
         },
         {
           "name": "MELODY CLASSIC"
@@ -62,16 +63,16 @@
           "name": "MBC MASR"
         },
         {
-          "name": "ROTANA CINEMA "
+          "name": "ROTANA CINEMA"
         },
         {
-          "name": "ROTANA DRAMA "
+          "name": "ROTANA DRAMA"
         },
         {
-          "name": "ROTANA CLASSIC "
+          "name": "ROTANA CLASSIC"
         },
         {
-          "name": "ROTANA AFLAM "
+          "name": "ROTANA AFLAM"
         },
         {
           "name": "ROTANA MUSIC "
@@ -118,7 +119,7 @@
         },
         {
           "name": "HD1"
-        ,
+        },
         {
           "name": "TEVA"
         },
@@ -135,7 +136,7 @@
           "name": "EURONEWS"
         },
         {
-          "name": "TV5 MONDE EUROPE"
+          "name": "TV5 MONDE"
         },
         {
           "name": "FRANCE 24"
@@ -153,13 +154,10 @@
           "name": "DISNEY CHANNEL"
         },
         {
-          "name": "DISNEY CHANNEL +1"
-        },
-        {
           "name": "DISNEY CINEMA"
         },
         {
-          "name": "TELETOON +1"
+          "name": "TELETOON"
         },
         {
           "name": "EUROSPORT 1"
@@ -180,7 +178,8 @@
           "name": "CINE+ FAMIZ"
         },
         {
-          "name": "NATIONAL GEO"
+          "name": "NATIONAL GEO",
+          "alternateNames": ["natgeohdfr"]
         }
       ]
     }

@@ -101,52 +101,53 @@
       "groupName": "Chaînes Françaises",
       "channels": [
         {
-          "name": "TF1 "
+          "name": "TF1"
         },
         {
-          "name": "FRANCE 2 "
+          "name": "FRANCE 2"
         },
         {
-          "name": "M6 "
+          "name": "M6"
         },
         {
           "name": "TF1 SERIES FILMS"
         },
         {
-          "name": "W9 "
+          "name": "W9",
+          "logo": "resources://w9hd.png"
         },
         {
-          "name": "1 "
+          "name": "HD1"
+        ,
+        {
+          "name": "TEVA"
         },
         {
-          "name": "TEVA "
+          "name": "RTL9"
         },
         {
-          "name": "RTL9 "
+          "name": "CINE+ POLAR"
         },
         {
-          "name": "CINE+ POLAR "
+          "name": "SERIE CLUB"
         },
         {
-          "name": "SERIE CLUB "
-        },
-        {
-          "name": "EURONEWS "
+          "name": "EURONEWS"
         },
         {
           "name": "TV5 MONDE EUROPE"
         },
         {
-          "name": "FRANCE 24 "
+          "name": "FRANCE 24"
         },
         {
-          "name": "M6 MUSIC "
+          "name": "M6 MUSIC"
         },
         {
-          "name": "NRJ HITS "
+          "name": "NRJ HITS"
         },
         {
-          "name": "MTV HITS "
+          "name": "MTV HITS"
         },
         {
           "name": "DISNEY CHANNEL"
@@ -155,31 +156,31 @@
           "name": "DISNEY CHANNEL +1"
         },
         {
-          "name": "DISNEY CINEMA "
+          "name": "DISNEY CINEMA"
         },
         {
-          "name": "TELETOON +1 "
+          "name": "TELETOON +1"
         },
         {
-          "name": "EUROSPORT 1 "
+          "name": "EUROSPORT 1"
         },
         {
-          "name": "CANAL+ "
+          "name": "CANAL+"
         },
         {
-          "name": "CANAL+ CINEMA "
+          "name": "CANAL+ CINEMA"
         },
         {
-          "name": "CANAL+ FAMILY "
+          "name": "CANAL+ FAMILY"
         },
         {
-          "name": "CINE+ EMOTION "
+          "name": "CINE+ EMOTION"
         },
         {
-          "name": "CINE+ FAMIZ "
+          "name": "CINE+ FAMIZ"
         },
         {
-          "name": "NATIONAL GEO "
+          "name": "NATIONAL GEO"
         }
       ]
     }

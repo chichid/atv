@@ -28,9 +28,9 @@ export const loadChannels = async (config) => {
     const m3uChannels = await loadM3uLists(config);
     const filteredChannels = await filterChannels(config, m3uChannels);
     channelGroups = await groupChannels(config, filteredChannels);
-    channelGroups = [channelGroups[0]];
-    channelGroups[0].channels = channelGroups[0].channels.slice(0, 1);
-    console.log('[model] channels loaded successfully.');
+    //channelGroups = [channelGroups[0]];
+    //channelGroups[0].channels = channelGroups[0].channels.slice(0, 1);
+    //console.log('[model] channels loaded successfully.');
   }
 
   return channelGroups;

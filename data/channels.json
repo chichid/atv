@@ -9,122 +9,122 @@
           "alternateNames": [
             "2M Monde"
           ],
-          "approximativeLogo": "resources://picons/dimahdtv/2mmaroc+4.png"
+          "generatedLogo": "resource://tvlogos/2M MAROC.png"
         },
         {
           "name": "AFLAM TV 7",
-          "approximativeLogo": "resources://picons/dimahdtv/aflamtv7.png"
+          "generatedLogo": "resource://tvlogos/AFLAM TV 7.png"
         },
         {
           "name": "MBC 5",
-          "approximativeLogo": "resources://picons/dimahdtv/mbc5.png"
+          "generatedLogo": "resource://tvlogos/MBC 5.png"
         },
         {
           "name": "CBC DRAMA",
-          "approximativeLogo": "resources://picons/dimahdtv/cbcdrama.png"
+          "generatedLogo": "resource://tvlogos/CBC DRAMA.png"
         },
         {
           "name": "MELODY CINEMA",
           "alternateNames": [
             "Melody Aflam"
           ],
-          "approximativeLogo": "resources://picons/dimahdtv/melodyaflam.png"
+          "generatedLogo": "resource://tvlogos/MELODY CINEMA.png"
         },
         {
           "name": "MELODY CLASSIC",
-          "approximativeLogo": "resources://picons/dimahdtv/melodyclassic.png"
+          "generatedLogo": "resource://tvlogos/MELODY CLASSIC.png"
         },
         {
-          "name": "NBN LEBANON ",
-          "approximativeLogo": "resources://picons/dimahdtv/nbnlebanon.png"
+          "name": "NBN LEBANON",
+          "generatedLogo": "resource://tvlogos/NBN LEBANON.png"
         },
         {
-          "name": "LBC SAT ",
-          "approximativeLogo": "resources://picons/dimahdtv/lbcsat.png"
+          "name": "LBC SAT",
+          "generatedLogo": "resource://tvlogos/LBC SAT.png"
         },
         {
-          "name": "MTV LEBANON ",
-          "approximativeLogo": "resources://picons/dimahdtv/mtvlebanon+4.png"
+          "name": "MTV LEBANON",
+          "generatedLogo": "resource://tvlogos/MTV LEBANON.png"
         },
         {
           "name": "MBC 1",
-          "approximativeLogo": "resources://picons/dimahdtv/mbc1+4.png"
+          "generatedLogo": "resource://tvlogos/MBC 1.png"
         },
         {
           "name": "MBC 2",
-          "approximativeLogo": "resources://picons/dimahdtv/mbc2.png"
+          "generatedLogo": "resource://tvlogos/MBC 2.png"
         },
         {
           "name": "MBC 3",
-          "approximativeLogo": "resources://picons/dimahdtv/mbc3.png"
+          "generatedLogo": "resource://tvlogos/MBC 3.png"
         },
         {
           "name": "MBC 4",
-          "approximativeLogo": "resources://picons/dimahdtv/mbc4+4.png"
+          "generatedLogo": "resource://tvlogos/MBC 4.png"
         },
         {
           "name": "MBC 5",
-          "approximativeLogo": "resources://picons/dimahdtv/mbc5.png"
+          "generatedLogo": "resource://tvlogos/MBC 5.png"
         },
         {
           "name": "MBC ACTION",
-          "approximativeLogo": "resources://picons/dimahdtv/mbcaction.png"
+          "generatedLogo": "resource://tvlogos/MBC ACTION.png"
         },
         {
           "name": "MBC BOLLYWOOD",
-          "approximativeLogo": "resources://picons/dimahdtv/mbcbollywood.png"
+          "generatedLogo": "resource://tvlogos/MBC BOLLYWOOD.png"
         },
         {
           "name": "MBC DRAMA",
-          "approximativeLogo": "resources://picons/dimahdtv/mbcdrama.png"
+          "generatedLogo": "resource://tvlogos/MBC DRAMA.png"
         },
         {
           "name": "MBC MASR",
-          "approximativeLogo": "resources://picons/dimahdtv/mbcmasr.png"
+          "generatedLogo": "resource://tvlogos/MBC MASR.png"
         },
         {
           "name": "ROTANA CINEMA",
-          "approximativeLogo": "resources://picons/dimahdtv/rotanacinema.png"
+          "generatedLogo": "resource://tvlogos/ROTANA CINEMA.png"
         },
         {
           "name": "ROTANA DRAMA",
-          "approximativeLogo": "resources://picons/dimahdtv/rotanadrama.png"
+          "generatedLogo": "resource://tvlogos/ROTANA DRAMA.png"
         },
         {
           "name": "ROTANA CLASSIC",
-          "approximativeLogo": "resources://picons/dimahdtv/rotanaclassic.png"
+          "generatedLogo": "resource://tvlogos/ROTANA CLASSIC.png"
         },
         {
           "name": "ROTANA AFLAM",
-          "approximativeLogo": "resources://picons/dimahdtv/rotanaaflam.png"
+          "generatedLogo": "resource://tvlogos/ROTANA AFLAM.png"
         },
         {
           "name": "ROTANA MUSIC ",
-          "approximativeLogo": "resources://picons/dimahdtv/rotanamusic.png"
+          "generatedLogo": "resource://tvlogos/ROTANA MUSIC .png"
         },
         {
           "name": "ROTANA CLIP",
-          "approximativeLogo": "resources://picons/dimahdtv/rotanaclip.png"
+          "generatedLogo": "resource://tvlogos/ROTANA CLIP.png"
         },
         {
           "name": "ART AFLAM 1",
-          "approximativeLogo": "resources://picons/dimahdtv/artaflam1.png"
+          "generatedLogo": "resource://tvlogos/ART AFLAM 1.png"
         },
         {
           "name": "ART CINEMA",
-          "approximativeLogo": "resources://picons/dimahdtv/artcinema.png"
+          "generatedLogo": "resource://tvlogos/ART CINEMA.png"
         },
         {
           "name": "ZEE AFLAM",
-          "approximativeLogo": "resources://picons/dimahdtv/zeeaflam.png"
+          "generatedLogo": "resource://tvlogos/ZEE AFLAM.png"
         },
         {
           "name": "DUBAI TV ",
-          "approximativeLogo": "resources://picons/dimahdtv/dubaitv.png"
+          "generatedLogo": "resource://tvlogos/DUBAI TV .png"
         },
         {
           "name": "DUBAI ONE",
-          "approximativeLogo": "resources://picons/dimahdtv/dubaione.png"
+          "generatedLogo": "resource://tvlogos/DUBAI ONE.png"
         }
       ]
     },
@@ -134,111 +134,110 @@
       "channels": [
         {
           "name": "TF1",
-          "logo": "resource://picons/dimahdtv/tf1hd.png",
-          "approximativeLogo": "resources://picons/dimahdtv/skysportf1uk.png"
+          "generatedLogo": "resource://tvlogos/TF1.png"
         },
         {
           "name": "FRANCE 2",
-          "approximativeLogo": "resources://picons/dimahdtv/france24.png"
+          "generatedLogo": "resource://tvlogos/FRANCE 2.png"
         },
         {
           "name": "M6",
-          "approximativeLogo": "resources://picons/dimahdtv/m6fullhd.png"
+          "generatedLogo": "resource://tvlogos/M6.png"
         },
         {
           "name": "TF1 SERIES FILMS",
-          "approximativeLogo": "resources://picons/dimahdtv/tf1seriesfilms.png"
+          "generatedLogo": "resource://tvlogos/TF1 SERIES FILMS.png"
         },
         {
           "name": "W9",
-          "approximativeLogo": "resources://picons/dimahdtv/w9hd+4.png"
+          "generatedLogo": "resource://tvlogos/W9.png"
         },
         {
           "name": "HD1",
-          "approximativeLogo": "resources://picons/dimahdtv/hd1.png"
+          "generatedLogo": "resource://tvlogos/HD1.png"
         },
         {
           "name": "TEVA",
-          "approximativeLogo": "resources://picons/dimahdtv/tevahd.png"
+          "generatedLogo": "resource://tvlogos/TEVA.png"
         },
         {
           "name": "RTL9",
-          "approximativeLogo": "resources://picons/dimahdtv/rtl9.png"
+          "generatedLogo": "resource://tvlogos/RTL9.png"
         },
         {
           "name": "CINE+ POLAR",
-          "approximativeLogo": "resources://picons/dimahdtv/cine+polar.png"
+          "generatedLogo": "resource://tvlogos/CINE+ POLAR.png"
         },
         {
           "name": "SERIE CLUB",
-          "approximativeLogo": "resources://picons/dimahdtv/serieclubhd.png"
+          "generatedLogo": "resource://tvlogos/SERIE CLUB.png"
         },
         {
           "name": "EURONEWS",
-          "approximativeLogo": "resources://picons/dimahdtv/euronews.png"
+          "generatedLogo": "resource://tvlogos/EURONEWS.png"
         },
         {
           "name": "TV5 MONDE",
-          "approximativeLogo": "resources://picons/dimahdtv/tv5monde.png"
+          "generatedLogo": "resource://tvlogos/TV5 MONDE.png"
         },
         {
           "name": "FRANCE 24",
-          "approximativeLogo": "resources://picons/dimahdtv/france24.png"
+          "generatedLogo": "resource://tvlogos/FRANCE 24.png"
         },
         {
           "name": "M6 MUSIC",
-          "approximativeLogo": "resources://picons/dimahdtv/m6music.png"
+          "generatedLogo": "resource://tvlogos/M6 MUSIC.png"
         },
         {
           "name": "NRJ HITS",
-          "approximativeLogo": "resources://picons/dimahdtv/nrjhits.png"
+          "generatedLogo": "resource://tvlogos/NRJ HITS.png"
         },
         {
           "name": "MTV HITS",
-          "approximativeLogo": "resources://picons/dimahdtv/mtvhits.png"
+          "generatedLogo": "resource://tvlogos/MTV HITS.png"
         },
         {
           "name": "DISNEY CHANNEL",
-          "approximativeLogo": "resources://picons/dimahdtv/disneychannel+1.png"
+          "generatedLogo": "resource://tvlogos/DISNEY CHANNEL.png"
         },
         {
           "name": "DISNEY CINEMA",
-          "approximativeLogo": "resources://picons/dimahdtv/disneycinemagicde.png"
+          "generatedLogo": "resource://tvlogos/DISNEY CINEMA.png"
         },
         {
           "name": "TELETOON",
-          "approximativeLogo": "resources://picons/dimahdtv/teletoon+cy.png"
+          "generatedLogo": "resource://tvlogos/TELETOON.png"
         },
         {
           "name": "EUROSPORT 1",
-          "approximativeLogo": "resources://picons/dimahdtv/eurosport1.png"
+          "generatedLogo": "resource://tvlogos/EUROSPORT 1.png"
         },
         {
           "name": "CANAL+",
-          "approximativeLogo": "resources://picons/dimahdtv/canal+.png"
+          "generatedLogo": "resource://tvlogos/CANAL+.png"
         },
         {
           "name": "CANAL+ CINEMA",
-          "approximativeLogo": "resources://picons/dimahdtv/canal+cinema.png"
+          "generatedLogo": "resource://tvlogos/CANAL+ CINEMA.png"
         },
         {
           "name": "CANAL+ FAMILY",
-          "approximativeLogo": "resources://picons/dimahdtv/canal+family.png"
+          "generatedLogo": "resource://tvlogos/CANAL+ FAMILY.png"
         },
         {
           "name": "CINE+ EMOTION",
-          "approximativeLogo": "resources://picons/dimahdtv/cine+emotionhd.png"
+          "generatedLogo": "resource://tvlogos/CINE+ EMOTION.png"
         },
         {
           "name": "CINE+ FAMIZ",
-          "approximativeLogo": "resources://picons/dimahdtv/cine+famiz.png"
+          "generatedLogo": "resource://tvlogos/CINE+ FAMIZ.png"
         },
         {
           "name": "NATIONAL GEO",
           "alternateNames": [
             "natgeohdfr"
           ],
-          "approximativeLogo": "resources://picons/dimahdtv/natgeohdfr.png"
+          "generatedLogo": "resource://tvlogos/NATIONAL GEO.png"
         }
       ]
     }

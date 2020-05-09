@@ -28,9 +28,6 @@ export const loadChannels = async (config) => {
     const m3uChannels = await loadM3uLists(config);
     const filteredChannels = await filterChannels(config, m3uChannels);
     channelGroups = await groupChannels(config, filteredChannels);
-    // channelGroups = [channelGroups[0]];
-    // channelGroups[0].channels = channelGroups[0].channels.slice(0, 1);
-    // console.log('[model] channels loaded successfully.');
   }
 
   return channelGroups;
@@ -56,7 +53,7 @@ const filterChannels = async (config, channels) => {
       return {
         ...sources[0],
         name: channel.name.trim(),
-        logo: channel.logo || channel.approximativeLogo || sources[0].logo || '',
+        logo: channel.logo || channel.generatedLogo || sources[0].logo || '',
         groupName: group.groupName,
         alternativeUrls: alternativeSources.map(s => s.url),
         alternativeLogos: alternativeSources.map(s => s.logo),

@@ -46,15 +46,17 @@ fs.writeFileSync(CHANNELS_FILE, JSON.stringify(channels, null, '  '));
     const logoPath = logoDir + '/' + logo;
 
     try { 
-      const {width, height} = await sharp(logoPath).metadata();
+      const s = sharp(logoPath);
+      const {width, height} = await s.metadata();
 
-      if (width > targetDimensions[0] || height > targetDimensions[1]) {
-        // console.log(`Resizing logo ${logo}`);
-      } else if (width < targetDimensions[0] || height < targetDimensions[1]) {
+      if (width < targetDimensions[0] || height < targetDimensions[1]) {
         console.log(`The logo ${logo} will look like garbage`);
       }
+
+      s.resize(targetDimensions[0], targetDimensions[1]).toFile(logoPath.replace('.png', '-fixed.png'));
     } catch(e) {
       console.warn(`Problem with logo ${logo}, err: ${e}`);
+      fs.removeSync(logoPath);
     }
   }
 })();

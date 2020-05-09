@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const https = require('https');
-const request = require('request');
+const request = require('request').defaults({ rejectUnauthorized: false });
+const URL = require('url');
 
 const args = process.argv.slice(2);
 const inputFile = args[0];
@@ -18,17 +19,28 @@ const logos = source.split('\n')
 			return null;
 		}
 
-		const channel = line.split(',')[1].trim().replace(/\n/g, '');
-		const matches = line.match(`tvg-logo="([^]*)"`);
+		const channelNameMatch = line.match(`tvg-name="([^"]*)"`);
+		const extractedChannelName = (channelNameMatch && channelNameMatch[1]) || line.split(',')[1];
+		const channel = extractedChannelName.trim()
+			.replace(/\n/g, '')
+			.replace(/\\/g, '')
+			.replace(/\//g, '')
+			.replace(/\*/g, '')
+			.replace(/\|/g, '');
 
-		if (!matches || !matches[1]) {
-			console.warn(`channel "${channel}" has no logo`);
-			return null;
-		} else {
+		const tvgLogoMatch = line.match(`tvg-logo="([^"]*)"`);
+		const tvgLogo = tvgLogoMatch && tvgLogoMatch[1];
+
+		if (tvgLogo && (tvgLogo.startsWith('http://') || tvgLogo.startsWith('https://'))) {
 			return {
 				channel,
-				url: matches[1]
+				url: tvgLogo
 			};
+		} else if (tvgLogo) {
+			console.warn(`skipping channel "${channel}" due to corrupt logo ${tvgLogo}`);
+		} else {
+			console.warn(`channel "${channel}" has no logo`);
+			return null;
 		}
 	})
 	.filter(logo => logo ? true : false);
@@ -43,18 +55,23 @@ const fetchLogo = (logo) => new Promise(resolve => {
 	const normalizeChannel = logo.channel.replace(/ /g, '').toLowerCase();
 	const outFile = path.join(outDir, normalizeChannel + ext);
 
-	request(logo).pipe(fs.createWriteStream(outFile)).on('finish', () => {
-		console.log(`writing logo ${outFile} completed.`);
-		resolve();
-	});
+	const url = URL.parse(logo.url).href;
+	console.log(url);
+	request(encodeURI(url))
+		.pipe(fs.createWriteStream(outFile))
+		.on('error', err => console.error(`Error while loading ${url}: ${err}`))
+		.on('finish', () => {
+			console.log(`writing logo ${outFile} completed.`);
+			resolve();
+		});
 });
 //}
 
 (async function() {
-	const PARALLEL_REQUESTS = 25;
+	const PARALLEL_REQUESTS = 100;
 	for (let i = 0; i < logos.length; i += PARALLEL_REQUESTS) {
 		const currentSlice = logos.slice(i, Math.min(i + PARALLEL_REQUESTS, logos.length));
-		await Promise.all(currentSlice.map(fetchLogo));
+		await Promise.all(currentSlice.map(cs => fetchLogo(cs).catch(e => console.error(e))));
 	}
 
 	console.log('done');

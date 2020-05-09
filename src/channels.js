@@ -1,10 +1,10 @@
 const fs = require('fs');
 const { get, writeJson } = require('./utils');
 
-let allChannels = null;
+let channelGroups = null;
 
 export const reloadChannels = (config) => async (req, res) => {
-  allChannels = null;
+  channelGroups = null;
   await loadChannels(config);
   res.end();
 };
@@ -23,15 +23,17 @@ export const putSelectionChannel = (config) => async (req, res) => {
 };
 
 export const loadChannels = async (config) => {
-  if (!allChannels) {
+  if (!channelGroups) {
     console.log('[model] loading channels...');
     const m3uChannels = await loadM3uLists(config);
     const filteredChannels = await filterChannels(config, m3uChannels);
-    allChannels = await groupChannels(config, filteredChannels);
+    channelGroups = await groupChannels(config, filteredChannels);
+    channelGroups = [channelGroups[0]];
+    channelGroups[0].channels = channelGroups[0].channels.slice(0, 1);
     console.log('[model] channels loaded successfully.');
   }
 
-  return allChannels;
+  return channelGroups;
 };
 
 const filterChannels = async (config, channels) => {

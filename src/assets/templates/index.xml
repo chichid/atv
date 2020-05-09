@@ -11,7 +11,7 @@
           <title>{{groupName}}</title>
         </collectionDivider>
 
-        <grid id="channelsGrid-{{groupName}}">
+        <grid id="channelsGrid-{{groupName}}" columnCount="10">
           <items>
             {{#each channels }}
             <fourByThreePoster id="{{name}}" alwaysShowTitles="true" onSelect="playVideo('{{url}}')">

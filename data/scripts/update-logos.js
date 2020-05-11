@@ -1,91 +1,53 @@
 const fs = require('fs');
-const path = require('path');
 const sharp = require('sharp');
-const request = require('request');
-const gis = require('g-i-s');
 
-const args = process.argv.slice(2);
-const outDir = args[0];
-const atvDeployBasePath = "resources://" + args[1];
-const targetDimensions = args[2].split('x').map(t => Number(t));
-const CHANNELS_FILE = 'data/channels.json';
+// TODO possible enhancement by providing the google drive folder directly
+(async function main() {
+  const args = process.argv.slice(2);
+	const inputDir = args[0];
+	const outputDir = args[1] || (args[0] + '/' + 'out');
+	
+  console.log(args);
+  console.log(`Fixing Logos in ${inputDir}, output: ${outputDir}...`);
 
-const channels = JSON.parse(fs.readFileSync(CHANNELS_FILE));
-
-const getLogo = channel => new Promise((resolve, reject) => {
-  gis(`"${channel}" transparent logo png`, (error, results) => {
-    if (error) {
-      reject(error);
-    }
-    else {
-      resolve(results.map(r => r.url).slice(0, 10));;
-    }
-  });
-});
-
-const downloadFile = async (url, output) => new Promise((resolve, reject) => {
-  request(url)
-    .pipe(fs.createWriteStream(output))
-    .on('finish', () => resolve())
-    .on('error', err => reject(err));
-});
-
-(async function() {
-  for (const group of channels.channelSelection) {
-    for (const channel of group.channels) {
-      console.log(`Generating logo for ${channel.name}...`);
-
-      if (!channel.generatedLogo) {
-        const logoUrls = await getLogo(channel.name);
-
-        for (const logoUrl of logoUrls) {
-          const output = outDir + '/' + channel.name + path.extname(logoUrl);
-          const resizedOutput = outDir + '/resized';
-          const resizedFileName = resizedOutput + '/' + channel.name + '.png';
-
-          if (!fs.existsSync(outDir)) {
-            fs.mkdirSync(outDir, { recursive: true } );
-          }
-
-          if (!fs.existsSync(resizedOutput)) {
-            fs.mkdirSync(resizedOutput, { recursive: true } );
-          }
-
-          try {
-            await downloadFile(logoUrl, output);
-          } catch(e) {
-            console.warn(`Unable to download ${logoUrl}`);
-            console.log(e);
-            continue;
-          }
-
-          try {
-            const s = sharp(output);
-            const { width, height } = await s.metadata();
-
-            if (width < targetDimensions[0] || height < targetDimensions[1]) {
-              console.warn(`Url ${logoUrl} returned a file with low resolution...`);
-            }
-
-            await s.resize(targetDimensions[0], targetDimensions[1], {fit: 'fill'})
-              .png()
-              .toFile(resizedFileName);
-          } catch(e) {
-            console.warn(`Url ${logoUrl} returned a wrong image file`);
-            continue;
-          }
-
-          channel.generatedLogo = atvDeployBasePath + '/' + channel.name + '.png';
-          break;
-        }
-      }
-
-      if (!channel.generatedLogo) {
-        console.error(`Unable to generate a logo for ${channel.name}`);
-      }
-    }
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  console.log(`Writing the channels...`);
-  fs.writeFileSync(CHANNELS_FILE, JSON.stringify(channels, null, '  '));
+	const inputFiles = fs.readdirSync(inputDir);
+	const roundedCorners = Buffer.from('<svg><rect fill="#fff" x="0" y="0" width="400" height="300" rx="50" ry="50"/></svg>');
+
+	for (const file of inputFiles) {
+		const filePath = inputDir + '/' + file;
+		
+		if (fs.lstatSync(filePath).isDirectory()) {
+			continue;
+		}
+
+    if (file.indexOf('(') !== -1) {
+      fs.unlink(filePath, () => {});
+      continue;
+    }
+
+		try {
+      const input = await sharp(filePath)
+				.trim()
+        .resize({
+          width: 300,
+          height: 250,
+          fit: 'inside',
+          background: { r: 255, g: 255, b: 255, alpha: 1 }
+        })
+        .toBuffer();
+
+			await sharp(roundedCorners)
+				.composite([{ input }])
+				.toFile(outputDir + '/' + file);
+		} catch(e) {
+			console.error(`Unable to convert ${filePath}`);
+			console.error(e);
+		}
+	}
+
+  console.log(`Done Fixing Logos.`);
 })();

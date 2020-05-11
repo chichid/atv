@@ -1,10 +1,9 @@
-const fs = require('fs');
 const { get } = require('./utils');
 const { JSDOM } = require('jsdom');
 
 export const reloadChannels = (config) => async (req, res) => {
   console.log('[model] reloading channels...');
-  channelGroups = null;
+  // TODO perform any caching here
   await loadChannels(config);
   res.end();
 };
@@ -91,4 +90,3 @@ const parseChannelLogo = (config, columns) => {
 const parseChannelM3u8Url = (config, columns) => {
   return (columns[4] && columns[4].textContent) || '';
 };
-

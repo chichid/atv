@@ -14,40 +14,40 @@ const sharp = require('sharp');
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-	const inputFiles = fs.readdirSync(inputDir);
-	const roundedCorners = Buffer.from('<svg><rect fill="#fff" x="0" y="0" width="400" height="300" rx="50" ry="50"/></svg>');
+  const inputFiles = fs.readdirSync(inputDir);
+  const roundedCorners = Buffer.from('<svg><rect fill="#fff" x="0" y="0" width="400" height="300" rx="25" ry="25"/></svg>');
 
-	for (const file of inputFiles) {
-		const filePath = inputDir + '/' + file;
-		
-		if (fs.lstatSync(filePath).isDirectory()) {
-			continue;
-		}
+  for (const file of inputFiles) {
+    const filePath = inputDir + '/' + file;
+
+    if (fs.lstatSync(filePath).isDirectory()) {
+      continue;
+    }
 
     if (file.indexOf('(') !== -1) {
       fs.unlink(filePath, () => {});
       continue;
     }
 
-		try {
+    try {
       const input = await sharp(filePath)
-				.trim()
-        .resize({
-          width: 300,
-          height: 250,
-          fit: 'inside',
-          background: { r: 255, g: 255, b: 255, alpha: 1 }
-        })
-        .toBuffer();
+	.trim()
+	.resize({
+	  width: 300,
+	  height: 250,
+	  fit: 'inside',
+	  background: { r: 255, g: 255, b: 255, alpha: 1 }
+	})
+	.toBuffer();
 
-			await sharp(roundedCorners)
-				.composite([{ input }])
-				.toFile(outputDir + '/' + file);
-		} catch(e) {
-			console.error(`Unable to convert ${filePath}`);
-			console.error(e);
-		}
-	}
+      await sharp(roundedCorners)
+	.composite([{ input }])
+	.toFile(outputDir + '/' + file);
+    } catch(e) {
+      console.error(`Unable to convert ${filePath}`);
+      console.error(e);
+    }
+  }
 
   console.log(`Done Fixing Logos.`);
 })();

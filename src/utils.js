@@ -10,6 +10,7 @@ export const setHeaders = (config) => (req, res, next) => {
   res.removeHeader('Transfer-Encoding');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Allow-Headers');
+  res.setHeader('Cache-Control', 'no-cache');
 
   const ext = path.extname(req.originalUrl).replace('.', '');
   res.setHeader('Content-Type', config.MimeMap[ext] || config.MimeMap.default);

@@ -11,14 +11,14 @@
           <title>{{groupName}}</title>
         </collectionDivider>
 
-        <grid id="channelsGrid-{{groupName}}">
+        <grid id="channelsGrid-{{groupName}}" columnCount="7">
           <items>
             {{#each channels}}
-            <squarePoster id="{{channelName}}" alwaysShowTitles="true" onSelect="playVideo('{{url}}')">
+            <sixteenByNinePoster id="{{channelName}}" alwaysShowTitles="false" onSelect="playVideo('{{url}}')">
               <title>{{channelName}}</title>
               <image src720="{{logoURL}}" src1080="{{logoURL}}" />
-              <defaultImage>resource://Square.png</defaultImage>
-            </squarePoster>
+              <defaultImage>resource://16x9.png</defaultImage>
+            </sixteenByNinePoster>
             {{/each}}
           </items>
         </grid>

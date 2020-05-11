@@ -13,10 +13,10 @@
 
         <grid id="channelsGrid-{{groupName}}">
           <items>
-            {{#each channels }}
-            <squarePoster id="{{name}}" alwaysShowTitles="true" onSelect="playVideo('{{url}}')">
-              <title>{{name}}</title>
-              <image src720="{{logo}}" src1080="{{logo}}" />
+            {{#each channels}}
+            <squarePoster id="{{channelName}}" alwaysShowTitles="true" onSelect="playVideo('{{url}}')">
+              <title>{{channelName}}</title>
+              <image src720="{{logoURL}}" src1080="{{logoURL}}" />
               <defaultImage>resource://Square.png</defaultImage>
             </squarePoster>
             {{/each}}

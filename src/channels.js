@@ -11,7 +11,7 @@ export const reloadChannels = (config) => async (req, res) => {
 };
 
 export const loadChannels = async (config) => {
-  if (true || !channelGroups) {
+  if (!channelGroups) {
     console.log('[model] loading channels...');
     channelGroups = await loadChannelSelection(config);
   }
@@ -22,7 +22,6 @@ export const loadChannels = async (config) => {
 const loadChannelSelection = async (config) => {
   console.log(`Getting sheet content...`);
   const sheetContent = await get(config.GoogleSheetURL);
-  fs.writeFileSync("myoutput.txt", sheetContent );
 
   console.log(`Parsing sheet content...`);
   const parsedContent = new JSDOM(sheetContent);
@@ -31,7 +30,6 @@ const loadChannelSelection = async (config) => {
   const groups = parseChannelGroups(config, document);
   const groupsWithSources = await mergeSources(config, groups);
 
-  console.log(JSON.stringify(groupsWithSources[0].channels[0], null, '  '));
   return groupsWithSources;
 };
 

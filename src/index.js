@@ -1,4 +1,4 @@
-const express = require('express');;
+const express = require('express'); ;
 const { setHeaders } = require('./utils');
 const { getApplicationJs, getStaticResource } = require('./static-resources');
 const { reloadChannels } = require('./channels');

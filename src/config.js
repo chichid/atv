@@ -13,11 +13,11 @@ const DevSettingsFile = 'dev-settings.json';
 const DevSettings = Profile === DevProfile && fs.existsSync(DevSettingsFile) ? JSON.parse(fs.readFileSync(DevSettingsFile)) : {};
 
 const GoogleSheetsEndpoint = 'https://sheets.googleapis.com/v4/spreadsheets';
-const GoogleSheetsApiKey = Profile === DevProfile ? DevSettings.GOOGLE_SHEETS_API_KEY : GoogleSheetsApiKeyArg;
+const GoogleSheetsApiKey = Profile === Prod ? GoogleSheetsApiKeyArg : DevSettings.GOOGLE_SHEETS_API_KEY;
 const GoogleSheetId = '1XDyp6-zvlorSwmcQRizriub2pAleYskmyvrYOyfYXgA';
 const GoogleSheetConfigRange = 'Config!H:K';
 if (!GoogleSheetsApiKey) {
-  console.error(`Fatal Error - Config api Key for the google sheets not found`);
+  console.error('Fatal Error - Config api Key for the google sheets not found');
   process.exit(0);
 }
 

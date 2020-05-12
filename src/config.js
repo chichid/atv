@@ -16,10 +16,13 @@ const MimeMap = {
   xml: 'text/xml',
 };
 
+const GoogleSheetsEndpoint = 'https://sheets.googleapis.com/v4/spreadsheets';
+const GoogleSheetsApiKey = 'AIzaSyCX3P9E6hDiosLJsgHygfDFn3OAIBAUQd0';
+const GoogleSheetId = '1XDyp6-zvlorSwmcQRizriub2pAleYskmyvrYOyfYXgA';
+const GoogleSheetConfigRange = 'Config!H:K';
+
 export const CONFIG = {
-  GoogleSheetURL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSH_6xRrqCC6aZ4V7SiorRLJIP_PVvhvbVCrnJht8_7eCYVCU9Dv7TcyV1jm9hVVcRiANA-lIs09Z2I/pubhtml',
-  GoogleSheetConfigSheets: ['config', 'sources'],
-  GoogleSheetLogoDimensions: '500x500',
+  ChannelConfigUrl: `${GoogleSheetsEndpoint}/${GoogleSheetId}/values/${GoogleSheetConfigRange}?key=${GoogleSheetsApiKey}`,
   AssetsFolder: 'assets',
   AppleTvBootstraperFolder,
   AppleTvAddress: '192.168.2.39',

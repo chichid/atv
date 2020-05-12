@@ -14,7 +14,7 @@
         <grid id="channelsGrid-{{groupName}}" columnCount="7">
           <items>
             {{#each channels}}
-            <sixteenByNinePoster id="{{channelName}}" alwaysShowTitles="false" onSelect="playVideo('{{url}}')">
+            <sixteenByNinePoster id="{{channelName}}" alwaysShowTitles="false" onSelect="playVideo('{{streamURL}}')">
               <title>{{channelName}}</title>
               <image src720="{{logoURL}}" src1080="{{logoURL}}" />
               <defaultImage>resource://16x9.png</defaultImage>

@@ -3,7 +3,6 @@ const { JSDOM } = require('jsdom');
 
 export const reloadChannels = (config) => async (req, res) => {
   console.log('[model] reloading channels...');
-  // TODO perform any caching here
   await loadChannels(config);
   res.end();
 };
@@ -15,78 +14,47 @@ export const loadChannels = async (config) => {
 };
 
 const loadChannelSelection = async (config) => {
-  console.log('Getting sheet content...');
-  const sheetContent = await get(config.GoogleSheetURL);
-
-  console.log('Parsing sheet content...');
-  const parsedContent = new JSDOM(sheetContent);
-  const { document } = parsedContent.window;
-
-  return parseChannelGroups(config, document);
+  const rawSheetData = await get(config.ChannelConfigUrl);
+  const channelConfig = JSON.parse(rawSheetData);
+  return parseChannelGroups(channelConfig);
 };
 
-const parseChannelGroups = (config, document) => {
-  const groups = [];
-  const sheetMenuItems = document.querySelector('[id="sheet-menu"]').querySelectorAll('li');
-  const configurationSheets = config.GoogleSheetConfigSheets.map(s => s.toLowerCase());
+const parseChannelGroups = (channelConfig) => {
+  const columns = channelConfig.values[0];
+  const columnIndex = {};
+  for (let i = 0; i < columns.length; ++i) {
+    columnIndex[columns[i].toUpperCase()] = i; 
+  }
 
-  for (const menuItem of sheetMenuItems) {
-    const id = menuItem.id.replace('sheet-button-', '');
-    const groupName = menuItem.textContent;
+  const channels = [];
+  const channelData = channelConfig.values.slice(1);
+  for (const cfg of channelData) {
+    const groupName = cfg[columnIndex['GROUPE']]
+    const channelName = cfg[columnIndex['CHANNEL']]
+    const logoURL = cfg[columnIndex['LOGOURL']]
+    const streamURL  = cfg[columnIndex['STREAMURL']]
 
-    const isChannelsGroup = groupName && configurationSheets.indexOf(groupName.toLowerCase()) === -1;
-    if (!isChannelsGroup) {
-      continue;
-    }
-
-    const channels = parseGroupActiveChannels(config, id, document);
-
-    groups.push({
-      id,
+    channels.push({
       groupName,
-      channels,
+      channelName,
+      logoURL,
+      streamURL,
     });
   }
 
-  return groups;
-};
-
-const parseGroupActiveChannels = (config, groupId, document) => {
-  const groupChannels = [];
-  const channelRows = document.querySelectorAll(`[id="${groupId}"] table tr`);
-
-  for (const row of channelRows) {
-    const columns = row.querySelectorAll('td');
-
-    const active = parseChannelActive(config, columns);
-    const channelName = parseChannelName(config, columns);
-    const logoURL = parseChannelLogo(config, columns);
-    const url = parseChannelM3u8Url(config, columns);
-
-    if (channelName && active) {
-      groupChannels.push({
-        channelName,
-        logoURL,
-        url,
-      });
+  const channelsByGroupName = channels.reduce((groups, channel) => { 
+    if (!groups[channel.groupName]) {
+      groups[channel.groupName] = {
+        groupName: channel.groupName,
+        channels: [],
+      };
     }
-  }
+    
+    groups[channel.groupName].channels.push(channel);
 
-  return groupChannels;
+    return groups;
+  }, {});
+
+  return channelsByGroupName;
 };
 
-const parseChannelActive = (config, columns) => {
-  return !(columns[0] && columns[0].innerHTML.indexOf('unchecked') !== -1);
-};
-
-const parseChannelName = (config, columns) => {
-  return (columns[2] && columns[2].textContent) || '';
-};
-
-const parseChannelLogo = (config, columns) => {
-  return (columns[3] && columns[3].textContent) || '';
-};
-
-const parseChannelM3u8Url = (config, columns) => {
-  return (columns[4] && columns[4].textContent) || '';
-};

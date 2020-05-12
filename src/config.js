@@ -13,7 +13,7 @@ const DevSettingsFile = 'dev-settings.json';
 const DevSettings = Profile === DevProfile && fs.existsSync(DevSettingsFile) ? JSON.parse(fs.readFileSync(DevSettingsFile)) : {};
 
 const GoogleSheetsEndpoint = 'https://sheets.googleapis.com/v4/spreadsheets';
-const GoogleSheetsApiKey = Profile === Prod ? GoogleSheetsApiKeyArg : DevSettings.GOOGLE_SHEETS_API_KEY;
+const GoogleSheetsApiKey = Profile === ProdProfile ? GoogleSheetsApiKeyArg : DevSettings.GOOGLE_SHEETS_API_KEY;
 const GoogleSheetId = '1XDyp6-zvlorSwmcQRizriub2pAleYskmyvrYOyfYXgA';
 const GoogleSheetConfigRange = 'Config!H:K';
 if (!GoogleSheetsApiKey) {

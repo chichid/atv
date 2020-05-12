@@ -1,5 +1,4 @@
 const { get } = require('./utils');
-const { JSDOM } = require('jsdom');
 
 export const reloadChannels = (config) => async (req, res) => {
   console.log('[model] reloading channels...');
@@ -23,16 +22,16 @@ const parseChannelGroups = (channelConfig) => {
   const columns = channelConfig.values[0];
   const columnIndex = {};
   for (let i = 0; i < columns.length; ++i) {
-    columnIndex[columns[i].toUpperCase()] = i; 
+    columnIndex[columns[i].toUpperCase()] = i;
   }
 
   const channels = [];
   const channelData = channelConfig.values.slice(1);
   for (const cfg of channelData) {
-    const groupName = cfg[columnIndex['GROUPE']]
-    const channelName = cfg[columnIndex['CHANNEL']]
-    const logoURL = cfg[columnIndex['LOGOURL']]
-    const streamURL  = cfg[columnIndex['STREAMURL']]
+    const groupName = cfg[columnIndex.GROUPE];
+    const channelName = cfg[columnIndex.CHANNEL];
+    const logoURL = cfg[columnIndex.LOGOURL];
+    const streamURL = cfg[columnIndex.STREAMURL];
 
     channels.push({
       groupName,
@@ -42,14 +41,14 @@ const parseChannelGroups = (channelConfig) => {
     });
   }
 
-  const channelsByGroupName = channels.reduce((groups, channel) => { 
+  const channelsByGroupName = channels.reduce((groups, channel) => {
     if (!groups[channel.groupName]) {
       groups[channel.groupName] = {
         groupName: channel.groupName,
         channels: [],
       };
     }
-    
+
     groups[channel.groupName].channels.push(channel);
 
     return groups;
@@ -57,4 +56,3 @@ const parseChannelGroups = (channelConfig) => {
 
   return channelsByGroupName;
 };
-

@@ -17,6 +17,10 @@ export const setHeaders = (config) => (req, res, next) => {
   next();
 };
 
+export const ping = (config) => (req, res) => {
+  res.end('pong');
+};
+
 export const writeFile = async (file, content) => new Promise((resolve, reject) => {
   fs.writeFile(file, content, (err) => {
     if (err) {

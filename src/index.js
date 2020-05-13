@@ -1,5 +1,5 @@
 const express = require('express'); ;
-const { setHeaders } = require('./utils');
+const { setHeaders, ping } = require('./utils');
 const { getApplicationJs, getStaticResource } = require('./static-resources');
 const { reloadChannels } = require('./channels');
 const { atvPlay } = require('./airplay-cast');
@@ -13,6 +13,7 @@ app.use(express.json());
 app.use(logRequest(CONFIG));
 app.use(setHeaders(CONFIG));
 
+app.get('/ping', ping(CONFIG));
 app.get('/appletv/js/application.js', getApplicationJs(CONFIG));
 app.get('/assets/*', getStaticResource(CONFIG));
 

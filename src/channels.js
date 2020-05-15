@@ -1,4 +1,4 @@
-const { get } = require('./utils');
+const { get, post, decodeBase64 } = require('./utils');
 
 export const reloadChannels = (config) => async (req, res) => {
   console.log('[model] reloading channels...');
@@ -19,8 +19,8 @@ export const loadChannels = async (config, path, query) => {
 
 const loadEPGPrograms = async (config, query, channelGroups) => {
   const { epgChannel } = query;
-
   let channel = null;
+
   Object.keys(channelGroups).some(k => channelGroups[k].channels.some( c => {
     if (c.channelName && c.channelName.toLowerCase() === epgChannel.toLowerCase()) {
       channel = c;
@@ -32,20 +32,44 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
     console.warn(`No EPG found for the channel ${epgChannel}`);
     return [];
   }
+  
+  const simpleDataTable = await getSimpleDataTable(config, channel);
 
-  return [{
-    programTitle: 'Program 1',
-    programSummary: 'Program 1',
-    start: '20:00',
-    end: '20:30',
-    streamUrl: 'http://www.google.com',
-  }, {
-    programTitle: 'Title',
-    programSummary: 'Program 2',
-    start: '20:00',
-    end: '20:30',
-    streamUrl: 'http://www.google.com',
-  }];
+  return simpleDataTable.epgListings
+    .sort((a, b) => b.start_timestamp- a.start_timestamp)
+    .map(dt => ({
+      programTitle: decodeBase64(dt.title),
+      programSummary: decodeBase64(dt.description),
+      start: dt.start,
+      end: dt.end,
+      duration: dt.end_timestamp - dt.start_timestamp,
+      streamUrl: 'http://www.google.com',
+    }));
+};
+
+const getSimpleDataTable = async (config, channel) => {
+  // TODO  a cleaner way of doing this is by getting it from the channel from the backend
+  const urlParts = channel.streamURL.split('/');
+  const baseURL = urlParts[0] + '//' + urlParts[2].split(':')[0] + '/' + 'player_api.php';
+  const username = urlParts[4];
+  const password = urlParts[5];
+  const streamId = urlParts[6].replace('.m3u8', '');
+  
+  const postData =  {
+    username,
+    password,
+    action: config.XstreamCodes.GetSimpleDataTable,
+    stream_id: streamId 
+  };
+
+  const rawPostResponse = await post(baseURL, postData, {
+    'User-Agent': config.XStreamCodes,
+  });
+
+  const parsedResponse = JSON.parse(rawPostResponse);
+  return {
+    epgListings: parsedResponse.epg_listings,
+  };
 };
 
 const parseChannelGroups = (channelConfig) => {

@@ -34,6 +34,11 @@ const MimeMap = {
   xml: 'text/xml',
 };
 
+const XstreamCodes = {
+  UserAgent: 'IPTVSmarters',
+  GetSimpleDataTable: 'get_simple_data_table',
+};
+
 export const CONFIG = {
   ChannelConfigUrl: `${GoogleSheetsEndpoint}/${GoogleSheetId}/values/${GoogleSheetConfigRange}?key=${GoogleSheetsApiKey}`,
   AssetsFolder: 'assets',
@@ -46,4 +51,5 @@ export const CONFIG = {
   Port,
   SSL,
   MimeMap,
+  XstreamCodes,
 };

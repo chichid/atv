@@ -15,9 +15,10 @@
           <menuSection>
 						<items>
               {{#each epgPrograms}}
-							<oneLineMenuItem id="list_0" accessibilityLabel="Recent items">
+							<twoLineMenuItem id="list_0" accessibilityLabel="Recent items">
                 <label>{{programTitle}}</label>
-                <rightLabel>{{start}}-{{end}}</rightLabel>
+                <label2>{{start}}</label2>
+                <rightLabel></rightLabel>
 								<preview>
 									<keyedPreview>
                     <title>{{programTitle}}</title>
@@ -27,7 +28,7 @@
                     <image></image>
 									</keyedPreview>
 								</preview>
-							</oneLineMenuItem>
+							</twoLineMenuItem>
               {{/each}}
 						</items>
           </menuSection>

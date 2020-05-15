@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const handlebars = require('handlebars');
-const { loadChannels, loadEPGPrograms } = require('./channels');
+const { loadChannels } = require('./channels');
 
 export const getStaticResource = (config) => async (req, res, next) => {
   console.log(`[static-resources] getStaticResource ${req.path}`);
@@ -16,8 +16,7 @@ export const getApplicationJs = (config) => async (req, res) => {
 };
 
 const getContext = async (config, path, query) => {
-  const groups = await loadChannels(config);
-  const epgPrograms = await loadEPGPrograms(config, path, query);
+  const {epgPrograms, groups} = await loadChannels(config, path, query);
 
   return {
     query,

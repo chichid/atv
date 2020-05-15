@@ -6,20 +6,32 @@ export const reloadChannels = (config) => async (req, res) => {
   res.end();
 };
 
-export const loadChannels = async (config) => {
+export const loadChannels = async (config, path, query) => {
   console.log('[model] loading channels...');
   const rawSheetData = await get(config.ChannelConfigUrl);
   const channelConfig = JSON.parse(rawSheetData);
-  return parseChannelGroups(channelConfig);
+
+  const groups = parseChannelGroups(channelConfig);
+  const epgPrograms = path === config.EpgTemplatePath ? await loadEPGPrograms(config, query, groups) : {};
+
+  return { groups, epgPrograms };
 };
 
-export const loadEPGPrograms = async (config, path, query) => {
-  if (path !== config.EpgTemplatePath) {
-    return;
-  }
-
+const loadEPGPrograms = async (config, query, channelGroups) => {
   const { epgChannel } = query;
-  console.log(`[model] loading epg for ${epgChannel}`);
+
+  let channel = null;
+  Object.keys(channelGroups).some(k => channelGroups[k].channels.some( c => {
+    if (c.channelName && c.channelName.toLowerCase() === epgChannel.toLowerCase()) {
+      channel = c;
+      return true;
+    }
+  }));
+
+  if (!channel) {
+    console.warn(`No EPG found for the channel ${epgChannel}`);
+    return [];
+  }
 
   return [{
     programTitle: 'Program 1',

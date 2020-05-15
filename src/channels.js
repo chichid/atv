@@ -8,14 +8,32 @@ export const reloadChannels = (config) => async (req, res) => {
 
 export const loadChannels = async (config) => {
   console.log('[model] loading channels...');
-  const channelGroups = await loadChannelSelection(config);
-  return channelGroups;
-};
-
-const loadChannelSelection = async (config) => {
   const rawSheetData = await get(config.ChannelConfigUrl);
   const channelConfig = JSON.parse(rawSheetData);
   return parseChannelGroups(channelConfig);
+};
+
+export const loadEPGPrograms = async (config, path, query) => {
+  if (path !== config.EpgTemplatePath) {
+    return;
+  }
+
+  const { epgChannel } = query;
+  console.log(`[model] loading epg for ${epgChannel}`);
+
+  return [{
+    programTitle: 'Program 1',
+    programSummary: 'Program 1',
+    start: '20:00',
+    end: '20:30',
+    streamUrl: 'http://www.google.com',
+  }, {
+    programTitle: 'Title',
+    programSummary: 'Program 2',
+    start: '20:00',
+    end: '20:30',
+    streamUrl: 'http://www.google.com',
+  }];
 };
 
 const parseChannelGroups = (channelConfig) => {

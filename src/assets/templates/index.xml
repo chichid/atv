@@ -14,7 +14,9 @@
         <grid id="channelsGrid-{{groupName}}" columnCount="7">
           <items>
             {{#each channels}}
-            <sixteenByNinePoster id="{{channelName}}" alwaysShowTitles="false" onSelect="playVideo('{{streamURL}}')">
+            <sixteenByNinePoster id="{{channelName}}" alwaysShowTitles="false" 
+              onSelect="playVideo('{{streamURL}}')"
+							onHoldSelect="atv.loadURL('https://kortv.com/assets/templates/epg.xml?epgChannel={{channelName}}')">
               <title>{{channelName}}</title>
               <image src720="{{logoURL}}" src1080="{{logoURL}}" />
               <defaultImage>resource://16x9.png</defaultImage>

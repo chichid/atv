@@ -41,6 +41,7 @@ export const CONFIG = {
   AppleTvAddress: '192.168.2.39',
   BaseUrl,
   MainTemplate: BaseUrl + '/assets/templates/index.xml',
+  EpgTemplatePath: '/assets/templates/epg.xml',
   Profile,
   Port,
   SSL,

@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const handlebars = require('handlebars');
-const { getContext } = require('./context');
+const { loadChannels, loadEPGPrograms } = require('./channels');
 
 export const getStaticResource = (config) => async (req, res, next) => {
   console.log(`[static-resources] getStaticResource ${req.path}`);
@@ -15,6 +15,18 @@ export const getApplicationJs = (config) => async (req, res) => {
   await sendFile(config, req, res, filePath);
 };
 
+const getContext = async (config, path, query) => {
+  const groups = await loadChannels(config);
+  const epgPrograms = await loadEPGPrograms(config, path, query);
+
+  return {
+    query,
+    config,
+    groups,
+    epgPrograms,
+  };
+};
+
 const sendFile = async (config, req, res, filePath) => {
   try {
     if (!fs.existsSync(filePath)) {
@@ -25,7 +37,7 @@ const sendFile = async (config, req, res, filePath) => {
 
     const fileContent = fs.readFileSync(filePath).toString();
     const template = handlebars.compile(fileContent);
-    const context = await getContext(config);
+    const context = await getContext(config, req.path, req.query);
     const compiledTemplate = template(context);
     res.end(compiledTemplate);
   } catch (e) {

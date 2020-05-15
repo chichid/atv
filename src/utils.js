@@ -3,7 +3,7 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 const querystring = require('querystring');
-const URL = require('url');
+const { URL } = require('url');
 
 export const setHeaders = (config) => (req, res, next) => {
   res.removeHeader('Connection');
@@ -68,19 +68,19 @@ export const get = url => new Promise((resolve, reject) => {
 
 export const post = async (url, data) => new Promise((resolve, reject) => {
   const httpFactory = url.startsWith('https://') ? https : http;
-  const { hostname, port, pathname } = URL.parse(url);
+  const { hostname, port, pathname } = new URL(url);
   const postData = querystring.stringify(data);
 
-	const options = {
-		hostname,
-		port: port || (httpFactory === https) ? 443 : 80,
-		path: pathname,
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded',
-			'Content-Length': postData.length
-		}, 
-	};
+  const options = {
+    hostname,
+    port: port || (httpFactory === https) ? 443 : 80,
+    path: pathname,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Length': postData.length
+    },
+  };
 
   console.log(`[POST] sending post request with data: ${JSON.stringify(options, null, '  ')}`);
   const req = httpFactory.request(options, (res) => {
@@ -100,9 +100,9 @@ export const post = async (url, data) => new Promise((resolve, reject) => {
   req.on('error', err => reject(err));
   req.write(postData);
   req.end();
-}); 
+});
 
 export const decodeBase64 = (data) => {
   const buff = Buffer.alloc(data.length, data, 'base64');
   return buff.toString('utf-8');
-}
+};

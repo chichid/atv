@@ -16,7 +16,7 @@ export const getApplicationJs = (config) => async (req, res) => {
 };
 
 const getContext = async (config, path, query) => {
-  const {epgPrograms, groups} = await loadChannels(config, path, query);
+  const { epgPrograms, groups } = await loadChannels(config, path, query);
 
   return {
     query,

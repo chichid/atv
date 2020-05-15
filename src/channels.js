@@ -21,7 +21,7 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
   const { epgChannel } = query;
   let channel = null;
 
-  Object.keys(channelGroups).some(k => channelGroups[k].channels.some( c => {
+  Object.keys(channelGroups).some(k => channelGroups[k].channels.some(c => {
     if (c.channelName && c.channelName.toLowerCase() === epgChannel.toLowerCase()) {
       channel = c;
       return true;
@@ -32,11 +32,11 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
     console.warn(`No EPG found for the channel ${epgChannel}`);
     return [];
   }
-  
+
   const simpleDataTable = await getSimpleDataTable(config, channel);
 
   return simpleDataTable.epgListings
-    .sort((a, b) => b.start_timestamp- a.start_timestamp)
+    .sort((a, b) => b.start_timestamp - a.start_timestamp)
     .map(dt => ({
       programTitle: decodeBase64(dt.title),
       programSummary: decodeBase64(dt.description),
@@ -54,12 +54,12 @@ const getSimpleDataTable = async (config, channel) => {
   const username = urlParts[4];
   const password = urlParts[5];
   const streamId = urlParts[6].replace('.m3u8', '');
-  
-  const postData =  {
+
+  const postData = {
     username,
     password,
     action: config.XstreamCodes.GetSimpleDataTable,
-    stream_id: streamId 
+    stream_id: streamId
   };
 
   const rawPostResponse = await post(baseURL, postData, {

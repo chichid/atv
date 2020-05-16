@@ -4,28 +4,44 @@
     <script src="{{config.BaseUrl}}/assets/js/utils.js" />
   </head>
   <body>
-    <scroller id="mainScroller">
-      <items>
-        {{#each groups}}
-        <collectionDivider alignment="left" accessibilityLabel="{{groupName}}">
-          <title>{{groupName}}</title>
-        </collectionDivider>
-
-        <grid id="channelsGrid-{{groupName}}" columnCount="7">
-          <items>
-            {{#each channels}}
-            <sixteenByNinePoster id="{{channelName}}" alwaysShowTitles="false" 
-              onSelect="playVideo('{{streamURL}}')"
-							onHoldSelect="atv.loadURL('https://kortv.com/assets/templates/epg.xml?epgChannel={{channelNameEncoded}}')">
-              <title>{{channelName}}</title>
-              <image src720="{{logoURL}}" src1080="{{logoURL}}" />
-              <defaultImage>resource://16x9.png</defaultImage>
-            </sixteenByNinePoster>
-            {{/each}}
-          </items>
-        </grid>
-        {{/each}}
-      </items>
-    </scroller>
+    <listScrollerSplit id="listScoller">
+      <header>
+        <simpleHeader accessibilityLabel="Movie list">
+          <title>Canaux</title>
+        </simpleHeader>
+      </header>
+      <menu id="mainMenu">
+        <sections>
+          <menuSection id="channelGroupsMenuSection">
+            <items>
+              {{#each groups}}
+              <oneLineMenuItem id="{{groupName}}">
+                <label>{{groupName}}</label>
+                <preview>
+                  <scrollerPreview id="scrollerPreview-{{groupName}}">
+                    <items>
+                      <grid id="channelsGrid-{{groupName}}" columnCount="4">
+                        <items>
+                          {{#each channels}}
+                          <sixteenByNinePoster id="{{channelName}}" alwaysShowTitles="true" 
+                            onSelect="playVideo('{{streamURL}}')"
+                            onHoldSelect="atv.loadURL('{{@root.config.BaseUrl}}/assets/templates/epg.xml?epgChannel={{channelNameEncoded}}')">
+                            <title>{{channelName}}</title>
+                            <image src720="{{logoURL}}" src1080="{{logoURL}}" />
+                            <defaultImage>resource://16x9.png</defaultImage>
+                          </sixteenByNinePoster>
+                          {{/each}}
+                        </items>
+                      </grid>
+                    </items>
+                  </scrollerPreview>
+                </preview>
+              </oneLineMenuItem>
+              {{/each}}
+            </items>
+          </menuSection>
+        </sections>
+      </menu>
+    </listScrollerSplit>
   </body>
 </atv>

@@ -4,6 +4,7 @@
     <script src="{{config.BaseUrl}}/assets/js/utils.js" />
   </head>
   <body>
+    {{#if epgPrograms.[0]}}
     <listScrollerSplit id="com.sample.list-scroller-split">
       <header>
         <simpleHeader accessibilityLabel="Movie list">
@@ -35,5 +36,11 @@
         </sections>
       </menu>
     </listScrollerSplit>
+    {{else}}
+    <dialog id="com.sample.error-dialog">
+      <title>Non Disponible</title>
+      <description>Cette Option n'est pas disponible pour ce canal.</description>
+    </dialog>
+    {{/if}}
   </body>
 </atv>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <atv>
   <head>
-    <script src="{{config.BaseUrl}}/assets/js/epg.js" />
+    <script src="{{config.BaseUrl}}/assets/js/utils.js" />
   </head>
   <body>
     <listScrollerSplit id="com.sample.list-scroller-split">
@@ -15,7 +15,7 @@
           <menuSection>
 						<items>
               {{#each epgPrograms}}
-							<twoLineMenuItem id="list_0" accessibilityLabel="Recent items">
+              <twoLineMenuItem id="list_0" accessibilityLabel="Recent items" onSelect="playVideo('{{streamURL}}')">
                 <label>{{programTitle}}</label>
                 <label2>{{start}}</label2>
                 <rightLabel></rightLabel>

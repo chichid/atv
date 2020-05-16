@@ -19,12 +19,6 @@ export const loadChannels = async (config, path, query) => {
 
 const loadEPGPrograms = async (config, query, channelGroups) => {
   const { epgChannel } = query;
-
-  if (!epgChannel) {
-    console.warn(`[model] No epgChannel provided to loadEPGPrograms`);
-    return [];
-  }
-  
   let channel = null;
 
   Object.keys(channelGroups).some(k => channelGroups[k].channels.some(c => {
@@ -39,15 +33,14 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
     return [];
   }
 
-  const { epgListings, baseURL, username, password, streamId } = await getSimpleDataTable(config, channel);
+  const { simpleDataTable, baseURL, username, password, streamId } = await getSimpleDataTable(config, channel);
 
-  return epgListings
-	  .filter(dt => dt.has_archive === 1)
+  return simpleDataTable.epgListings
     .sort((a, b) => b.start_timestamp - a.start_timestamp)
     .map(dt => {
-      const duration = dt.stop_timestamp - dt.start_timestamp;
+      const duration = dt.end_timestamp - dt.start_timestamp;
       const d = new Date(dt.start);
-      const dateUrlComponent = `${d.getFullYear()}-${padDate(d.getMonth()+1)}-${padDate(d.getDate())}:${padDate(d.getHours())}-${padDate(d.getMinutes())}`;
+      const dateString = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}:${d.getHours()}-${d.getMinutes()}`;
       
       return {
         programTitle: decodeBase64(dt.title),
@@ -55,15 +48,9 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
         start: dt.start,
         end: dt.end,
         duration,
-        streamURL: `${baseURL}/timeshift/${username}/${password}/${Math.floor(duration/60)}/${dateUrlComponent}/${streamId}.m3u8`,
+        streamUrl: `${baseUrl}/${username}/${password}/${duration}/`,
       };
     });
-};
-
-const padDate = (n) => {
-	const width = 2;
-  n = n + '';
-  return n.length >= width ? n : new Array(width - n.length + 1).join('0') + n;
 };
 
 const getSimpleDataTable = async (config, channel) => {
@@ -107,14 +94,12 @@ const parseChannelGroups = (channelConfig) => {
   for (const cfg of channelData) {
     const groupName = cfg[columnIndex.GROUPE];
     const channelName = cfg[columnIndex.CHANNEL];
-    const channelNameEncoded = encodeURIComponent(cfg[columnIndex.CHANNEL]);
     const logoURL = cfg[columnIndex.LOGOURL];
     const streamURL = cfg[columnIndex.STREAMURL];
 
     channels.push({
       groupName,
       channelName,
-			channelNameEncoded,
       logoURL,
       streamURL,
     });

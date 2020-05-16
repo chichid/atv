@@ -16,7 +16,7 @@
             {{#each channels}}
             <sixteenByNinePoster id="{{channelName}}" alwaysShowTitles="false" 
               onSelect="playVideo('{{streamURL}}')"
-							onHoldSelect="atv.loadURL('https://kortv.com/assets/templates/epg.xml?epgChannel={{channelName}}')">
+							onHoldSelect="atv.loadURL('https://kortv.com/assets/templates/epg.xml?epgChannel={{channelNameEncoded}}')">
               <title>{{channelName}}</title>
               <image src720="{{logoURL}}" src1080="{{logoURL}}" />
               <defaultImage>resource://16x9.png</defaultImage>

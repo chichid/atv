@@ -16,7 +16,6 @@ app.use(setHeaders(CONFIG));
 app.get('/ping', ping(CONFIG));
 app.get('/appletv/js/application.js', getApplicationJs(CONFIG));
 app.get('/assets/*', getStaticResource(CONFIG));
-
 app.post('/reloadChannels', reloadChannels(CONFIG));
 app.post('/play', atvPlay(CONFIG));
 

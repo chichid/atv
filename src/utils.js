@@ -66,21 +66,25 @@ export const get = url => new Promise((resolve, reject) => {
   }
 });
 
-export const post = async (url, data) => new Promise((resolve, reject) => {
+export const post = async (url, data, headers) => new Promise((resolve, reject) => {
   const httpFactory = url.startsWith('https://') ? https : http;
   const { hostname, port, pathname } = new URL(url);
-  const postData = querystring.stringify(data);
 
   const options = {
     hostname,
     port: port || (httpFactory === https) ? 443 : 80,
     path: pathname,
     method: 'POST',
+    rejectUnauthorized: false,
+    requestCert: true,
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Content-Length': postData.length
+      ...headers
     },
   };
+
+  const postData = headers['Content-Type'] === 'application/x-www-form-urlencoded' ? querystring.stringify(data) : JSON.stringify(data);
+  options.headers['Content-Length'] = postData.length;
 
   console.log(`[POST] sending post request with data: ${JSON.stringify(options, null, '  ')}`);
   const req = httpFactory.request(options, (res) => {
@@ -98,6 +102,7 @@ export const post = async (url, data) => new Promise((resolve, reject) => {
   });
 
   req.on('error', err => reject(err));
+
   req.write(postData);
   req.end();
 });

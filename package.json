@@ -25,7 +25,6 @@
     "url": "https://github.com/chichid/atv-test/issues"
   },
   "dependencies": {
-    "airplay-protocol": "^2.0.2",
     "cross-env": "^7.0.2",
     "esm": "^3.2.25",
     "express": "^4.17.1",

@@ -1,12 +1,19 @@
-const AirPlay = require('airplay-protocol');
+const { post } = require('./utils');
 
 export const atvPlay = (config) => async (req, res) => {
-  console.log(`[post] /play with url: ${req.body.videoUrl}`);
-
-  const videoUrl = req.body.videoUrl;
+  console.log(`[airplay-cast] /play with url: ${req.body.videoUrl}`);
 
   try {
-    await castUrl(config.AppleTvAddress, videoUrl);
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    
+    const payload = {
+      videoUrl: req.body.videoUrl,
+    };
+
+    await post('https://' + config.AppleTvAddress + '/play', payload, headers); 
+
     res.end();
   } catch (e) {
     console.error(e);
@@ -15,15 +22,3 @@ export const atvPlay = (config) => async (req, res) => {
   }
 };
 
-const castUrl = (appleTvAddress, url) => new Promise((resolve, reject) => {
-  const airplay = new AirPlay(appleTvAddress);
-
-  airplay.play(url, (err) => {
-    if (err) {
-      console.error(`Error playing video: ${url} \n ${err} `);
-      reject(err);
-    }
-
-    resolve();
-  });
-});

@@ -15,7 +15,7 @@ const DevSettings = Profile === DevProfile && fs.existsSync(DevSettingsFile) ? J
 const GoogleSheetsEndpoint = 'https://sheets.googleapis.com/v4/spreadsheets';
 const GoogleSheetsApiKey = Profile === ProdProfile ? GoogleSheetsApiKeyArg : DevSettings.GOOGLE_SHEETS_API_KEY;
 const GoogleSheetId = '1XDyp6-zvlorSwmcQRizriub2pAleYskmyvrYOyfYXgA';
-const GoogleSheetConfigRange = 'Config!H:L';
+const GoogleSheetConfigRange = 'Config!H:N';
 if (!GoogleSheetsApiKey) {
   console.error('Fatal Error - Config api Key for the google sheets not found');
   process.exit(0);

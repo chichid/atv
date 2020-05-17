@@ -53,10 +53,17 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
     .sort((a, b) => b.start_timestamp - a.start_timestamp)
     .forEach(dt => {
       const programTitle = decodeBase64(dt.title);
-      const duration = dt.stop_timestamp - dt.start_timestamp;
-      const d = new Date(dt.start);
-      const dateUrlComponent = `${d.getFullYear()}-${padDate(d.getMonth() + 1)}-${padDate(d.getDate())}:${padDate(d.getHours())}-${padDate(d.getMinutes())}`;
       const key = `${programTitle}-${dt.start}-${dt.end}`;
+      const duration = dt.stop_timestamp - dt.start_timestamp;
+
+      const d = new Date(dt.start);
+      const e = new Date(dt.end);
+      const start = `${d.getHours() + channel.epgDisplayShift}:${padDate(d.getMinutes())}`;
+      const end = `${e.getHours() + channel.epgDisplayShift}:${padDate(e.getMinutes())}`;
+
+      const urlComponentDate = `${d.getFullYear()}-${padDate(d.getMonth() + 1)}-${padDate(d.getDate())}`;
+      const urlComponentTime = `${padDate(d.getHours() + channel.epgShift)}-${padDate(d.getMinutes())}`;
+      const dateUrlComponent = `${urlComponentDate}:${urlComponentTime}`;
 
       // TODO extension .ts is hardcoded, fix
 
@@ -64,8 +71,8 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
         key,
         programTitle,
         programSummary: decodeBase64(dt.description),
-        start: dt.start,
-        end: dt.end,
+        start,
+        end,
         duration,
         streamURL: `${baseURL}/timeshift/${username}/${password}/${Math.floor(duration / 60)}/${dateUrlComponent}/${streamId}.ts`,
       };
@@ -124,6 +131,8 @@ const parseChannelGroups = (channelConfig) => {
     const logoURL = cfg[columnIndex.LOGOURL];
     const streamURL = cfg[columnIndex.STREAMURL];
     const timeshiftURL = cfg[columnIndex.TIMESHIFTURL];
+    const epgShift = Number(cfg[columnIndex.EPGSHIFT] || 0);
+    const epgDisplayShift = Number(cfg[columnIndex.EPGDISPLAYSHIFT] || 0);
 
     channels.push({
       groupName,
@@ -132,6 +141,8 @@ const parseChannelGroups = (channelConfig) => {
       logoURL,
       streamURL,
       timeshiftURL,
+      epgShift,
+      epgDisplayShift,
     });
   }
 

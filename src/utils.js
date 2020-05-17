@@ -83,7 +83,8 @@ export const post = async (url, data, headers) => new Promise((resolve, reject) 
     },
   };
 
-  const postData = headers['Content-Type'] === 'application/x-www-form-urlencoded' ? querystring.stringify(data) : JSON.stringify(data);
+  const isFormEncoded = options.headers['Content-Type'] === 'application/x-www-form-urlencoded';
+  const postData = isFormEncoded ? querystring.stringify(data) : JSON.stringify(data);
   options.headers['Content-Length'] = postData.length;
 
   console.log(`[POST] sending post request with data: ${JSON.stringify(options, null, '  ')}`);

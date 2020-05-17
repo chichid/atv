@@ -7,12 +7,12 @@ export const atvPlay = (config) => async (req, res) => {
     const headers = {
       'Content-Type': 'application/json',
     };
-    
+
     const payload = {
       videoUrl: req.body.videoUrl,
     };
 
-    await post('https://' + config.AppleTvAddress + '/play', payload, headers); 
+    await post('https://' + config.AppleTvAddress + '/play', payload, headers);
 
     res.end();
   } catch (e) {
@@ -21,4 +21,3 @@ export const atvPlay = (config) => async (req, res) => {
     res.end(JSON.stringify(e));
   }
 };
-

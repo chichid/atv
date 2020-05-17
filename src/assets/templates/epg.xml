@@ -16,7 +16,7 @@
           <menuSection>
 						<items>
               {{#each epgPrograms}}
-              <twoLineMenuItem id="list_0" accessibilityLabel="Recent items" onSelect="playVideo('{{streamURL}}')">
+              <twoLineMenuItem id="list_{{programTitle}}" accessibilityLabel="Recent items" onSelect="playVideo('{{streamURL}}')">
                 <label>{{programTitle}}</label>
                 <label2>{{start}}</label2>
                 <rightLabel></rightLabel>

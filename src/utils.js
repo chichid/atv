@@ -41,7 +41,7 @@ export const writeJson = async (file, json, format) => {
 export const get = (url, buffer) => new Promise((resolve, reject) => {
   if (url.startsWith('https://') || url.startsWith('http://')) {
     const httpFactory = url.startsWith('https://') ? https : http;
-    
+
     httpFactory.get(url, (res) => {
       let data = buffer ? [] : '';
 

@@ -38,25 +38,35 @@ export const writeJson = async (file, json, format) => {
   await writeFile(file, serializedContent);
 };
 
-export const get = url => new Promise((resolve, reject) => {
+export const get = (url, buffer) => new Promise((resolve, reject) => {
   if (url.startsWith('https://') || url.startsWith('http://')) {
     const httpFactory = url.startsWith('https://') ? https : http;
-
+    
     httpFactory.get(url, (res) => {
-      let data = '';
+      let data = buffer ? [] : '';
 
       res.on('data', (chunk) => {
-        data += chunk;
+        if (buffer) {
+          data.push(chunk);
+        } else {
+          data += chunk;
+        }
       });
 
       res.on('end', () => {
-        resolve(data);
+        if (buffer) {
+          resolve(Buffer.concat(data));
+        } else {
+          resolve(data);
+        }
       });
     }).on('error', err => reject(new Error(err)));
   } else if (url.startsWith('file://')) {
     fs.readFile(url.replace('file://', ''), (err, data) => {
       if (err) {
         reject(new Error(err));
+      } else if (buffer) {
+        resolve(data);
       } else {
         resolve(data.toString());
       }

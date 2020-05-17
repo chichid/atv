@@ -6,6 +6,8 @@ import os
 import socket
 import urllib
 import urlparse
+import thread
+import time 
 import BaseHTTPServer, SimpleHTTPServer 
 from io import BytesIO
 from airplay import AirPlay
@@ -16,7 +18,8 @@ os.chdir(default_path)
 intercepted_app = 'kortv'
 intercepted_app_host = 'kortv.com'
 bind_to_address = ''
-server_port = 443 
+http_server_port = 8080 
+ssl_server_port = 443 
 ssl_key_file = 'certificates/{}.key'.format(intercepted_app)
 ssl_certificate_file = 'certificates/{}.pem'.format(intercepted_app)
 
@@ -29,8 +32,7 @@ wrap_video_template = """#EXTM3U
 #EXT-X-VERSION:4
 #EXT-X-MEDIA-SEQUENCE:0
 #EXTINF:10.0,
-{{VIDEO}}
-#EXT-X-ENDLIST"""
+{{VIDEO}}"""
 
 ap = AirPlay('127.0.0.1')
 
@@ -69,7 +71,7 @@ class SimpleHTTPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             body = json.loads(self.rfile.read(content_length))
             videoURL = urllib.quote(body['videoUrl'])
             print("attempt to play video " + videoURL)
-            ap.play("https://127.0.0.1/wrapVideo?url=" + videoURL)	
+            ap.play("http://127.0.0.1:" + str(http_server_port) + "/wrapVideo?url=" + videoURL)	
             self.send_response(200)
             self.end_headers()
             self.wfile.write('Playing {}'.format(videoURL))
@@ -77,13 +79,18 @@ class SimpleHTTPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             self.send_response(501)
             self.wfile.write('Not Supported')
 
-httpd = BaseHTTPServer.HTTPServer((bind_to_address, server_port), SimpleHTTPRequestHandler)
+def init_server(http):
+	if http:
+		httpd = BaseHTTPServer.HTTPServer((bind_to_address, http_server_port), SimpleHTTPRequestHandler)
+	else:
+		httpd = BaseHTTPServer.HTTPServer((bind_to_address, ssl_server_port), SimpleHTTPRequestHandler)
+		httpd.socket = ssl.wrap_socket( httpd.socket, server_side=True, keyfile=ssl_key_file, certfile=ssl_certificate_file)
 
-httpd.socket = ssl.wrap_socket(
-	httpd.socket, 
-	server_side=True, 
-	keyfile=ssl_key_file, 
-	certfile=ssl_certificate_file
-)
+	httpd.serve_forever()
 
-httpd.serve_forever()
+thread.start_new_thread(init_server, (True, ))
+thread.start_new_thread(init_server, (False, ))
+
+while 1:
+    time.sleep(10)
+

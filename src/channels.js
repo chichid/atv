@@ -58,6 +58,7 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
 
       const d = new Date(dt.start);
       const e = new Date(dt.end);
+      const day = `${padDate(d.getMonth() + 1)}/${padDate(d.getDate())}`;
       const start = `${d.getHours() + channel.epgDisplayShift}:${padDate(d.getMinutes())}`;
       const end = `${e.getHours() + channel.epgDisplayShift}:${padDate(e.getMinutes())}`;
 
@@ -71,6 +72,7 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
         key,
         programTitle,
         programSummary: decodeBase64(dt.description),
+        day,
         start,
         end,
         duration,

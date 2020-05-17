@@ -18,7 +18,7 @@
               {{#each epgPrograms}}
               <twoLineMenuItem id="list_{{programTitle}}" accessibilityLabel="Recent items" onSelect="playVideo('{{streamURL}}')">
                 <label>{{programTitle}}</label>
-                <label2>{{start}}</label2>
+                <label2>{{day}} {{start}}</label2>
                 <rightLabel></rightLabel>
 								<preview>
 									<keyedPreview>

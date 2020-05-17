@@ -57,9 +57,9 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
       const d = new Date(dt.start);
       const dateUrlComponent = `${d.getFullYear()}-${padDate(d.getMonth() + 1)}-${padDate(d.getDate())}:${padDate(d.getHours())}-${padDate(d.getMinutes())}`;
       const key = `${programTitle}-${dt.start}-${dt.end}`;
-      
+
       // TODO extension .ts is hardcoded, fix
-      
+
       listingsByKey[key] = {
         key,
         programTitle,
@@ -114,7 +114,7 @@ const parseChannelGroups = (channelConfig) => {
   for (let i = 0; i < columns.length; ++i) {
     columnIndex[columns[i].toUpperCase()] = i;
   }
-  
+
   const channels = [];
   const channelData = channelConfig.values.slice(1);
   for (const cfg of channelData) {

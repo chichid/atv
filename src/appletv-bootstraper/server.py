@@ -71,7 +71,12 @@ class SimpleHTTPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             body = json.loads(self.rfile.read(content_length))
             videoURL = urllib.quote(body['videoUrl'])
             print("attempt to play video " + videoURL)
-            ap.play("http://127.0.0.1:" + str(http_server_port) + "/wrapVideo?url=" + videoURL)	
+	    if ".m3u8" in videoURL:
+		  print("Playing stream directly");
+		  ap.play(videoURL)	
+            else: 
+		  print("Playing stream in wrapped mode");
+		  ap.play("http://127.0.0.1:" + str(http_server_port) + "/wrapVideo?url=" + videoURL)	
             self.send_response(200)
             self.end_headers()
             self.wfile.write('Playing {}'.format(videoURL))

@@ -37,7 +37,9 @@ module.exports.atvTranscoder = (config) => async (req, res) => {
   res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
 
   transcoderCtx.command = ffmpeg(videoUrl, { timeout: 432000 })
+    .addInputOption('-re')
     .addOptions([
+      '-strict experimental',
       '-preset ultrafast',
       '-profile:v baseline',
       '-level 3.0',

@@ -7,13 +7,13 @@
   "license": "ISC",
   "homepage": "https://github.com/chichid/atv-test#readme",
   "scripts": {
-    "start": "cross-env PROFILE='prod' BASE_URL='https://chichid-atv2.herokuapp.com' USE_SSL=false node -r esm src/index.js",
+    "start": "./node_modules/.bin/cross-env PROFILE='prod' BASE_URL='https://chichid-atv2.herokuapp.com' USE_SSL=false node -r esm src/index.js",
+    "start:android": "export PROFILE='prod' && export BASE_URL='https://kortv.com' && export USE_SSL=true && node -r esm src/index.js",
     "watch": "cross-env PROFILE='dev' BASE_URL='https://kortv.com' USE_SSL=true nodemon -r esm src/index.js",
     "lint": "eslint src",
     "test": "echo \"Error: no test specified\" && exit 0"
   },
-  "husky": {
-  },
+  "husky": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/chichid/atv-test.git"

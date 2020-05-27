@@ -1,7 +1,18 @@
-const sharp = require('sharp');
 const { get } = require('./utils');
 
+let sharp;
+try {
+	sharp = require('sharp');
+} catch(e) {
+	sharp = null;
+	console.log(`Sharp is not available on the current device, skipping`);
+}
+
 export const getLogo = (config) => async (req, res) => {
+  if (!sharp) {
+	  throw "Not available for the current device";
+  }
+
   const imageUrl = req.query.url;
 
   try {
@@ -16,6 +27,10 @@ export const getLogo = (config) => async (req, res) => {
 };
 
 export const beautifyLogo = async (source) => {
+  if (!sharp) {
+	  throw "Not available for the current device";
+  }
+
   try {
     console.log(`Beautifying logo ${source}...`);
 

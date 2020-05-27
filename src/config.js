@@ -9,11 +9,11 @@ const GoogleSheetsApiKeyArg = process.env.GOOGLE_SHEETS_API_KEY;
 const DevProfile = 'dev';
 const ProdProfile = 'prod';
 
-const DevSettingsFile = 'dev-settings.json';
-const DevSettings = Profile === DevProfile && fs.existsSync(DevSettingsFile) ? JSON.parse(fs.readFileSync(DevSettingsFile)) : {};
+const SettingsFile = 'settings.json';
+const Settings = fs.existsSync(SettingsFile) ? JSON.parse(fs.readFileSync(SettingsFile)) : {};
 
 const GoogleSheetsEndpoint = 'https://sheets.googleapis.com/v4/spreadsheets';
-const GoogleSheetsApiKey = Profile === ProdProfile ? GoogleSheetsApiKeyArg : DevSettings.GOOGLE_SHEETS_API_KEY;
+const GoogleSheetsApiKey = GoogleSheetsApiKeyArg || Settings.GOOGLE_SHEETS_API_KEY;
 const GoogleSheetId = '1XDyp6-zvlorSwmcQRizriub2pAleYskmyvrYOyfYXgA';
 const GoogleSheetConfigRange = 'Config!H:N';
 if (!GoogleSheetsApiKey) {
@@ -39,7 +39,7 @@ const XstreamCodes = {
   GetSimpleDataTable: 'get_simple_data_table',
 };
 
-export const CONFIG = {
+module.exports.CONFIG = {
   ChannelConfigUrl: `${GoogleSheetsEndpoint}/${GoogleSheetId}/values/${GoogleSheetConfigRange}?key=${GoogleSheetsApiKey}`,
   AssetsFolder: 'assets',
   AppleTvBootstraperFolder,

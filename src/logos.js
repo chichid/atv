@@ -8,7 +8,7 @@ try {
 	console.log(`Sharp is not available on the current device, skipping`);
 }
 
-export const getLogo = (config) => async (req, res) => {
+module.exports.getLogo = (config) => async (req, res) => {
   if (!sharp) {
 	  throw "Not available for the current device";
   }
@@ -26,7 +26,7 @@ export const getLogo = (config) => async (req, res) => {
   }
 };
 
-export const beautifyLogo = async (source) => {
+module.exports.beautifyLogo = async (source) => {
   if (!sharp) {
 	  throw "Not available for the current device";
   }

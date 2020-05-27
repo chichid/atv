@@ -2,7 +2,7 @@ const fs = require('fs');
 const https = require('https');
 const http = require('http');
 
-export const startServer = (config, app) => {
+module.exports.startServer = (config, app) => {
   const httpFactory = config.SSL.Enabled ? https : http;
 
   const server = httpFactory.createServer(!config.SSL.Enabled ? null : {

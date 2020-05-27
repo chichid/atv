@@ -1,12 +1,12 @@
 const { get, post, decodeBase64 } = require('./utils');
 
-export const reloadChannels = (config) => async (req, res) => {
+module.exports.reloadChannels = (config) => async (req, res) => {
   console.log('[model] reloading channels...');
   await loadChannels(config);
   res.end();
 };
 
-export const loadChannels = async (config, path, query) => {
+module.exports.loadChannels = async (config, path, query) => {
   console.log('[model] loading channels...');
   const rawSheetData = await get(config.ChannelConfigUrl);
   const channelConfig = JSON.parse(rawSheetData);

@@ -5,7 +5,7 @@ const https = require('https');
 const querystring = require('querystring');
 const { URL } = require('url');
 
-export const setHeaders = (config) => (req, res, next) => {
+module.exports.setHeaders = (config) => (req, res, next) => {
   res.removeHeader('Connection');
   res.removeHeader('X-Powered-By');
   res.removeHeader('Content-Length');
@@ -19,11 +19,11 @@ export const setHeaders = (config) => (req, res, next) => {
   next();
 };
 
-export const ping = (config) => (req, res) => {
+module.exports.ping = (config) => (req, res) => {
   res.end('pong');
 };
 
-export const writeFile = async (file, content) => new Promise((resolve, reject) => {
+module.exports.writeFile = async (file, content) => new Promise((resolve, reject) => {
   fs.writeFile(file, content, (err) => {
     if (err) {
       reject(err);
@@ -33,12 +33,12 @@ export const writeFile = async (file, content) => new Promise((resolve, reject) 
   });
 });
 
-export const writeJson = async (file, json, format) => {
+module.exports.writeJson = async (file, json, format) => {
   const serializedContent = format ? JSON.stringify(json) : JSON.stringify(json, null, ' ');
   await writeFile(file, serializedContent);
 };
 
-export const get = (url, buffer) => new Promise((resolve, reject) => {
+module.exports.get = (url, buffer) => new Promise((resolve, reject) => {
   if (url.startsWith('https://') || url.startsWith('http://')) {
     const httpFactory = url.startsWith('https://') ? https : http;
 
@@ -76,7 +76,7 @@ export const get = (url, buffer) => new Promise((resolve, reject) => {
   }
 });
 
-export const post = async (url, data, headers) => new Promise((resolve, reject) => {
+module.exports.post = async (url, data, headers) => new Promise((resolve, reject) => {
   const httpFactory = url.startsWith('https://') ? https : http;
   const { hostname, port, pathname } = new URL(url);
 
@@ -118,7 +118,7 @@ export const post = async (url, data, headers) => new Promise((resolve, reject) 
   req.end();
 });
 
-export const decodeBase64 = (data) => {
+module.exports.decodeBase64 = (data) => {
   const buff = Buffer.alloc(data.length, data, 'base64');
   return buff.toString('utf-8');
 };

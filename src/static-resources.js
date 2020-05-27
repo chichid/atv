@@ -3,13 +3,13 @@ const path = require('path');
 const handlebars = require('handlebars');
 const { loadChannels } = require('./channels');
 
-export const getStaticResource = (config) => async (req, res, next) => {
+module.exports.getStaticResource = (config) => async (req, res, next) => {
   console.log(`[static-resources] getStaticResource ${req.path}`);
   const filePath = path.join(__dirname, req.path);
   await sendFile(config, req, res, filePath);
 };
 
-export const getApplicationJs = (config) => async (req, res) => {
+module.exports.getApplicationJs = (config) => async (req, res) => {
   console.log('[static-resources] getApplicationJs');
   const filePath = path.join(__dirname, config.AppleTvBootstraperFolder, 'application.js');
   await sendFile(config, req, res, filePath);

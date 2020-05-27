@@ -6,7 +6,7 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 const airplay = new AirPlay('192.168.2.39');
 const transcoderCtx = {};
 
-export const atvPlay = (config) => async (req, res) => {
+module.exports.atvPlay = (config) => async (req, res) => {
   console.log(`[airplay-cast] /play ${req.body.videoUrl}`);
 
   try {
@@ -26,7 +26,7 @@ export const atvPlay = (config) => async (req, res) => {
   }
 };
 
-export const atvTranscoder = (config) => async (req, res) => {
+module.exports.atvTranscoder = (config) => async (req, res) => {
   const videoUrl = req.params.videoUrl;
   console.log(`[aircast] transcoding ${videoUrl}`);
 

@@ -1,15 +1,9 @@
-const fs = require('fs-extra');
-const http = require('http');
-const localIp = require('my-local-ip');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-const HLSServer = require('hls-server');
 const AirPlay = require('airplay-protocol');
-const { post } = require('./utils');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
-const TranscoderPath = 'transcode';
-const airplay = new AirPlay("192.168.2.39");
+const airplay = new AirPlay('192.168.2.39');
 const transcoderCtx = {};
 
 export const atvPlay = (config) => async (req, res) => {
@@ -19,9 +13,9 @@ export const atvPlay = (config) => async (req, res) => {
     const airplayURL = `${config.BaseUrl}/transcode/${encodeURIComponent(req.body.videoUrl)}`;
     airplay.play(airplayURL, err => {
       if (err) {
-        console.error(`Unable to play on apple tv`);
+        console.error('Unable to play on apple tv');
       }
-      
+
       console.log(`Playing transcoded video from ${airplayURL}`);
       res.end(`Playing on apple tv ${req.body.videoUrl}`);
     });
@@ -51,11 +45,11 @@ export const atvTranscoder = (config) => async (req, res) => {
       '-ab 640k',
       '-maxrate 25M',
       '-bufsize 10M',
-      '-preset ultrafast', 
+      '-preset ultrafast',
       '-profile:v baseline',
-      '-level 3.0', 
-      '-vcodec libx264', 
-      '-s 1280x720', 
+      '-level 3.0',
+      '-vcodec libx264',
+      '-s 1280x720',
       '-crf 14',
       '-pix_fmt yuv420p',
       '-r 24',
@@ -64,7 +58,7 @@ export const atvTranscoder = (config) => async (req, res) => {
       '-hls_flags single_file',
     ])
     .on('stderr', stderr => {
-       console.error(stderr);
+      console.error(stderr);
     })
     .on('error', err => {
       console.error(err);
@@ -72,16 +66,15 @@ export const atvTranscoder = (config) => async (req, res) => {
     .pipe(res, { end: true });
 
   req.on('close', () => {
-    console.log(`Closed by client`);
+    console.log('Closed by client');
     const command = transcoderCtx.command;
 
     if (command && command.kill) {
       try {
         delete transcoderCtx.command;
         command.kill();
-      } catch(e) {
+      } catch (e) {
       }
     }
   });
 };
-

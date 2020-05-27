@@ -43,7 +43,7 @@ module.exports.atvTranscoder = (config) => async (req, res) => {
       '-level 3.0',
       '-acodec copy',
       '-vcodec libx264',
-      '-s 720x480',
+      '-s 640x360',
       '-crf 14',
       '-pix_fmt yuv420p',
       '-r 24',

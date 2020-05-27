@@ -1,8 +1,6 @@
 const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const AirPlay = require('airplay-protocol');
 
-ffmpeg.setFfmpegPath(ffmpegPath);
 const airplay = new AirPlay('192.168.2.39');
 const transcoderCtx = {};
 
@@ -40,16 +38,12 @@ module.exports.atvTranscoder = (config) => async (req, res) => {
 
   transcoderCtx.command = ffmpeg(videoUrl, { timeout: 432000 })
     .addOptions([
-      '-acodec aac',
-      '-ac 6',
-      '-ab 640k',
-      '-maxrate 25M',
-      '-bufsize 10M',
       '-preset ultrafast',
       '-profile:v baseline',
       '-level 3.0',
+      '-acodec copy',
       '-vcodec libx264',
-      '-s 1280x720',
+      '-s 720x480',
       '-crf 14',
       '-pix_fmt yuv420p',
       '-r 24',

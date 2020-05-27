@@ -33,7 +33,7 @@ export const atvTranscoder = (config) => async (req, res) => {
   if (transcoderCtx.command && transcoderCtx.command.kill) {
     transcoderCtx.command.kill();
     delete transcoderCtx.command;
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }
 
   res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');

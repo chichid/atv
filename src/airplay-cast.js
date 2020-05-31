@@ -1,7 +1,6 @@
 const fs = require('fs');
 const URL = require('url');
 const http = require('follow-redirects').http;
-const bonjour = require('bonjour')();
 const { spawn } = require('child_process'); 
 const ffmpeg = require('fluent-ffmpeg');
 const AirPlay = require('airplay-protocol');
@@ -45,10 +44,13 @@ http.createServer((req, res) => {
   console.log('transcoding worker started at 8666');
 });
 
-bonjour.publish({name: 'Cool Transcoder ' + Math.random()*100000000, type: 'http', port: 8666});
 
-bonjour.find({ type: 'http' }, service => {
-  console.log('Found an HTTP server:', service)
+const swarm = require('discovery-swarm');
+const sw = swarm();
+sw.listen(6668);
+sw.join('atv-transcoders');
+sw.on('connection', (connection) => {
+  console.log('found + connected to peer')
 });
 
 const getWorkerList = async () => new Promise((resolve, reject) => {

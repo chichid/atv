@@ -11,7 +11,7 @@ const MAX_PRELOAD = 2;
 let cache = {};
 
 module.exports.atvPlay = (config) => async (req, res) => {
-  console.log(`[airplay-cast] /play ${req.body.videoUrl}`);
+  console.log(`[airplay-cast] /play ${req.body.videoUrl} on apple tv: ${req.body.appleTvIP}`);
 
   try {
     const airplay = new AirPlay(req.body.appleTvIP);

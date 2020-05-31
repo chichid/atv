@@ -14,8 +14,7 @@ module.exports.atvPlay = (config) => async (req, res) => {
   console.log(`[airplay-cast] /play ${req.body.videoUrl}`);
 
   try {
-    // TODO get local address
-    const airplayURL = `http://192.168.2.42:8666/url/${encodeURIComponent(req.body.videoUrl)}`;
+    const airplayURL = `${req.body.transcoderUrl}/url/${encodeURIComponent(req.body.videoUrl)}`;
     airplay.play(airplayURL, err => {
       if (err) {
         console.error('Unable to play on apple tv');
@@ -48,6 +47,7 @@ http.createServer((req, res) => {
 const getWorkerList = async () => {
   return [
     'http://192.168.2.42:8666',
+    'http://192.168.2.45:8666',
   ];
 };
 

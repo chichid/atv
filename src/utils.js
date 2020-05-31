@@ -5,6 +5,24 @@ const https = require('https');
 const querystring = require('querystring');
 const { URL } = require('url');
 
+module.exports.wait = (duration) => new Promise((resolve, reject) => {
+  setTimeout(resolve, duration);
+});
+
+module.exports.fileExists = (file) => new Promise((resolve, reject) => {
+  fs.exists(file, exists => resolve(exists));
+});
+
+module.exports.readFile = (file) => new Promise((resolve, reject) => {
+  fs.readFile(file, (err, content) => {
+    if (err) {
+      reject(err);
+    } else {
+      resolve(content)
+    }
+  });
+});
+
 module.exports.setHeaders = (config) => (req, res, next) => {
   res.removeHeader('Connection');
   res.removeHeader('X-Powered-By');
@@ -76,13 +94,13 @@ module.exports.get = (url, buffer) => new Promise((resolve, reject) => {
   }
 });
 
-module.exports.post = async (url, data, headers) => new Promise((resolve, reject) => {
+module.exports.post = async (url, data, headers, silent) => new Promise((resolve, reject) => {
   const httpFactory = url.startsWith('https://') ? https : http;
   const { hostname, port, pathname } = new URL(url);
 
   const options = {
     hostname,
-    port: port || (httpFactory === https) ? 443 : 80,
+    port: port || ((httpFactory === https) ? 443 : 80),
     path: pathname,
     method: 'POST',
     rejectUnauthorized: false,
@@ -93,11 +111,30 @@ module.exports.post = async (url, data, headers) => new Promise((resolve, reject
     },
   };
 
-  const isFormEncoded = options.headers['Content-Type'] === 'application/x-www-form-urlencoded';
-  const postData = isFormEncoded ? querystring.stringify(data) : JSON.stringify(data);
+  let postData = null; 
+
+  switch(options.headers['Content-Type'].toLowerCase()) {
+    case 'application/x-www-form-urlencoded':
+      postData = querystring.stringify(data);
+      break;
+    case 'application/json':
+      postData = JSON.stringify(data);
+      break;
+    default: {
+      if (typeof data === 'string') {
+        postData = data;
+      } else {
+        postData = JSON.stringify(data);
+      }
+    }
+  }
+
   options.headers['Content-Length'] = postData.length;
 
-  console.log(`[POST] sending post request with data: ${JSON.stringify(options, null, '  ')}`);
+  if (!silent) {
+    console.log(`[POST] sending post request with data: ${JSON.stringify(options, null, '  ')}`);
+  }
+
   const req = httpFactory.request(options, (res) => {
     let data = '';
 

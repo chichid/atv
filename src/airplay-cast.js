@@ -45,16 +45,17 @@ http.createServer((req, res) => {
   console.log('transcoding worker started at 8666');
 });
 
-bonjour.publish({name: 'Cool Transcoder', type: 'http', port: 8666});
+bonjour.publish({name: 'Cool Transcoder ' + Math.random()*100000000, type: 'http', port: 8666});
+
+bonjour.find({ type: 'http' }, service => {
+  console.log('Found an HTTP server:', service)
+});
 
 const getWorkerList = async () => new Promise((resolve, reject) => {
-  bonjour.find({ type: 'http' }, service => {
-    resolve([
-      'http://192.168.2.42:8666',
-      'http://192.168.2.45:8666',
-    ]);
-    console.log('Found an HTTP server:', service)
-  });
+  resolve([
+    'http://192.168.2.42:8666',
+    'http://192.168.2.45:8666',
+  ]);
 });
 
 const serveUrlPlaylist = async (req, res) => {

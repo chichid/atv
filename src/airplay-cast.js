@@ -7,13 +7,13 @@ const AirPlay = require('airplay-protocol');
 const { post, get, wait, fileExists, readFile } = require('./utils');
 
 const MAX_PRELOAD = 2;
-const airplay = new AirPlay('192.168.2.39');
 let cache = {};
 
 module.exports.atvPlay = (config) => async (req, res) => {
   console.log(`[airplay-cast] /play ${req.body.videoUrl}`);
 
   try {
+    const airplay = new AirPlay(req.body.appleTvIP);
     const airplayURL = `${req.body.transcoderUrl}/url/${encodeURIComponent(req.body.videoUrl)}`;
     airplay.play(airplayURL, err => {
       if (err) {

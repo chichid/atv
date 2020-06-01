@@ -5,7 +5,7 @@ try {
 	sharp = require('sharp');
 } catch(e) {
 	sharp = null;
-	console.log(`Sharp is not available on the current device, skipping`);
+	console.warn(`[logos] [warning] Sharp is not available on the current device, skipping`);
 }
 
 module.exports.getLogo = (config) => async (req, res) => {

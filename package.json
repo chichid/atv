@@ -7,9 +7,14 @@
   "license": "ISC",
   "homepage": "https://github.com/chichid/atv-test#readme",
   "scripts": {
+    "postinstall": "node scripts/postinstall.js",
     "start": "./node_modules/.bin/cross-env PROFILE='prod' BASE_URL='https://chichid-atv2.herokuapp.com' USE_SSL=false node src/index.js",
-    "start:android": "export PROFILE='prod' && export BASE_URL='https://kortv.com' && export USE_SSL=true && node src/index.js",
-    "watch": "./node_modules/.bin/cross-env PROFILE='dev' BASE_URL='https://kortv.com' USE_SSL=true nodemon src/index.js",
+    "start:local": "./node_modules/.bin/run-p start:local:tv start:transcoder",
+    "start:local:tv": "./node_modules/.bin/cross-env PROFILE='prod' BASE_URL='https://kortv.com' USE_SSL=true node src/index.js",
+    "start:transcoder": "node src/transcoder.js",
+    "watch": "./node_modules/.bin/run-p watch:tv watch:transcoder",
+    "watch:tv": "./node_modules/.bin/cross-env PROFILE='dev' BASE_URL='https://kortv.com' USE_SSL=true nodemon src/index.js",
+    "watch:transcoder": "nodemon src/transcoder.js",
     "lint": "eslint src",
     "test": "echo \"Error: no test specified\" && exit 0"
   },
@@ -23,18 +28,12 @@
   },
   "dependencies": {
     "airplay-protocol": "^2.0.2",
-    "bonjour": "^3.5.0",
-    "cidr-range": "^2.0.0",
     "cross-env": "^7.0.2",
-    "discovery-swarm": "^6.1.0",
     "express": "^4.17.1",
     "fluent-ffmpeg": "^2.1.2",
     "follow-redirects": "^1.11.0",
     "handlebars": "^4.7.6",
-    "lan-discovery": "^1.0.1"
-  },
-  "optionalDependencies": {
-    "sharp": "^0.25.2"
+    "sharp": "^0.25.3"
   },
   "devDependencies": {
     "eslint": "^6.8.0",
@@ -43,10 +42,8 @@
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.1",
-    "g-i-s": "^2.1.5",
-    "google-image-downloader": "0.0.8",
     "husky": "^4.2.5",
     "nodemon": "^2.0.3",
-    "request": "^2.88.2"
+    "npm-run-all": "^4.1.5"
   }
 }

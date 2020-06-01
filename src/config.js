@@ -28,6 +28,12 @@ const SSL = {
   Cert: path.join(__dirname, AppleTvBootstraperFolder + '/certificates/kortv.pem'),
 };
 
+const Transcoder = {
+  PreloadLimit: 2,
+  ChunkDuration: 10,
+  Port: 8666,
+};
+
 const MimeMap = {
   default: 'text/plain',
   js: 'text/javascript',
@@ -44,6 +50,7 @@ module.exports.CONFIG = {
   AssetsFolder: 'assets',
   AppleTvBootstraperFolder,
   AppleTvAddress: '192.168.2.39',
+  Transcoder,
   BaseUrl,
   MainTemplate: BaseUrl + '/assets/templates/index.xml',
   EpgTemplatePath: '/assets/templates/epg.xml',

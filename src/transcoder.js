@@ -1,0 +1,253 @@
+const fs = require('fs');
+const URL = require('url');
+const http = require('follow-redirects').http;
+const ffmpeg = require('fluent-ffmpeg');
+const { spawn } = require('child_process'); 
+const { post, get, wait, fileExists, readFile } = require('./utils');
+const { CONFIG } = require('./config');
+const { getWorkerList } = require('./discovery');
+
+let cache = {};
+
+(() => {
+  http.createServer((req, res) => {
+    if (req.url.startsWith('/workQueue')) {
+      setWorkQueue(req, res);
+    } else if (req.url.startsWith('/chunk')) {
+      serveChunk(req, res);
+    } else if (req.url.startsWith('/url')) {
+      serveUrlPlaylist(req, res);
+    } else {
+      res.writeHead(404);
+    }
+  }).listen(CONFIG.Transcoder.Port, () => {
+    console.log(`transcoding worker started at ${CONFIG.Transcoder.Port}`);
+  });
+})();
+
+const serveUrlPlaylist = async (req, res) => {
+  const workerList = await getWorkerList();
+  const matches = req.url.match('/url/([^/]*)');
+  const url = matches[1];
+
+  const duration = CONFIG.Transcoder.ChunkDuration;
+  const playlist = [];
+  const workQueue = {};
+  const workerUrl = workerList[0];
+  let currentWorker = 0;
+
+  console.log(`[transcoder] serveUrlPlaylist - url ${url}`);
+  cleanCache(true);
+
+  // TODO a good optimization is if we can invoke this loadChunk on the designed worker
+  // as this will trigger it's cache
+  const totalDuration = await new Promise(resolve => loadChunk(decodeURIComponent(url), 0, duration, false, {
+    onDurationReceived: (duration) => resolve(duration),
+  }));
+
+  playlist.push(`#EXTM3U`);
+  playlist.push(`#EXT-X-TARGETDURATION:${duration}`);
+  playlist.push(`#EXT-X-VERSION:3`);
+  playlist.push(`#EXT-X-ALLOW-CACHE:YES`);
+  playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
+
+  for (let i = 0; i < Math.floor(totalDuration / duration); ++i) {
+    const workerUrl = workerList[currentWorker];
+    const chunkUrl = `${workerUrl}/chunk/${url}/${i * duration}/${duration}`;
+
+    if (!workQueue[workerUrl]) {
+      workQueue[workerUrl] = [chunkUrl];
+    } else {
+      workQueue[workerUrl].push(chunkUrl);
+    }
+
+    playlist.push(`#EXTINF:${duration},`);
+    playlist.push(chunkUrl);
+
+    currentWorker = (currentWorker + 1) % workerList.length;
+  }
+
+  playlist.push(`#EXT-X-ENDLIST`);
+
+  for (const workerUrl in workQueue) {
+    post(workerUrl + '/workQueue', workQueue[workerUrl].join('\n'), {
+      'Content-Type': 'text/plain',
+    }, true);
+  }
+
+  res.writeHead(200, {
+    'Content-Type': 'application/x-mpegURL'
+  });
+
+  res.end(playlist.join('\n'))
+};
+
+const serveChunk = async (req, res) => {
+  const matches = req.url.match('/chunk/([^/]*)/([^/]*)/([^/]*)');
+  const url = decodeURIComponent(matches[1]);
+  const start = Number(matches[2]);
+  const duration = Number(matches[3]);
+
+  const {isComplete, stream, data, cancel} = loadChunk(url, start, duration, true);
+
+  res.writeHead(200, {
+    'Content-Type': 'video/MP2T',
+  });
+
+  if (!isComplete) {
+    console.log(`[transcoder] [streaming] serveChunk streaming chunk ${url} / ${start} / ${duration}`);
+    stream.pipe(res, { end: true });
+  } else {
+    console.log(`[transcoder] serveChunk serving chunk from cache ${url} / ${start} / ${duration}`);
+    res.end(data);
+  }
+
+  workQueueNextChunks(url, start);
+
+  req.on('close', () => cancel());
+};
+
+const setWorkQueue = (req, res) => {
+  let body = [];
+
+  req.on('data', d => (body += d.toString()));
+
+  req.on('end', () => {
+    const lines = body.split('\n');
+
+    cache.workQueue = [];
+
+    for (const line of lines) {
+      const matches = line.match('/chunk/([^/]*)/([^/]*)/([^/]*)');
+      const url = decodeURIComponent(matches[1]);
+      const start = Number(matches[2]);
+      const duration = Number(matches[3]);
+
+      cache.workQueue.push({url, start, duration});
+
+      res.writeHead(200);
+      res.end(`workQueueing ${url} / ${start} / ${duration}`);
+    }
+  });
+};
+
+const workQueueNextChunks = (url, start, duration) => {
+  if (cache.workQueue) {
+    for (let i = 0 ; i < cache.workQueue.length; ++i) {
+      const chunk = cache.workQueue[i];
+
+      if (chunk.url === url && chunk.start > start) {
+        for (let j = 0; j < CONFIG.Transcoder.workQueueLimit && i + j < cache.workQueue.length; ++j) {
+          const {url, start, duration} = cache.workQueue[i + j];
+          console.log(`[transcoder] workQueueing chunk ${url} ${start} ${duration}`);
+          loadChunk(url, start, duration);
+        }
+
+        break;
+      }
+    }
+  }
+};
+
+const getKey = (url, start, duration) => {
+  return url + start + duration;
+};
+
+const cleanCache = (clearAll) => {
+  console.log(`[transcoder] cleaning the cache, clearAll: ${clearAll}`);
+  
+  if (clearAll) {
+    cache = {};
+  } else {
+    // TODO clean the cache in a smart way
+  }
+};
+
+const loadChunk = (url, start, duration, isServing, options) => {
+  const cacheKey = getKey(url, start, duration);
+
+  if (cache[cacheKey]) {
+    console.log(`[transcoder] loadChunk from cache ${url} / ${start} / ${duration}`);
+    return cache[cacheKey];
+  }
+
+  console.log(`[transcoder] loadChunk transcoding ${url} / ${start} / ${duration} / ${isServing}`);
+
+  cleanCache();
+
+  const child = spawn('ffmpeg', [
+    '-ss', start,
+    '-t', duration,
+    '-i', url,
+
+    '-y',
+    '-strict', 'experimental',
+    '-preset', 'ultrafast',
+    '-profile:v', 'baseline',
+    '-level', '3.0',
+    '-vcodec', 'libx264',
+    '-s', '1280x720',
+    '-acodec', 'aac',
+    '-ac', '6',
+    '-ab', '640k',
+    '-crf', '14',
+    '-avoid_negative_ts', '1',
+    '-maxrate', '25M',
+    '-bufsize', '10M', 
+    '-copyinkf',
+    '-copyts',
+    '-r', 24,
+    '-pix_fmt', 'yuv420p',
+    '-map_metadata', -1,
+    '-f', 'mpegts',
+
+    '-hide_banner',
+
+    'pipe:1'
+  ].filter(op => op !== null ? true : false));
+
+  cache[cacheKey] = {
+    creationTime: Date.now(),
+    isComplete: false,
+    stream: child.stdout,
+    data: null,
+    cancel: () => child.kill(),
+  };
+
+  let chunks = [];
+
+  child.stdout.on('data', chunk => {
+    chunks.push(chunk);
+  });
+
+  child.stderr.on('data', (chunk) => {
+    // console.error('[ffmpeg] ' + chunk.toString())
+    const line = chunk.toString().toLowerCase();
+    const matches = /duration: (\d\d):(\d\d):(\d\d).(\d\d)/gm.exec(line);
+    if (matches) {
+      const hours = Number(matches[1]);
+      const minutes = Number(matches[2]);
+      const seconds = Number(matches[3]);
+      const milliseconds = Number(matches[4]);
+
+      if (options && options.onDurationReceived) {
+        const durationSecs = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000.0;
+        console.log("Duration " + durationSecs);
+        options.onDurationReceived(durationSecs);
+      }
+    }
+  });
+
+  child.on('exit', code => {
+    if (code !== 0) {
+      console.error(`[ffmpeg] error transcoding chunk ${url} / ${start} / ${duration}`);
+      delete cache[cacheKey];
+    } else if (cache[cacheKey]) {
+      cache[cacheKey].isComplete = true;
+      cache[cacheKey].data = Buffer.concat(chunks);
+    }
+  });
+
+  return cache[cacheKey];
+};
+

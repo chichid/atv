@@ -12,9 +12,11 @@
     "start:local": "./node_modules/.bin/run-p start:local:tv start:transcoder",
     "start:local:tv": "./node_modules/.bin/cross-env PROFILE='prod' BASE_URL='https://kortv.com' USE_SSL=true node src/index.js",
     "start:transcoder": "node src/transcoder.js",
+    "start:discovery": "node src/discovery.js",
     "watch": "./node_modules/.bin/run-p watch:tv watch:transcoder",
     "watch:tv": "./node_modules/.bin/cross-env PROFILE='dev' BASE_URL='https://kortv.com' USE_SSL=true nodemon src/index.js",
     "watch:transcoder": "nodemon src/transcoder.js",
+    "watch:discovery": "nodemon src/discovery.js",
     "lint": "eslint src",
     "test": "echo \"Error: no test specified\" && exit 0"
   },

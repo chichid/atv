@@ -34,6 +34,11 @@ const Transcoder = {
   Port: 8666,
 };
 
+const Discovery = {
+  Port: 23456,
+  LanAddrPrefix: "192.168",
+};
+
 const MimeMap = {
   default: 'text/plain',
   js: 'text/javascript',
@@ -51,6 +56,7 @@ module.exports.CONFIG = {
   AppleTvBootstraperFolder,
   AppleTvAddress: '192.168.2.39',
   Transcoder,
+  Discovery, 
   BaseUrl,
   MainTemplate: BaseUrl + '/assets/templates/index.xml',
   EpgTemplatePath: '/assets/templates/epg.xml',

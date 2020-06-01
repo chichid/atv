@@ -34,8 +34,7 @@
     "express": "^4.17.1",
     "fluent-ffmpeg": "^2.1.2",
     "follow-redirects": "^1.11.0",
-    "handlebars": "^4.7.6",
-    "sharp": "^0.25.3"
+    "handlebars": "^4.7.6"
   },
   "devDependencies": {
     "eslint": "^6.8.0",

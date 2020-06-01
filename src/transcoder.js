@@ -36,14 +36,17 @@ const serveUrlPlaylist = async (req, res) => {
   const workerUrl = workerList[0];
   let currentWorker = 0;
 
-  console.log(`[transcoder] serveUrlPlaylist - url ${url}`);
   cleanCache(true);
+
+  console.log(`[transcoder] serveUrlPlaylist - getting movie duration for ${url}`);
 
   // TODO a good optimization is if we can invoke this loadChunk on the designed worker
   // as this will trigger it's cache
-  const totalDuration = await new Promise(resolve => loadChunk(decodeURIComponent(url), 0, duration, false, {
+  const totalDuration = await new Promise(resolve => loadChunk(decodeURIComponent(url), 0, 2, false, {
     onDurationReceived: (duration) => resolve(duration),
   }));
+  
+  console.log(`[transcoder] serveUrlPlaylist - movie duration is ${totalDuration} for ${url}`);
 
   playlist.push(`#EXTM3U`);
   playlist.push(`#EXT-X-TARGETDURATION:${duration}`);
@@ -102,7 +105,7 @@ const serveChunk = async (req, res) => {
     res.end(data);
   }
 
-  workQueueNextChunks(url, start);
+  preloadWorkQueueNextChunks(url, start);
 
   req.on('close', () => cancel());
 };
@@ -124,14 +127,14 @@ const setWorkQueue = (req, res) => {
       const duration = Number(matches[3]);
 
       cache.workQueue.push({url, start, duration});
-
-      res.writeHead(200);
-      res.end(`workQueueing ${url} / ${start} / ${duration}`);
     }
+
+    res.writeHead(200);
+    res.end(`work queued`);
   });
 };
 
-const workQueueNextChunks = (url, start, duration) => {
+const preloadWorkQueueNextChunks = (url, start, duration) => {
   if (cache.workQueue) {
     for (let i = 0 ; i < cache.workQueue.length; ++i) {
       const chunk = cache.workQueue[i];
@@ -139,7 +142,7 @@ const workQueueNextChunks = (url, start, duration) => {
       if (chunk.url === url && chunk.start > start) {
         for (let j = 0; j < CONFIG.Transcoder.workQueueLimit && i + j < cache.workQueue.length; ++j) {
           const {url, start, duration} = cache.workQueue[i + j];
-          console.log(`[transcoder] workQueueing chunk ${url} ${start} ${duration}`);
+          console.log(`[transcoder] preloading chunk ${url} ${start} ${duration}`);
           loadChunk(url, start, duration);
         }
 
@@ -221,19 +224,32 @@ const loadChunk = (url, start, duration, isServing, options) => {
   });
 
   child.stderr.on('data', (chunk) => {
-    // console.error('[ffmpeg] ' + chunk.toString())
+    //console.error('[ffmpeg] ' + chunk.toString())
     const line = chunk.toString().toLowerCase();
-    const matches = /duration: (\d\d):(\d\d):(\d\d).(\d\d)/gm.exec(line);
-    if (matches) {
-      const hours = Number(matches[1]);
-      const minutes = Number(matches[2]);
-      const seconds = Number(matches[3]);
-      const milliseconds = Number(matches[4]);
 
-      if (options && options.onDurationReceived) {
-        const durationSecs = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000.0;
-        console.log("Duration " + durationSecs);
-        options.onDurationReceived(durationSecs);
+    const durationMatches = /duration: (\d\d):(\d\d):(\d\d).(\d\d)/gm.exec(line);
+    if (durationMatches && options && options.onDurationReceived) {
+      const hours = Number(durationMatches[1]);
+      const minutes = Number(durationMatches[2]);
+      const seconds = Number(durationMatches[3]);
+      const milliseconds = Number(durationMatches[4]);
+      const durationSecs = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000.0;
+
+      options.onDurationReceived(durationSecs);
+    }
+
+    const infoMatches = /fps=(.*) q=.*size=(.*)time=(.*) bitrate=/gm.exec(line);
+    if (infoMatches) {
+      const info = {
+        fps: infoMatches[1],
+        size: infoMatches[2],
+        time: infoMatches[3],
+      };
+
+      process.stdout.write(`[transcoder] ${JSON.stringify(info)}\r`);
+
+      if (options && options.onInfo) {
+        options.onInfo(info);
       }
     }
   });

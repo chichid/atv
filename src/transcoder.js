@@ -26,15 +26,13 @@ let cache = {};
 })();
 
 const serveUrlPlaylist = async (req, res) => {
-  const workerList = await getWorkerList();
   const matches = req.url.match('/url/([^/]*)');
   const url = matches[1];
 
   const duration = CONFIG.Transcoder.ChunkDuration;
   const playlist = [];
   const workQueue = {};
-  const workerUrl = workerList[0];
-  let currentWorker = 0;
+  const workerList = (await getWorkerList()).map(workerAddr => `http://${workerAddr}:${CONFIG.Transcoder.Port}`);
 
   cleanCache(true);
 
@@ -53,6 +51,8 @@ const serveUrlPlaylist = async (req, res) => {
   playlist.push(`#EXT-X-VERSION:3`);
   playlist.push(`#EXT-X-ALLOW-CACHE:YES`);
   playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
+
+  let currentWorker = 0;
 
   for (let i = 0; i < Math.floor(totalDuration / duration); ++i) {
     const workerUrl = workerList[currentWorker];

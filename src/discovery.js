@@ -16,7 +16,8 @@ const Messages = {
 })();
 
 module.exports.getWorkerList = async () => new Promise((resolve, reject) => {
-  resolve(Object.keys(brothers));
+  const byCpuScore =  (a, b) => brothers[b].cpuScore - brothers[a].cpuScore;
+  resolve(Object.keys(brothers).sort(byCpuScore));
 });
 
 server.on('listening', () => {
@@ -90,7 +91,7 @@ const sendMessage = (type, payload) => {
 };
 
 const getCpuScore = () => {
-  return 100;
+  return os.cpus().reduce((acc, cur) => acc + cur.speed, 0);
 };
 
 const getBroadcastAddresses = () => {

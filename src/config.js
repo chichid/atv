@@ -17,8 +17,7 @@ const GoogleSheetsApiKey = GoogleSheetsApiKeyArg || Settings.GOOGLE_SHEETS_API_K
 const GoogleSheetId = '1XDyp6-zvlorSwmcQRizriub2pAleYskmyvrYOyfYXgA';
 const GoogleSheetConfigRange = 'Config!H:N';
 if (!GoogleSheetsApiKey) {
-  console.error('Fatal Error - Config api Key for the google sheets not found');
-  process.exit(0);
+  console.warn('Fatal Error - Config api Key for the google sheets not found, this is necessary for the channels API');
 }
 
 const AppleTvBootstraperFolder = '/appletv-bootstraper';

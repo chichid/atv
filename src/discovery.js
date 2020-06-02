@@ -2,7 +2,7 @@ const dgram = require('dgram');
 const os = require('os');
 const { CONFIG } = require('./config');
 
-const brothers = [];
+const brothers = {};
 const server = dgram.createSocket({type: 'udp4', reuseAddr: true});
 
 const Messages = {
@@ -16,7 +16,7 @@ const Messages = {
 })();
 
 module.exports.getWorkerList = async () => new Promise((resolve, reject) => {
-  resolve(brothers);
+  resolve(Object.keys(brothers));
 });
 
 server.on('listening', () => {
@@ -24,7 +24,9 @@ server.on('listening', () => {
   console.log(`[discovery] discovery service listening at ${address.address}:${address.port}, sending bonjour message...`);
 
 	server.setBroadcast(true);
-	sendMessage(Messages.Bonjour);
+	sendMessage(Messages.Bonjour, {
+    cpuScore: getCpuScore(),
+  });
 });
 
 server.on('close', () => {
@@ -50,30 +52,45 @@ process.on('exit', () => {
 
 server.on('message', (message, rinfo) => {
 	const { port, address } = rinfo;
-	const msg = message ? message.toString() : '';
-	const indexOfBrother = brothers.indexOf(address);
-	const isRegistered = indexOfBrother !== -1;
 
 	if (!address.startsWith(CONFIG.Discovery.LanAddrPrefix)) {
 		return;
 	}
 
-	if (msg === Messages.Bye && isRegistered) {
-		console.log(`[discovery] unregistering device ${rinfo.address}:${rinfo.port}`);
-		brothers.splice(indexOfBrother, 1);
-	} else if (msg === Messages.Bonjour && !isRegistered){
-		console.log(`[discovery] registering device ${rinfo.address}:${rinfo.port}`);
-		brothers.push(address);
-		sendMessage(Messages.Bonjour);
-	}
+  const { payload, type } = JSON.parse(message.toString());
+
+  switch(type) {
+    case Messages.Bonjour:
+      if (!brothers[address]) {
+        console.log(`[discovery] registering device ${rinfo.address}:${rinfo.port}`);
+        brothers[address] = payload;
+        sendMessage(Messages.Bonjour);
+      }
+      break;
+    case Messages.Bye:
+      if (brothers[address]) {
+        console.log(`[discovery] unregistering device ${rinfo.address}:${rinfo.port}`);
+        delete brothers[address];
+      }
+      break;
+    default:
+      console.error(`[discovery] unknown message ${type}`);
+  };
 });
 
-const sendMessage = msg => {
-	const message = Buffer.from(msg);
+const sendMessage = (type, payload) => {
+	const message = Buffer.from(JSON.stringify({
+    type,
+    payload: payload || {},
+  }));
 
   for (const addr of getBroadcastAddresses()) {
     server.send(message, 0, message.length, CONFIG.Discovery.Port, addr)
   }
+};
+
+const getCpuScore = () => {
+  return 100;
 };
 
 const getBroadcastAddresses = () => {

@@ -25,9 +25,7 @@ server.on('listening', () => {
   console.log(`[discovery] discovery service listening at ${address.address}:${address.port}, sending bonjour message...`);
 
 	server.setBroadcast(true);
-	sendMessage(Messages.Bonjour, {
-    cpuScore: getCpuScore(),
-  });
+  sendBonjour();
 });
 
 server.on('close', () => {
@@ -65,7 +63,7 @@ server.on('message', (message, rinfo) => {
       if (!brothers[address]) {
         console.log(`[discovery] registering device ${rinfo.address}:${rinfo.port}`);
         brothers[address] = payload;
-        sendMessage(Messages.Bonjour);
+        sendBonjour();
       }
       break;
     case Messages.Bye:
@@ -78,6 +76,12 @@ server.on('message', (message, rinfo) => {
       console.error(`[discovery] unknown message ${type}`);
   };
 });
+
+const sendBonjour = () => {
+	sendMessage(Messages.Bonjour, {
+    cpuScore: getCpuScore(),
+  });
+};
 
 const sendMessage = (type, payload) => {
 	const message = Buffer.from(JSON.stringify({

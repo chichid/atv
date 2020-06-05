@@ -1,7 +1,6 @@
 const fs = require('fs');
 const URL = require('url');
 const http = require('follow-redirects').http;
-const ffmpeg = require('fluent-ffmpeg');
 const { spawn } = require('child_process'); 
 const { post, get, wait, fileExists, readFile } = require('./utils');
 const { CONFIG } = require('./config');
@@ -89,7 +88,7 @@ const getTranscodedPlaylist = async (url) => {
   playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
 
   const workQueue = {};
-  const workerList = (await getWorkerList()).map(workerAddr => `http://${workerAddr}`);
+  const workerList = await getWorkerList();
   let currentWorker = 0;
 
   for (let i = 0; i < Math.floor(totalDuration / duration); ++i) {
@@ -220,8 +219,9 @@ const loadChunk = (url, start, duration, isServing, options) => {
     '-y',
     '-strict', 'experimental',
     '-preset', 'ultrafast',
-    '-profile:v', 'baseline',
-    '-level', '3.0',
+    '-tune', 'zerolatency',
+    //'-profile:v', 'baseline',
+    //'-level', '3.0',
     '-vcodec', 'libx264',
     '-s', '1280x720',
     '-acodec', 'aac',

@@ -17,7 +17,11 @@ module.exports.startDiscoveryService = () => {
 
 module.exports.getWorkerList = async () => new Promise((resolve, reject) => {
   const byCpuScore =  (a, b) => brothers[b].cpuScore - brothers[a].cpuScore;
-  resolve(Object.keys(brothers).sort(byCpuScore));
+  const workerUrls = Object.keys(brothers)
+    .sort(byCpuScore)
+    .map(worker => `http://${worker}`);
+
+  resolve(workerUrls);
 });
 
 server.on('listening', () => {

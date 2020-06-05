@@ -17,7 +17,7 @@ const GoogleSheetsApiKey = GoogleSheetsApiKeyArg || Settings.GOOGLE_SHEETS_API_K
 const GoogleSheetId = '1XDyp6-zvlorSwmcQRizriub2pAleYskmyvrYOyfYXgA';
 const GoogleSheetConfigRange = 'Config!H:N';
 if (!GoogleSheetsApiKey) {
-  console.warn('Fatal Error - Config api Key for the google sheets not found, this is necessary for the channels API');
+  console.warn('[warning] - Config api Key for the google sheets not found, this is necessary for the channels API');
 }
 
 const AppleTvBootstraperFolder = '/appletv-bootstraper';
@@ -29,7 +29,7 @@ const SSL = {
 
 const Transcoder = {
   WorkQueueLimit: 2,
-  ChunkDuration: 10,
+  ChunkDuration: 30,
   Port: process.env.TRANSCODER_PORT || 8666,
 };
 

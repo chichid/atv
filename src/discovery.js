@@ -71,6 +71,7 @@ server.on('message', (message, rinfo) => {
         console.log(`[discovery] registering device ${rinfo.address}:${transcoderPort}/${rinfo.port}`);
         brothers[key] = payload;
         sendBonjour();
+        console.log(`[discovery] devices now are ${Object.keys(brothers)}`)
       }
     } break;
     case Messages.Bye: {
@@ -80,6 +81,7 @@ server.on('message', (message, rinfo) => {
       if (transcoderPort && brothers[key]) {
         console.log(`[discovery] unregistering device ${rinfo.address}:${transcoderPort}/${rinfo.port}`);
         delete brothers[key];
+        console.log(`[discovery] devices now are ${Object.keys(brothers)}`)
       }
     } break;
     default:

@@ -10,10 +10,10 @@ const Messages = {
 	Bye: 'Bye',
 };
 
-(() => {
+module.exports.startDiscoveryService = () => {
   console.log(`[discovery] discovery service initializing...`);
   server.bind(CONFIG.Discovery.Port);
-})();
+};
 
 module.exports.getWorkerList = async () => new Promise((resolve, reject) => {
   const byCpuScore =  (a, b) => brothers[b].cpuScore - brothers[a].cpuScore;
@@ -59,19 +59,25 @@ server.on('message', (message, rinfo) => {
   const { payload, type } = JSON.parse(message.toString());
 
   switch(type) {
-    case Messages.Bonjour:
-      if (!brothers[address]) {
-        console.log(`[discovery] registering device ${rinfo.address}:${rinfo.port}`);
-        brothers[address] = payload;
+    case Messages.Bonjour: {
+      const { transcoderPort } = payload || {};
+      const key = address + ':' + transcoderPort;
+
+      if (transcoderPort && !brothers[key]) {
+        console.log(`[discovery] registering device ${rinfo.address}:${transcoderPort}/${rinfo.port}`);
+        brothers[key] = payload;
         sendBonjour();
       }
-      break;
-    case Messages.Bye:
-      if (brothers[address]) {
-        console.log(`[discovery] unregistering device ${rinfo.address}:${rinfo.port}`);
-        delete brothers[address];
+    } break;
+    case Messages.Bye: {
+      const { transcoderPort } = payload || {};
+      const key = address + ':' + transcoderPort;
+
+      if (transcoderPort && brothers[key]) {
+        console.log(`[discovery] unregistering device ${rinfo.address}:${transcoderPort}/${rinfo.port}`);
+        delete brothers[key];
       }
-      break;
+    } break;
     default:
       console.error(`[discovery] unknown message ${type}`);
   };
@@ -80,6 +86,7 @@ server.on('message', (message, rinfo) => {
 const sendBonjour = () => {
 	sendMessage(Messages.Bonjour, {
     cpuScore: getCpuScore(),
+    transcoderPort: CONFIG.Transcoder.Port
   });
 };
 

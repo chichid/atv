@@ -28,9 +28,9 @@ const SSL = {
 };
 
 const Transcoder = {
-  PreloadLimit: 2,
+  WorkQueueLimit: 2,
   ChunkDuration: 10,
-  Port: 8666,
+  Port: process.env.TRANSCODER_PORT || 8666,
 };
 
 const Discovery = {

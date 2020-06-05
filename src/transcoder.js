@@ -5,7 +5,7 @@ const ffmpeg = require('fluent-ffmpeg');
 const { spawn } = require('child_process'); 
 const { post, get, wait, fileExists, readFile } = require('./utils');
 const { CONFIG } = require('./config');
-const { getWorkerList } = require('./discovery');
+const { startDiscoveryService, getWorkerList } = require('./discovery');
 
 let cache = {};
 
@@ -22,29 +22,65 @@ let cache = {};
     }
   }).listen(CONFIG.Transcoder.Port, () => {
     console.log(`transcoding worker started at ${CONFIG.Transcoder.Port}`);
+    startDiscoveryService();
   });
 })();
 
 const serveUrlPlaylist = async (req, res) => {
   const matches = req.url.match('/url/([^/]*)');
   const url = matches[1];
-
-  const duration = CONFIG.Transcoder.ChunkDuration;
-  const playlist = [];
-  const workQueue = {};
-  const workerList = (await getWorkerList()).map(workerAddr => `http://${workerAddr}:${CONFIG.Transcoder.Port}`);
+  const decodedURL = decodeURIComponent(url);
 
   cleanCache(true);
 
-  console.log(`[transcoder] serveUrlPlaylist - getting movie duration for ${url}`);
+  let playlist = [];
+  if (decodedURL.endsWith('.ts')) {
+    playlist = await getWrappedPlaylist(url);
+  } else {
+    playlist = await getTranscodedPlaylist(url);
+  }
+
+  res.writeHead(200, {
+    'Content-Type': 'application/x-mpegURL'
+  });
+
+  res.end(playlist.join('\n'))
+};
+
+const getWrappedPlaylist = async (url) => {
+  const playlist = [];
+  const decodedURL = decodeURIComponent(url);
+  const duration = CONFIG.Transcoder.ChunkDuration;
+
+  console.log(`[transcoder] getWrappedPlaylist - url ${decodedURL}`);
+
+  playlist.push(`#EXTM3U`);
+  playlist.push(`#EXT-X-PLAYLIST-TYPE:EVENT`);
+  playlist.push(`#EXT-X-TARGETDURATION:${duration}`);
+  playlist.push(`#EXT-X-VERSION:3`);
+  playlist.push(`#EXT-X-ALLOW-CACHE:YES`);
+  playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
+
+  playlist.push(`#EXTINF:${duration},`);
+  playlist.push(decodedURL);
+
+  return playlist;
+};
+
+const getTranscodedPlaylist = async (url) => {
+  const duration = CONFIG.Transcoder.ChunkDuration;
+  const decodedURL = decodeURIComponent(url);
+  console.log(`[transcoder] getTranscodedPlaylist - getting movie duration for ${decodedURL}`);
 
   // TODO a good optimization is if we can invoke this loadChunk on the designed worker
   // as this will trigger it's cache
-  const totalDuration = await new Promise(resolve => loadChunk(decodeURIComponent(url), 0, 2, false, {
+  const totalDuration = await new Promise(resolve => loadChunk(decodeURIComponent(url), 0, 1, false, {
     onDurationReceived: (duration) => resolve(duration),
   }));
   
   console.log(`[transcoder] serveUrlPlaylist - movie duration is ${totalDuration} for ${url}`);
+
+  const playlist = [];
 
   playlist.push(`#EXTM3U`);
   playlist.push(`#EXT-X-TARGETDURATION:${duration}`);
@@ -52,6 +88,8 @@ const serveUrlPlaylist = async (req, res) => {
   playlist.push(`#EXT-X-ALLOW-CACHE:YES`);
   playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
 
+  const workQueue = {};
+  const workerList = (await getWorkerList()).map(workerAddr => `http://${workerAddr}`);
   let currentWorker = 0;
 
   for (let i = 0; i < Math.floor(totalDuration / duration); ++i) {
@@ -78,12 +116,8 @@ const serveUrlPlaylist = async (req, res) => {
     }, true);
   }
 
-  res.writeHead(200, {
-    'Content-Type': 'application/x-mpegURL'
-  });
-
-  res.end(playlist.join('\n'))
-};
+  return playlist;
+}
 
 const serveChunk = async (req, res) => {
   const matches = req.url.match('/chunk/([^/]*)/([^/]*)/([^/]*)');
@@ -140,7 +174,7 @@ const preloadWorkQueueNextChunks = (url, start, duration) => {
       const chunk = cache.workQueue[i];
 
       if (chunk.url === url && chunk.start > start) {
-        for (let j = 0; j < CONFIG.Transcoder.workQueueLimit && i + j < cache.workQueue.length; ++j) {
+        for (let j = 0; j < CONFIG.Transcoder.WorkQueueLimit && i + j < cache.workQueue.length; ++j) {
           const {url, start, duration} = cache.workQueue[i + j];
           console.log(`[transcoder] preloading chunk ${url} ${start} ${duration}`);
           loadChunk(url, start, duration);
@@ -194,14 +228,14 @@ const loadChunk = (url, start, duration, isServing, options) => {
     '-ac', '6',
     '-ab', '640k',
     '-crf', '14',
-    '-avoid_negative_ts', '1',
-    '-maxrate', '25M',
-    '-bufsize', '10M', 
-    '-copyinkf',
+    //'-avoid_negative_ts', '1',
+    //'-maxrate', '25M',
+    //'-bufsize', '10M', 
+    //'-copyinkf',
     '-copyts',
     '-r', 24,
     '-pix_fmt', 'yuv420p',
-    '-map_metadata', -1,
+    //'-map_metadata', -1,
     '-f', 'mpegts',
 
     '-hide_banner',

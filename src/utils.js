@@ -9,8 +9,28 @@ module.exports.wait = (duration) => new Promise((resolve, reject) => {
   setTimeout(resolve, duration);
 });
 
+module.exports.openFile = (file, mode) => new Promise((resolve, reject) => {
+  fs.open(file, mode, (err, fd) => {
+    if (err) {
+      reject(err);
+    } else {
+      resolve(fd);
+    }
+  });
+});
+
 module.exports.fileExists = (file) => new Promise((resolve, reject) => {
   fs.exists(file, exists => resolve(exists));
+});
+
+module.exports.writeFile = (file, content) => new Promise((resolve, reject) => {
+  fs.writeFile(file, content, (err, content) => {
+    if (err) {
+      reject(err);
+    } else {
+      resolve(content)
+    }
+  });
 });
 
 module.exports.readFile = (file) => new Promise((resolve, reject) => {

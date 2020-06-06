@@ -2,11 +2,12 @@ const fs = require('fs');
 const URL = require('url');
 const http = require('follow-redirects').http;
 const { spawn } = require('child_process'); 
-const { post, get, wait, fileExists, readFile } = require('./utils');
+const rimraf = require('rimraf');
+const { post, get, wait, openFile, writeFile, fileExists, readFile } = require('./utils');
 const { CONFIG } = require('./config');
 const { startDiscoveryService, getWorkerList } = require('./discovery');
 
-let cache = {};
+let workQueue = null;
 
 (() => {
   http.createServer((req, res) => {
@@ -30,7 +31,7 @@ const serveUrlPlaylist = async (req, res) => {
   const url = matches[1];
   const decodedURL = decodeURIComponent(url);
 
-  cleanCache(true);
+  await cleanTmpDir(true);
 
   let playlist = [];
   if (decodedURL.endsWith('.ts')) {
@@ -71,13 +72,7 @@ const getTranscodedPlaylist = async (url) => {
   const decodedURL = decodeURIComponent(url);
   console.log(`[transcoder] getTranscodedPlaylist - getting movie duration for ${decodedURL}`);
 
-  // TODO a good optimization is if we can invoke this loadChunk on the designed worker
-  // as this will trigger it's cache
-  const totalDuration = await new Promise(resolve => loadChunk(decodeURIComponent(url), 0, 1, false, {
-    onDurationReceived: (duration) => resolve(duration),
-  }));
-  
-  console.log(`[transcoder] serveUrlPlaylist - movie duration is ${totalDuration} for ${url}`);
+  const { totalDuration } = await getMovieInfo(url);
 
   const playlist = [];
 
@@ -124,23 +119,69 @@ const serveChunk = async (req, res) => {
   const start = Number(matches[2]);
   const duration = Number(matches[3]);
 
-  const {isComplete, stream, data, cancel} = loadChunk(url, start, duration, true);
+  const { outputFile, lockFile } = getOutputFile(url, start, duration);
 
+  console.log(`[transcoder] serveChunk streaming chunk ${url} / ${start} / ${duration}`);
+  
+  if (!await fileExists(outputFile)) {
+    console.log(`[transcoder] serveChunk will load the file`);
+    await loadChunk(url, start, duration, true);
+  }
+
+  console.log(`[transcoder] serving the file...`);
+  serveFile(outputFile, lockFile, req, res);
+
+  console.log(`[transcoder] preloading next chunks...`);
+  preloadNextChunks(url, start);
+};
+
+const serveFile = async (file, lockFile, req, res) => {
+  let streamed = 0;
+  let isClosed = false;
+  
   res.writeHead(200, {
     'Content-Type': 'video/MP2T',
   });
 
-  if (!isComplete) {
-    console.log(`[transcoder] [streaming] serveChunk streaming chunk ${url} / ${start} / ${duration}`);
-    stream.pipe(res, { end: true });
-  } else {
-    console.log(`[transcoder] serveChunk serving chunk from cache ${url} / ${start} / ${duration}`);
-    res.end(data);
+  console.log(`[transcoder] serveFile streaming ${file}`);
+
+  if (!await fileExists(lockFile)) {
+    console.log(`[transcoder] piping ${file}...`);
+    fs.createReadStream(file).pipe(res);
+    return;
   }
 
-  preloadWorkQueueNextChunks(url, start);
+  console.log(`[transcoder] transcoding is not finished for ${file}, poll piping it...`);
 
-  req.on('close', () => cancel());
+  const poll = async () => {
+    const fd = await openFile(file, 'r');
+    const stream = fs.createReadStream(null, {
+      fd,
+      start: streamed
+    });
+
+    stream.on('data', chunk => {
+      if (!isClosed) {
+        res.write(chunk)
+        streamed += chunk.length;
+      }
+    });
+
+    stream.on('end', async () => {
+      if (!isClosed && await fileExists(lockFile)) {
+        setTimeout(() => poll(), 200);
+      } else {
+        console.log(`[transcoder] serveFile done streaming ${file}, streamed: ${streamed}`);
+        res.end();
+      }
+    });
+  };
+
+  req.on('close', () => {
+    isClosed = true;
+  });
+
+  poll();
 };
 
 const setWorkQueue = (req, res) => {
@@ -151,7 +192,7 @@ const setWorkQueue = (req, res) => {
   req.on('end', () => {
     const lines = body.split('\n');
 
-    cache.workQueue = [];
+    workQueue = [];
 
     for (const line of lines) {
       const matches = line.match('/chunk/([^/]*)/([^/]*)/([^/]*)');
@@ -159,26 +200,27 @@ const setWorkQueue = (req, res) => {
       const start = Number(matches[2]);
       const duration = Number(matches[3]);
 
-      cache.workQueue.push({url, start, duration});
+      workQueue.push({url, start, duration});
     }
 
-    if (cache.workQueue && cache.workQueue.length > 0) {
-      const { url, start, duration } = cache.workQueue[0];
-      preloadWorkQueueNextChunks(url, start - 1, duration);
+    if (workQueue && workQueue.length > 0) {
+      const { url, start, duration } = workQueue[0];
+      preloadNextChunks(url, start + duration - 1, duration);
     }
 
     res.writeHead(200);
     res.end(`work queued`);
-  }); };
+  });
+};
 
-const preloadWorkQueueNextChunks = (url, start, duration) => {
-  if (cache.workQueue) {
-    for (let i = 0 ; i < cache.workQueue.length; ++i) {
-      const chunk = cache.workQueue[i];
+const preloadNextChunks = (url, start, duration) => {
+  if (workQueue) {
+    for (let i = 0 ; i < workQueue.length; ++i) {
+      const chunk = workQueue[i];
 
       if (chunk.url === url && chunk.start > start) {
-        for (let j = 0; j < CONFIG.Transcoder.WorkQueueLimit && i + j < cache.workQueue.length; ++j) {
-          const {url, start, duration} = cache.workQueue[i + j];
+        for (let j = 0; j < CONFIG.Transcoder.WorkQueueLimit && i + j < workQueue.length; ++j) {
+          const {url, start, duration} = workQueue[i + j];
           console.log(`[transcoder] preloading chunk ${url} ${start} ${duration}`);
           loadChunk(url, start, duration);
         }
@@ -189,31 +231,37 @@ const preloadWorkQueueNextChunks = (url, start, duration) => {
   }
 };
 
-const getKey = (url, start, duration) => {
-  return url + start + duration;
-};
-
-const cleanCache = (clearAll) => {
-  console.log(`[transcoder] cleaning the cache, clearAll: ${clearAll}`);
+const cleanTmpDir = async (clearAll) => new Promise((resolve) => {
+  console.log(`[transcoder] cleaning the tmp dir, clearAll: ${clearAll}`);
   
   if (clearAll) {
-    cache = {};
+    rimraf(CONFIG.Transcoder.TmpDir, () => resolve());
   } else {
     // TODO clean the cache in a smart way
+    resolve();
+  }
+});
+
+const getOutputFile = (url, start, duration) => {
+  const baseDir = `${CONFIG.Transcoder.TmpDir}/${encodeURIComponent(url)}`;
+
+  return {
+    baseDir,
+    outputFile: `${baseDir}/${start}__${duration}`,
+    lockFile: `${baseDir}/${start}__${duration}.lock`,
   }
 };
 
-const loadChunk = (url, start, duration, isServing, options) => {
-  const cacheKey = getKey(url, start, duration);
+const loadChunk = async (url, start, duration) => {
+  console.log(`[transcoder] loadChunk is transcoding ${url} / ${start} / ${duration}`);
 
-  if (cache[cacheKey]) {
-    console.log(`[transcoder] loadChunk from cache ${url} / ${start} / ${duration}`);
-    return cache[cacheKey];
+  const { baseDir, outputFile, lockFile } = getOutputFile(url, start, duration);
+
+  if (!await fileExists(baseDir)) {
+    fs.mkdirSync(baseDir, { recursive: true });
   }
 
-  console.log(`[transcoder] loadChunk transcoding ${url} / ${start} / ${duration} / ${isServing}`);
-
-  cleanCache();
+  await writeFile(lockFile);
 
   const child = spawn('ffmpeg', [
     '-ss', start,
@@ -237,71 +285,48 @@ const loadChunk = (url, start, duration, isServing, options) => {
     //'-bufsize', '10M', 
     //'-copyinkf',
     '-copyts',
+    //'-start_at_zero',
     '-r', 24,
     '-pix_fmt', 'yuv420p',
-    //'-map_metadata', -1,
+    '-map_metadata', -1,
     '-f', 'mpegts',
 
     '-hide_banner',
 
-    'pipe:1'
+    outputFile,
   ].filter(op => op !== null ? true : false));
 
-  cache[cacheKey] = {
-    creationTime: Date.now(),
-    isComplete: false,
-    stream: child.stdout,
-    data: null,
-    cancel: () => child.kill(),
-  };
-
-  let chunks = [];
-
-  child.stdout.on('data', chunk => {
-    chunks.push(chunk);
-  });
-
-  child.stderr.on('data', (chunk) => {
+  //child.stderr.on('data', (chunk) => {
+    // TODO only output this when logging is set to debug 
     //console.error('[ffmpeg] ' + chunk.toString())
-    const line = chunk.toString().toLowerCase();
+  //});
 
-    const durationMatches = /duration: (\d\d):(\d\d):(\d\d).(\d\d)/gm.exec(line);
-    if (durationMatches && options && options.onDurationReceived) {
-      const hours = Number(durationMatches[1]);
-      const minutes = Number(durationMatches[2]);
-      const seconds = Number(durationMatches[3]);
-      const milliseconds = Number(durationMatches[4]);
-      const durationSecs = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000.0;
-
-      options.onDurationReceived(durationSecs);
-    }
-
-    const infoMatches = /fps=(.*) q=.*size=(.*)time=(.*) bitrate=/gm.exec(line);
-    if (infoMatches) {
-      const info = {
-        fps: infoMatches[1],
-        size: infoMatches[2],
-        time: infoMatches[3],
-      };
-
-      process.stdout.write(`[transcoder] ${JSON.stringify(info)}\r`);
-
-      if (options && options.onInfo) {
-        options.onInfo(info);
-      }
-    }
-  });
-
+  let didExit = false;
+  
   child.on('exit', code => {
     if (code !== 0) {
       console.error(`[ffmpeg] error transcoding chunk ${url} / ${start} / ${duration}`);
-      delete cache[cacheKey];
-    } else if (cache[cacheKey]) {
-      cache[cacheKey].isComplete = true;
-      cache[cacheKey].data = Buffer.concat(chunks);
+    } else {
+      console.log(`[transcoder] loadChunk is done transcoding ${url} / ${start} / ${duration}`);
     }
+
+    fs.unlink(lockFile, () => {});
+    didExit = true;
   });
 
-  return cache[cacheKey];
+  do {
+    await wait(200);
+  } while(!didExit && !await fileExists(outputFile))
 };
 
+const getMovieInfo = async (url) => {
+  // TODO implement
+  const totalDuration = 3600 * 4;
+
+  const info = {
+    totalDuration,
+  };
+
+  console.log(`[transcoder] getMovieInfo - movieInfo ${JSON.stringify(info)}`);
+  return info;
+};

@@ -60,6 +60,11 @@ server.on('message', (message, rinfo) => {
 		return;
 	}
 
+  const isLocalAddress = getLocalAddresses().indexOf(message) !== -1;
+  if (isLocalAddress && message.pid === process.pid) {
+    return;
+  }
+
   const { payload, type } = JSON.parse(message.toString());
 
   switch(type) {
@@ -68,11 +73,13 @@ server.on('message', (message, rinfo) => {
       const key = address + ':' + transcoderPort;
 
       if (transcoderPort && !brothers[key]) {
-        console.log(`[discovery] registering device ${rinfo.address}:${transcoderPort}/${rinfo.port}`);
         brothers[key] = payload;
-        sendBonjour();
+
+        console.log(`[discovery] registering device ${rinfo.address}:${transcoderPort}/${rinfo.port}`);
         console.log(`[discovery] devices now are ${Object.keys(brothers)}`)
       }
+
+      sendBonjour();
     } break;
     case Messages.Bye: {
       const { transcoderPort } = payload || {};
@@ -99,6 +106,7 @@ const sendBonjour = () => {
 const sendMessage = (type, payload) => {
 	const message = Buffer.from(JSON.stringify({
     type,
+    pid: process.pid,
     payload: payload || {},
   }));
 
@@ -112,11 +120,11 @@ const getCpuScore = () => {
 };
 
 const getBroadcastAddresses = () => {
-	let result = [];
-	let interfaces = os.networkInterfaces();
+	const result = [];
+	const interfaces = os.networkInterfaces();
 
-	for (let i in interfaces) {
-		for (let data of interfaces[i]) {
+	for (const i in interfaces) {
+		for (const data of interfaces[i]) {
 			if (data.family !== 'IPv4') continue;
 			if (data.address === '127.0.0.1') continue;
 			const address = data.address.split('.').map(e => parseInt(e));
@@ -128,3 +136,17 @@ const getBroadcastAddresses = () => {
 	return result;
 }
 
+const getLocalAddresses = () => {
+	const result = [];
+	const interfaces = os.networkInterfaces();
+
+	for (const i in interfaces) {
+		for (const data of interfaces[i]) {
+			if (data.family !== 'IPv4') continue;
+			if (data.address === '127.0.0.1') continue;
+			result.push(data.address)
+		}
+	}
+
+	return result;
+}

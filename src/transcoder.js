@@ -242,7 +242,7 @@ const cleanCache = (clearAll) => {
   
   if (clearAll) {
     for (const key of Object.keys(cache)) {
-      cache[key].kill();
+      cache[key].cancel();
     }
 
     cache = {};
@@ -316,7 +316,7 @@ const loadChunk = (url, start, duration, is9Serving, options) => {
 
   child.stderr.on('data', (chunk) => {
     const used = process.memoryUsage().heapUsed / 1024 / 1024;
-    console.log(`[transcoder] memory use ${Math.round(used * 100) / 100} MB`);
+    console.log(`[transcoder] memory use ${Math.round(used * 100) / 100} MB, Processes: ${Object.keys(cache).length}`);
     //console.error('[ffmpeg] ' + chunk.toString())
     //const line = chunk.toString().toLowerCase();
 

@@ -241,6 +241,10 @@ const cleanCache = (clearAll) => {
   console.log(`[transcoder] cleaning the cache, clearAll: ${clearAll}`);
   
   if (clearAll) {
+    for (const key of Object.keys(cache)) {
+      cache[key].kill();
+    }
+
     cache = {};
   } else {
     // TODO clean the cache in a smart way

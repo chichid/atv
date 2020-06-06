@@ -281,6 +281,7 @@ const loadChunk = (url, start, duration, isServing, options) => {
     '-acodec', 'aac',
     '-ac', '6',
     '-ab', '640k',
+    '-max_muxing_queue_size', 1024,
     '-crf', '14',
     //'-avoid_negative_ts', '1',
     '-maxrate', '25M',

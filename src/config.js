@@ -28,7 +28,7 @@ const SSL = {
 };
 
 const Transcoder = {
-  WorkQueueLimit: 2,
+  WorkQueueLimit: 1,
   ChunkDuration: 30,
   Port: process.env.TRANSCODER_PORT || 8666,
 };

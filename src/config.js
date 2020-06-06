@@ -32,7 +32,7 @@ const Transcoder = {
   FFMpegPath: process.env.FFMPEG_PATH,
   EnableDiscovery: process.env.ENABLE_DISCOVERY === "false" ? false : true|| true,
   WorkQueueLimit: 1,
-  ChunkDuration: 30,
+  ChunkDuration: 10,
   Port: process.env.TRANSCODER_PORT || 8666,
 };
 

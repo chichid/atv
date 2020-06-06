@@ -7,6 +7,7 @@
   "license": "ISC",
   "homepage": "https://github.com/chichid/atv-test#readme",
   "scripts": {
+    "postinstall": "node ./scripts/postinstall.js",
     "start": "(npm run tv & npm run transcoder) && wait",
     "tv": "node src/index.js",
     "transcoder": "node src/transcoder.js",

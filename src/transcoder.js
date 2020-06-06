@@ -315,34 +315,36 @@ const loadChunk = (url, start, duration, is9Serving, options) => {
   });
 
   child.stderr.on('data', (chunk) => {
-    console.error('[ffmpeg] ' + chunk.toString())
-    const line = chunk.toString().toLowerCase();
+    const used = process.memoryUsage().heapUsed / 1024 / 1024;
+    console.log(`[transcoder] memory use ${Math.round(used * 100) / 100} MB`);
+    //console.error('[ffmpeg] ' + chunk.toString())
+    //const line = chunk.toString().toLowerCase();
 
-    const durationMatches = /duration: (\d\d):(\d\d):(\d\d).(\d\d)/gm.exec(line);
-    if (durationMatches && options && options.onDurationReceived) {
-      const hours = Number(durationMatches[1]);
-      const minutes = Number(durationMatches[2]);
-      const seconds = Number(durationMatches[3]);
-      const milliseconds = Number(durationMatches[4]);
-      const durationSecs = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000.0;
+    //const durationMatches = /duration: (\d\d):(\d\d):(\d\d).(\d\d)/gm.exec(line);
+    //if (durationMatches && options && options.onDurationReceived) {
+    //  const hours = Number(durationMatches[1]);
+    //  const minutes = Number(durationMatches[2]);
+    //  const seconds = Number(durationMatches[3]);
+    //  const milliseconds = Number(durationMatches[4]);
+    //  const durationSecs = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000.0;
 
-      options.onDurationReceived(durationSecs);
-    }
+    //  options.onDurationReceived(durationSecs);
+    //}
 
-    const infoMatches = /fps=(.*) q=.*size=(.*)time=(.*) bitrate=/gm.exec(line);
-    if (infoMatches) {
-      const info = {
-        fps: infoMatches[1],
-        size: infoMatches[2],
-        time: infoMatches[3],
-      };
+    //const infoMatches = /fps=(.*) q=.*size=(.*)time=(.*) bitrate=/gm.exec(line);
+    //if (infoMatches) {
+    //  const info = {
+    //    fps: infoMatches[1],
+    //    size: infoMatches[2],
+    //    time: infoMatches[3],
+    //  };
 
-      process.stdout.write(`[transcoder] ${JSON.stringify(info)}\r`);
+    //  process.stdout.write(`[transcoder] ${JSON.stringify(info)}\r`);
 
-      if (options && options.onInfo) {
-        options.onInfo(info);
-      }
-    }
+    //  if (options && options.onInfo) {
+    //    options.onInfo(info);
+    //  }
+    //}
   });
 
   child.on('exit', code => {

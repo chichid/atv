@@ -245,7 +245,7 @@ const cleanCache = (clearAll) => {
   }
 };
 
-const loadChunk = (url, start, duration, is9Serving, options) => {
+const loadChunk = (url, start, duration, isServing, options) => {
   const cacheKey = getKey(url, start, duration);
 
   if (cache[cacheKey]) {
@@ -253,12 +253,15 @@ const loadChunk = (url, start, duration, is9Serving, options) => {
     return cache[cacheKey];
   }
 
-  console.log(`[transcoder] loadChunk transcoding ${url} / ${start} / ${duration} / ${is9Serving}`);
+  console.log(`[transcoder] loadChunk transcoding ${url} / ${start} / ${duration}`);
 
   cleanCache();
 
-  for (const key of Object.keys(cache)) {
-    cache[key].cancel();
+  if (!(start && duration)) {
+    console.log(`[transcoder] killing previous processes...`);
+    for (const key of Object.keys(cache)) {
+      cache[key].cancel();
+    }
   }
 
   const ffmpeg = CONFIG.Transcoder.FFMpegPath || 'ffmpeg';
@@ -315,7 +318,7 @@ const loadChunk = (url, start, duration, is9Serving, options) => {
   child.stderr.on('data', (chunk) => {
     const used = process.memoryUsage().heapUsed / 1024 / 1024;
     console.log(`[transcoder] memory use ${Math.round(used * 100) / 100} MB, Processes: ${Object.keys(cache).length}`);
-    //console.error('[ffmpeg] ' + chunk.toString())
+    console.log('[ffmpeg] ' + chunk.toString())
     //const line = chunk.toString().toLowerCase();
 
     //const durationMatches = /duration: (\d\d):(\d\d):(\d\d).(\d\d)/gm.exec(line);

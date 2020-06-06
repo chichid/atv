@@ -7,7 +7,7 @@
   "license": "ISC",
   "homepage": "https://github.com/chichid/atv-test#readme",
   "scripts": {
-    "start": "run-p 'tv' 'transcoder'",
+    "start": "./node_modules/.bin/run-p 'tv' 'transcoder'",
     "tv": "node src/index.js",
     "transcoder": "node src/transcoder.js",
     "start:local": "./node_modules/.bin/run-p start:local:tv start:transcoder",

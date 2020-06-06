@@ -93,12 +93,12 @@ const getTranscodedPlaylist = async (url) => {
   playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
 
   const workQueue = {};
-  const workerList = await getWorkerList();
+  const workerList = [];//await getWorkerList();
   let currentWorker = 0;
 
   for (let i = 0; i < Math.floor(totalDuration / duration); ++i) {
     const workerUrl = workerList[currentWorker];
-    const chunkUrl = `${workerUrl}/chunk/${url}/${i * duration}/${duration}`;
+    const chunkUrl = `${workerUrl || ''}/chunk/${url}/${i * duration}/${duration}`;
 
     if (!workQueue[workerUrl]) {
       workQueue[workerUrl] = [chunkUrl];

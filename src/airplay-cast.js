@@ -5,7 +5,7 @@ module.exports.atvPlay = (config) => async (req, res) => {
 
   try {
     const airplay = new AirPlay(req.body.appleTvIP);
-    const airplayURL = `${req.body.transcoderUrl}/url/${encodeURIComponent(req.body.videoUrl)}`;
+    const airplayURL = `${req.body.transcoderUrl}/${encodeURIComponent(req.body.videoUrl)}`;
     airplay.play(airplayURL, err => {
       if (err) {
         console.error('Unable to play on apple tv');

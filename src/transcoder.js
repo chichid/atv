@@ -269,7 +269,7 @@ const loadChunk = (url, start, duration, isServing, options) => {
   });
 
   child.stderr.on('data', (chunk) => {
-    //console.error('[ffmpeg] ' + chunk.toString())
+    console.error('[ffmpeg] ' + chunk.toString())
     const line = chunk.toString().toLowerCase();
 
     const durationMatches = /duration: (\d\d):(\d\d):(\d\d).(\d\d)/gm.exec(line);

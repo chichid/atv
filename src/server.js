@@ -10,7 +10,7 @@ module.exports.startServer = (config, app) => {
     cert: fs.readFileSync(config.SSL.Cert),
   }, app);
 
-  server.listen(config.Port, () =>
+  server.listen(config.Port, config.Addr, () =>
     console.log(`server started on port ${config.Port} using ${httpFactory === http ? 'http' : 'https'}`)
   );
 };

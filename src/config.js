@@ -3,7 +3,8 @@ const path = require('path');
 
 const BaseUrl = process.env.BASE_URL;
 const UseSSL = process.env.USE_SSL === 'true';
-const Port = process.env.PORT || (UseSSL ? 443 : 80);
+const Addr = process.env.OPENSHIFT_NODEJS_IP || process.env.ADDR;
+const Port = process.env.OPENSHIFT_NODEJS_PORT || process.env.PORT || (UseSSL ? 443 : 80);
 const Profile = process.env.PROFILE;
 const GoogleSheetsApiKeyArg = process.env.GOOGLE_SHEETS_API_KEY;
 const DevProfile = 'dev';
@@ -60,6 +61,7 @@ module.exports.CONFIG = {
   MainTemplate: BaseUrl + '/assets/templates/index.xml',
   EpgTemplatePath: '/assets/templates/epg.xml',
   Profile,
+  Addr,
   Port,
   SSL,
   MimeMap,

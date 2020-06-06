@@ -162,10 +162,14 @@ const setWorkQueue = (req, res) => {
       cache.workQueue.push({url, start, duration});
     }
 
+    if (cache.workQueue && cache.workQueue.length > 0) {
+      const { url, start, duration } = cache.workQueue[0];
+      preloadWorkQueueNextChunks(url, start - 1, duration);
+    }
+
     res.writeHead(200);
     res.end(`work queued`);
-  });
-};
+  }); };
 
 const preloadWorkQueueNextChunks = (url, start, duration) => {
   if (cache.workQueue) {

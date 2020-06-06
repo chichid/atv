@@ -297,7 +297,7 @@ const loadChunk = (url, start, duration, is9Serving, options) => {
     isComplete: false,
     stream: child.stdout,
     data: null,
-    cancel: () => child.kill(),
+    cancel: () => child.kill('SIGINT'),
     clean: () => {
       console.log(`[transcoder] cleaning ${cacheKey}`);
       delete cache[cacheKey];

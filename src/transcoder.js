@@ -24,11 +24,35 @@ let cache = {};
   }).listen(CONFIG.Transcoder.Port, () => {
     console.log(`transcoding worker started at ${CONFIG.Transcoder.Port}`);
 
+    initExecutables();
+
     if (CONFIG.Transcoder.EnableDiscovery) {
       startDiscoveryService();
     }
   });
 })();
+
+const initExecutables = () => new Promise(async (resolve, reject) => {
+  if (!await fileExists('ebin')) {
+    console.log(`[transcoder] initExecutables is creating ebin`);
+    const child = spawn('cp', ['-r', 'bin', 'ebin']).on('exit', code => {
+      if (code !== 0) {
+        reject(`[transcoder] fatal error - unable to copy bin to ebin code: ${code}`);
+      }
+
+      spawn('chmod', ['+rwx', '-R', 'ebin']).on('exit', code => {
+        if (code !== 0) {
+          spawn('rm', ['-rf', 'ebin']);
+          reject(`[transcoder] fatal error - unable to set permissions ${code}`);
+        }
+
+        // TODO must delete the ebin folder here
+        console.log(`[transcoder] ebin initialized successfully`);
+        resolve();
+      });
+    });
+  }
+});
 
 const serveUrlPlaylist = async (req, res) => {
   const matches = req.url.match('/url/([^/]*)');

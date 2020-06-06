@@ -70,6 +70,8 @@ const proxyVideo = async (req, res) => {
 
   playlist.push(`#EXT-X-ENDLIST`);
 
+  cleanCache(true);
+
   res.writeHead(200, {
     'Content-Type': 'application/x-mpegURL'
   });

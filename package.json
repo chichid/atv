@@ -7,8 +7,9 @@
   "license": "ISC",
   "homepage": "https://github.com/chichid/atv-test#readme",
   "scripts": {
-    "postinstall": "node scripts/postinstall.js",
-    "start": "node src/index.js",
+    "start": "run-p 'tv' 'transcoder'",
+    "tv": "node src/index.js",
+    "transcoder": "node src/transcoder.js",
     "start:local": "./node_modules/.bin/run-p start:local:tv start:transcoder",
     "start:local:android": "npm run start:local:android:tv & npm run start:transcoder && wait",
     "start:local:tv": "./node_modules/.bin/cross-env PROFILE='prod' BASE_URL='https://kortv.com' USE_SSL=true node src/index.js",
@@ -34,7 +35,9 @@
     "express": "^4.17.1",
     "fluent-ffmpeg": "^2.1.2",
     "follow-redirects": "^1.11.0",
-    "handlebars": "^4.7.6",
+    "handlebars": "^4.7.6"
+  },
+  "optionalDependencies": {
     "sharp": "^0.25.3"
   },
   "devDependencies": {

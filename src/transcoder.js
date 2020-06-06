@@ -21,7 +21,10 @@ let cache = {};
     }
   }).listen(CONFIG.Transcoder.Port, () => {
     console.log(`transcoding worker started at ${CONFIG.Transcoder.Port}`);
-    startDiscoveryService();
+
+    if (CONFIG.Transcoder.EnableDiscovery) {
+      startDiscoveryService();
+    }
   });
 })();
 
@@ -215,7 +218,9 @@ const loadChunk = (url, start, duration, isServing, options) => {
 
   cleanCache();
 
-  const child = spawn('ffmpeg', [
+  const ffmpeg = CONFIG.Transcoder.FFMpegPath || 'ffmpeg';
+
+  const child = spawn(ffmpeg, [
     '-ss', start,
     '-t', duration,
     '-i', url,

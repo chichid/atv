@@ -112,10 +112,12 @@ const getTranscodedPlaylist = async (url) => {
 
   playlist.push(`#EXT-X-ENDLIST`);
 
-  for (const workerUrl in workQueue) {
-    post(workerUrl + '/workQueue', workQueue[workerUrl].join('\n'), {
-      'Content-Type': 'text/plain',
-    }, true);
+  if (workerList.length > 1) {
+    for (const workerUrl in workQueue) {
+      post(workerUrl + '/workQueue', workQueue[workerUrl].join('\n'), {
+        'Content-Type': 'text/plain',
+      }, true);
+    }
   }
 
   return playlist;

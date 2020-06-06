@@ -70,8 +70,6 @@ const proxyVideo = async (req, res) => {
 
   playlist.push(`#EXT-X-ENDLIST`);
 
-  cleanCache(true);
-
   res.writeHead(200, {
     'Content-Type': 'application/x-mpegURL'
   });
@@ -241,10 +239,6 @@ const cleanCache = (clearAll) => {
   console.log(`[transcoder] cleaning the cache, clearAll: ${clearAll}`);
   
   if (clearAll) {
-    for (const key of Object.keys(cache)) {
-      cache[key].cancel();
-    }
-
     cache = {};
   } else {
     // TODO clean the cache in a smart way
@@ -262,6 +256,10 @@ const loadChunk = (url, start, duration, is9Serving, options) => {
   console.log(`[transcoder] loadChunk transcoding ${url} / ${start} / ${duration} / ${is9Serving}`);
 
   cleanCache();
+
+  for (const key of Object.keys(cache)) {
+    cache[key].cancel();
+  }
 
   const ffmpeg = CONFIG.Transcoder.FFMpegPath || 'ffmpeg';
 
@@ -308,11 +306,11 @@ const loadChunk = (url, start, duration, is9Serving, options) => {
     }
   };
 
-  let chunks = [];
+  //let chunks = [];
 
-  child.stdout.on('data', chunk => {
-    chunks.push(chunk);
-  });
+  //child.stdout.on('data', chunk => {
+  //  chunks.push(chunk);
+  //});
 
   child.stderr.on('data', (chunk) => {
     const used = process.memoryUsage().heapUsed / 1024 / 1024;
@@ -352,8 +350,8 @@ const loadChunk = (url, start, duration, is9Serving, options) => {
       console.error(`[ffmpeg] error transcoding chunk ${url} / ${start} / ${duration}`);
       delete cache[cacheKey];
     } else if (cache[cacheKey]) {
-      cache[cacheKey].isComplete = true;
-      cache[cacheKey].data = Buffer.concat(chunks);
+      //cache[cacheKey].isComplete = true;
+      //cache[cacheKey].data = Buffer.concat(chunks);
     }
   });
 

@@ -51,6 +51,32 @@ const serveUrlPlaylist = async (req, res) => {
   res.end(playlist.join('\n'))
 };
 
+const proxyVideo = async (req, res) => {
+  const playlist = [];
+  const matches = req.url.match('/proxy/([^/]*)');
+  const url = matches[1];
+  const duration = CONFIG.Transcoder.ChunkDuration;
+
+  console.log(`[transcoder] proxyVideo - url ${url}`);
+
+  playlist.push(`#EXTM3U`);
+  playlist.push(`#EXT-X-TARGETDURATION:${duration}`);
+  playlist.push(`#EXT-X-VERSION:3`);
+  playlist.push(`#EXT-X-ALLOW-CACHE:YES`);
+  playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
+
+  playlist.push(`#EXTINF:${duration},`);
+  playlist.push(`/chunk/${url}/0/0`);
+
+  playlist.push(`#EXT-X-ENDLIST`);
+
+  res.writeHead(200, {
+    'Content-Type': 'application/x-mpegURL'
+  });
+
+  res.end(playlist.join('\n'));
+};
+
 const getWrappedPlaylist = async (url) => {
   const playlist = [];
   const decodedURL = decodeURIComponent(url);
@@ -125,44 +151,37 @@ const getTranscodedPlaylist = async (url) => {
   return playlist;
 }
 
-const proxyVideo = async (req, res) => {
-  const matches = req.url.match('/proxy/([^/]*)');
-  const url = decodeURIComponent(matches[1]);
-
-  const {stream, cancel} = loadChunk(url);
-
-  res.writeHead(200, {
-    'Content-Type': 'video/MP2T',
-  });
-
-  stream.pipe(res, { end: true });
-
-  req.on('close', () => cancel());
-};
-
 const serveChunk = async (req, res) => {
   const matches = req.url.match('/chunk/([^/]*)/([^/]*)/([^/]*)');
   const url = decodeURIComponent(matches[1]);
   const start = Number(matches[2]);
   const duration = Number(matches[3]);
 
-  const {isComplete, stream, data, cancel} = loadChunk(url, start, duration, true);
+  const {isComplete, stream, data, cancel, clean} = loadChunk(url, start, duration, true);
 
   res.writeHead(200, {
     'Content-Type': 'video/MP2T',
+    'Connection': 'keep-alive',
   });
 
   if (!isComplete) {
     console.log(`[transcoder] [streaming] serveChunk streaming chunk ${url} / ${start} / ${duration}`);
     stream.pipe(res, { end: true });
+    clean();
   } else {
     console.log(`[transcoder] serveChunk serving chunk from cache ${url} / ${start} / ${duration}`);
     res.end(data);
+    clean();
   }
 
-  preloadWorkQueueNextChunks(url, start);
+  if (start && duration) {
+    preloadWorkQueueNextChunks(url, start);
+  }
 
-  req.on('close', () => cancel());
+  req.on('close', () => {
+    console.log(`[transcoder] serveChunk - client dropped`);
+    cancel();
+  });
 };
 
 const setWorkQueue = (req, res) => {
@@ -226,7 +245,7 @@ const cleanCache = (clearAll) => {
   }
 };
 
-const loadChunk = (url, start, duration, isServing, options) => {
+const loadChunk = (url, start, duration, is9Serving, options) => {
   const cacheKey = getKey(url, start, duration);
 
   if (cache[cacheKey]) {
@@ -234,7 +253,7 @@ const loadChunk = (url, start, duration, isServing, options) => {
     return cache[cacheKey];
   }
 
-  console.log(`[transcoder] loadChunk transcoding ${url} / ${start} / ${duration} / ${isServing}`);
+  console.log(`[transcoder] loadChunk transcoding ${url} / ${start} / ${duration} / ${is9Serving}`);
 
   cleanCache();
 
@@ -252,7 +271,6 @@ const loadChunk = (url, start, duration, isServing, options) => {
     '-profile:v', 'baseline',
     '-level', '3.0',
     '-vcodec', 'libx264',
-    '-s', '1280x720',
     '-acodec', 'aac',
     '-ac', '6',
     '-ab', '640k',
@@ -278,6 +296,10 @@ const loadChunk = (url, start, duration, isServing, options) => {
     stream: child.stdout,
     data: null,
     cancel: () => child.kill(),
+    clean: () => {
+      console.log(`[transcoder] cleaning ${cacheKey}`);
+      delete cache[cacheKey];
+    }
   };
 
   let chunks = [];

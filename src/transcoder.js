@@ -10,7 +10,9 @@ let cache = {};
 
 (() => {
   http.createServer((req, res) => {
-    if (req.url.startsWith('/workQueue')) {
+    if (req.url.startsWith('/proxy')) {
+      proxyVideo(req, res);
+    } else if (req.url.startsWith('/workQueue')) {
       setWorkQueue(req, res);
     } else if (req.url.startsWith('/chunk')) {
       serveChunk(req, res);
@@ -123,6 +125,21 @@ const getTranscodedPlaylist = async (url) => {
   return playlist;
 }
 
+const proxyVideo = async (req, res) => {
+  const matches = req.url.match('/proxy/([^/]*)');
+  const url = decodeURIComponent(matches[1]);
+
+  const {stream, cancel} = loadChunk(url);
+
+  res.writeHead(200, {
+    'Content-Type': 'video/MP2T',
+  });
+
+  stream.pipe(res, { end: true });
+
+  req.on('close', () => cancel());
+};
+
 const serveChunk = async (req, res) => {
   const matches = req.url.match('/chunk/([^/]*)/([^/]*)/([^/]*)');
   const url = decodeURIComponent(matches[1]);
@@ -174,7 +191,8 @@ const setWorkQueue = (req, res) => {
 
     res.writeHead(200);
     res.end(`work queued`);
-  }); };
+  }); 
+};
 
 const preloadWorkQueueNextChunks = (url, start, duration) => {
   if (cache.workQueue) {
@@ -223,8 +241,8 @@ const loadChunk = (url, start, duration, isServing, options) => {
   const ffmpeg = CONFIG.Transcoder.FFMpegPath || 'ffmpeg';
 
   const child = spawn(ffmpeg, [
-    '-ss', start,
-    '-t', duration,
+    start ? '-ss' : null, start ? start : null,
+    duration ? '-t' : null , duration ? duration : null,
     '-i', url,
 
     '-y',

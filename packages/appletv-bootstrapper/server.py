@@ -53,7 +53,7 @@ class SimpleHTTPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
 	if self.path == "/play":
             content_length = int(self.headers['Content-Length'])
             body = json.loads(self.rfile.read(content_length))
-            videoURL = urllib.quote(body['videoUrl'])
+            videoURL = body['videoUrl']
             print("attempt to play video " + videoURL)
             ap.play(videoURL)	
             self.send_response(200)

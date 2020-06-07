@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <atv>
   <head>
-    <script src="{{config.BaseUrl}}/assets/js/utils.js" />
+    <script src="{{config.BaseUrl}}/assets/utils.js" />
   </head>
   <body>
     {{#if epgPrograms.[0]}}

@@ -24,15 +24,8 @@ ssl_key_file = 'certificates/{}.key'.format(intercepted_app)
 ssl_certificate_file = 'certificates/{}.pem'.format(intercepted_app)
 
 app_entry_url = 'https://{}/assets/templates/index.xml'
-prod_entry_point = 'chichid-atv2.herokuapp.com'
+prod_entry_point = 'tv-service.herokuapp.com'
 application_js = open('application.js', 'r').read(); 
-
-wrap_video_template = """#EXTM3U
-#EXT-X-TARGETDURATION:10
-#EXT-X-VERSION:4
-#EXT-X-MEDIA-SEQUENCE:0
-#EXTINF:10.0,
-{{VIDEO}}"""
 
 ap = AirPlay('127.0.0.1')
 
@@ -51,15 +44,6 @@ class SimpleHTTPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             self.end_headers()
 
             self.wfile.write(application_js.replace('{{config.MainTemplate}}', app_entry))
-        elif "/wrapVideo" in self.path:
-            parsed = urlparse.urlparse(self.path)
-            video_url = urlparse.parse_qs(parsed.query)['url'][0]
-            print('wrapping ' + video_url)
-
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/vnd.apple.mpegurl')
-            self.end_headers()
-            self.wfile.write(wrap_video_template.replace('{{VIDEO}}', video_url))
 	else:
             self.send_response(404)
             self.end_headers()
@@ -71,12 +55,7 @@ class SimpleHTTPRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             body = json.loads(self.rfile.read(content_length))
             videoURL = urllib.quote(body['videoUrl'])
             print("attempt to play video " + videoURL)
-	    if ".m3u8" in videoURL:
-		  print("Playing stream directly");
-		  ap.play(videoURL)	
-            else: 
-		  print("Playing stream in wrapped mode");
-		  ap.play("http://127.0.0.1:" + str(http_server_port) + "/wrapVideo?url=" + videoURL)	
+            ap.play(videoURL)	
             self.send_response(200)
             self.end_headers()
             self.wfile.write('Playing {}'.format(videoURL))

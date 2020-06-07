@@ -7,20 +7,8 @@
   "license": "ISC",
   "homepage": "https://github.com/chichid/atv-test#readme",
   "scripts": {
-    "postinstall": "node ./scripts/postinstall.js",
-    "start": "(npm run tv & npm run transcoder) && wait",
-    "tv": "node src/index.js",
-    "transcoder": "node src/transcoder.js",
-    "start:local": "./node_modules/.bin/run-p start:local:tv start:transcoder",
-    "start:local:android": "npm run start:local:android:tv & npm run start:transcoder && wait",
-    "start:local:tv": "./node_modules/.bin/cross-env PROFILE='prod' BASE_URL='https://kortv.com' USE_SSL=true node src/index.js",
-    "start:local:android:tv": "export PROFILE='prod' && export BASE_URL='https://kortv.com' && export USE_SSL=true && node src/index.js",
-    "start:transcoder": "node src/transcoder.js",
-    "watch": "./node_modules/.bin/run-p watch:tv watch:transcoder",
-    "watch:tv": "./node_modules/.bin/cross-env PROFILE='dev' BASE_URL='https://kortv.com' USE_SSL=true nodemon src/index.js",
-    "watch:transcoder": "nodemon src/transcoder.js",
-    "lint": "eslint src",
-    "test": "echo \"Error: no test specified\" && exit 0"
+    "transcoder": "npm start --prefix packages/transcoder",
+    "tv-service": "npm start --prefix packages/tv-service"
   },
   "husky": {},
   "repository": {
@@ -30,17 +18,6 @@
   "bugs": {
     "url": "https://github.com/chichid/atv-test/issues"
   },
-  "dependencies": {
-    "airplay-protocol": "^2.0.2",
-    "cross-env": "^7.0.2",
-    "express": "^4.17.1",
-    "fluent-ffmpeg": "^2.1.2",
-    "follow-redirects": "^1.11.0",
-    "handlebars": "^4.7.6"
-  },
-  "optionalDependencies": {
-    "sharp": "^0.25.3"
-  },
   "devDependencies": {
     "eslint": "^6.8.0",
     "eslint-config-standard": "^14.1.1",
@@ -49,7 +26,10 @@
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.1",
     "husky": "^4.2.5",
-    "nodemon": "^2.0.3",
-    "npm-run-all": "^4.1.5"
+    "nodemon": "^2.0.3"
+  },
+  "dependencies": {
+    "transcoder": "file:packages/transcoder",
+    "tv-service": "file:packages/tv-service"
   }
 }

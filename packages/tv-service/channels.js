@@ -1,4 +1,5 @@
 const { get, post, decodeBase64 } = require('common/utils');
+const { CONFIG } = require('common/config');
 
 module.exports.reloadChannels = (config) => async (req, res) => {
   console.log('[model] reloading channels...');
@@ -67,6 +68,7 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
       const dateUrlComponent = `${urlComponentDate}:${urlComponentTime}`;
 
       // TODO extension .ts is hardcoded, fix
+      const streamURL = `${baseURL}/timeshift/${username}/${password}/${Math.floor(duration / 60)}/${dateUrlComponent}/${streamId}.ts`;
 
       listingsByKey[key] = {
         key,
@@ -76,7 +78,7 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
         start,
         end,
         duration,
-        streamURL: `${baseURL}/timeshift/${username}/${password}/${Math.floor(duration / 60)}/${dateUrlComponent}/${streamId}.ts`,
+        streamURL: `${transcoderURL}/live/${encodeURIComponent(streamURL)}`,
       };
     });
 
@@ -118,6 +120,7 @@ const getSimpleDataTable = async (config, timeshiftURL) => {
 };
 
 const parseChannelGroups = (channelConfig) => {
+  const transcoderURL = CONFIG.Transcoder.BaseUrl;
   const columns = channelConfig.values[0];
   const columnIndex = {};
   for (let i = 0; i < columns.length; ++i) {
@@ -141,7 +144,7 @@ const parseChannelGroups = (channelConfig) => {
       channelName,
       channelNameEncoded,
       logoURL,
-      streamURL,
+      streamURL: `${transcoderURL}/live/${encodeURIComponent(streamURL)}`,
       timeshiftURL,
       epgShift,
       epgDisplayShift,

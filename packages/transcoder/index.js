@@ -10,14 +10,14 @@ let cache = {};
 
 (() => {
   http.createServer((req, res) => {
-    if (req.url.startsWith('/proxy')) {
-      proxyVideo(req, res);
-    } else if (req.url.startsWith('/workQueue')) {
-      setWorkQueue(req, res);
-    } else if (req.url.startsWith('/chunk')) {
+    if (req.url.startsWith('/chunk')) {
       serveChunk(req, res);
-    } else if (req.url.startsWith('/url')) {
-      serveUrlPlaylist(req, res);
+    } else if (req.url.startsWith('/proxy')) {
+      proxyVideo(req, res);
+    } else if (req.url.startsWith('/live')) {
+      proxyLiveStream(req, res);
+    } else if (req.url.startsWith('/vod')) {
+      proxyVodStream(req, res);
     } else {
       res.writeHead(404);
     }
@@ -54,19 +54,31 @@ const initExecutables = () => new Promise(async (resolve, reject) => {
   }
 });
 
-const serveUrlPlaylist = async (req, res) => {
-  const matches = req.url.match('/url/([^/]*)');
+const proxyLiveStream = async (req, res) => {
+  const matches = req.url.match('/live/([^/]*)');
   const url = matches[1];
   const decodedURL = decodeURIComponent(url);
 
   cleanCache(true);
 
-  let playlist = [];
-  if (decodedURL.endsWith('.ts')) {
-    playlist = await getWrappedPlaylist(url);
-  } else {
-    playlist = await getTranscodedPlaylist(url);
-  }
+  // TODO here we could check if we need to transcode the live stream
+  const playlist = await getWrappedPlaylist(url);
+
+  res.writeHead(200, {
+    'Content-Type': 'application/x-mpegURL'
+  });
+
+  res.end(playlist.join('\n'))
+};
+
+const proxyVodStream = async (req, res) => {
+  const matches = req.url.match('/vod/([^/]*)');
+  const url = matches[1];
+  const decodedURL = decodeURIComponent(url);
+
+  cleanCache(true);
+
+  const playlist = await getTranscodedPlaylist(url);
 
   res.writeHead(200, {
     'Content-Type': 'application/x-mpegURL'
@@ -132,7 +144,7 @@ const getTranscodedPlaylist = async (url) => {
     onDurationReceived: (duration) => resolve(duration),
   }));
   
-  console.log(`[transcoder] serveUrlPlaylist - movie duration is ${totalDuration} for ${url}`);
+  console.log(`[transcoder] proxyLiveStream - movie duration is ${totalDuration} for ${url}`);
 
   const playlist = [];
 

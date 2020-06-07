@@ -24,7 +24,8 @@ let cache = {};
   }).listen(CONFIG.Transcoder.Port, () => {
     console.log(`transcoding worker started at ${CONFIG.Transcoder.Port}`);
 
-    initExecutables();
+    // TODO Cleanup
+    //initExecutables();
 
     if (CONFIG.Transcoder.EnableDiscovery) {
       startDiscoveryService();

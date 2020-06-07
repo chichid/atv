@@ -4,12 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node ./index.js"
+    "start": "node ./index.js",
+    "watch": "nodemon node ./index.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "common": "file:../common",
     "follow-redirects": "^1.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.4"
   }
 }

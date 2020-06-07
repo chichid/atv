@@ -7,6 +7,7 @@
   "license": "ISC",
   "homepage": "https://github.com/chichid/atv-test#readme",
   "scripts": {
+    "start": "npm start --prefix $PROJECT_ROOT",
     "transcoder": "npm start --prefix packages/transcoder",
     "tv-service": "npm start --prefix packages/tv-service"
   },

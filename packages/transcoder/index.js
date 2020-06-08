@@ -34,6 +34,8 @@ const startTranscoderProxy = () => {
     credentials: 'Basic ' + Buffer.from(CONFIG.Transcoder.RemoteProxyUser + ':' + CONFIG.Transcoder.RemoteProxyPass).toString('base64'),
   };
 
+  const nodeHttp = require('http');
+
   http.createServer((req, res) => {
     console.log(`[transcoder] transcoderProxy - proxying request ${req.url}`);
     const url = URL.parse(req.url);
@@ -49,7 +51,7 @@ const startTranscoderProxy = () => {
       },
     };
 
-    http.get(options, proxyRes => {
+    nodeHttp.get(options, proxyRes => {
       console.log(`[transcoder] proxy responded by ${proxyRes.statusCode}, ${req.url}`);
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
       proxyRes.pipe(res, { end: true });

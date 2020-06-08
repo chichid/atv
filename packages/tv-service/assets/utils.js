@@ -5,6 +5,6 @@ function playVideo (videoUrl) {
   xhr.open('POST', 'https://kortv.com/play', true);
   xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
   xhr.send(JSON.stringify({
-    videoUrl: decodeURIComponent(videoUrl)
+    videoUrl: videoUrl
   }));
 }

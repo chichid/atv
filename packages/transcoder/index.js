@@ -33,12 +33,10 @@ const proxyVideo = async (req, res) => {
 
   let videoInfo;
 
-  if (!getVideoInfo(url)) {
-    try {
-      videoInfo = await loadVideoInfo(url);
-    } catch(e) {
-      console.error(`[transcoder] proxyVideo - exception in loadVideoInfo`);
-    }
+  try {
+    videoInfo = await loadVideoInfo(url);
+  } catch(e) {
+    console.error(`[transcoder] proxyVideo - exception in loadVideoInfo`);
   }
 
   console.log(`[transcoder] proxyVideo - url ${url}`);

@@ -1,6 +1,6 @@
 const fs = require('fs');
 const URL = require('url');
-const http = require('follow-redirects').http;
+const { http, https } = require('follow-redirects');
 const { spawn } = require('child_process'); 
 const { post, get, wait, fileExists, readFile } = require('common/utils');
 const { CONFIG } = require('common/config');
@@ -17,13 +17,48 @@ const { startDiscoveryService, getWorkerList } = require('./discovery');
       res.end('resource not found');
     }
   }).listen(CONFIG.Transcoder.Port, () => {
-    console.log(`transcoding worker started at ${CONFIG.Transcoder.Port}`);
+    console.log(`[transcoder] transcoding worker started at ${CONFIG.Transcoder.Port}`);
 
     if (CONFIG.Transcoder.EnableDiscovery) {
       startDiscoveryService();
     }
+
+    startTranscoderProxy();
   });
 })();
+
+const startTranscoderProxy = () => {
+  const proxyOptions = {
+    host: CONFIG.Transcoder.RemoteProxyHost,
+    port: CONFIG.Transcoder.RemoteProxyPort,
+    credentials: 'Basic ' + Buffer.from(CONFIG.Transcoder.RemoteProxyUser + ':' + CONFIG.Transcoder.RemoteProxyPass).toString('base64'),
+  };
+
+  http.createServer((req, res) => {
+    console.log(`[transcoder] transcoderProxy - proxying request ${req.url}`);
+    const url = URL.parse(req.url);
+
+    const options = {
+      host: proxyOptions.host,
+      port: proxyOptions.port,
+      path: req.url,
+      headers: {
+        ...req.headers,
+        'Proxy-Authorization': proxyOptions.credentials,
+        'Host': url.hostname,
+      },
+    };
+
+    http.get(options, proxyRes => {
+      console.log(`[transcoder] proxy responded by ${proxyRes.statusCode}, ${req.url}`);
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res, { end: true });
+    });
+  }).listen(CONFIG.Transcoder.ProxyPort, () => {
+    console.log(`[transcoder] transcoder proxy started at ${CONFIG.Transcoder.ProxyPort}, options:`);
+    console.log(proxyOptions);
+  });
+};
 
 const proxyVideo = async (req, res) => {
   const playlist = [];
@@ -111,6 +146,7 @@ const loadChunk = async (url, start, duration) => {
   const options = [
     start ? '-ss' : null, start ? start : null,
     duration ? '-t' : null , duration ? duration : null,
+    '-http_proxy', `http://localhost:${CONFIG.Transcoder.ProxyPort}`,
     '-i', url,
 
     '-y',
@@ -165,7 +201,13 @@ const loadVideoInfo = (url, noCache) => new Promise((resolve, reject) => {
   }
 
   const ffprobe = CONFIG.Transcoder.FFProbePath || 'ffprobe';
-  const options = ['-i', url, '-hide_banner', '-loglevel', 'fatal', '-show_error', '-show_format', '-show_streams', '-show_programs', '-show_chapters', '-show_private_data', '-print_format', 'json']
+  const options = [
+    '-http_proxy', `http://localhost:${CONFIG.Transcoder.ProxyPort}`,
+    '-i', url, 
+    '-hide_banner', '-loglevel', 'fatal', '-show_error', '-show_format', 
+    '-show_streams', '-show_programs', '-show_chapters', '-show_private_data', 
+    '-print_format', 'json'
+  ];
   const child = spawn(module.exports.FFPROBE_PATH || 'ffprobe', options);
 
   console.log(`[transcoder] ffprobe ${options.join(' ')}`);

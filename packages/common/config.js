@@ -34,6 +34,11 @@ const Transcoder = {
   WorkQueueLimit: 1,
   ChunkDuration: 10,
   Port: process.env.TRANSCODER_PORT || 8666,
+  ProxyPort: process.env.TRANSCODER_PROXY_PORT || 6668,
+  RemoteProxyHost: process.env.TRANSCODER_PROXY_HOST || Settings.TRANSCODER_PROXY_HOST,
+  RemoteProxyPort: process.env.TRANSCODER_PROXY_PORT || Settings.TRANSCODER_PROXY_PORT,
+  RemoteProxyUser: process.env.TRANSCODER_PROXY_USER || Settings.TRANSCODER_PROXY_USER,
+  RemoteProxyPass: process.env.TRANSCODER_PROXY_PASS || Settings.TRANSCODER_PROXY_PASS,
 };
 
 const Discovery = {

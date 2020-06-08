@@ -31,11 +31,15 @@ const proxyVideo = async (req, res) => {
   const url = decodeURIComponent(matches[1]);
   const duration = 10;
 
-  if (!getVideoInfo(url)) {
-    await loadVideoInfo(url);
-  }
+  let videoInfo;
 
-  const videoInfo = getVideoInfo(url);
+  if (!getVideoInfo(url)) {
+    try {
+      videoInfo = await loadVideoInfo(url);
+    } catch(e) {
+      console.error(`[transcoder] proxyVideo - exception in loadVideoInfo`);
+    }
+  }
 
   console.log(`[transcoder] proxyVideo - url ${url}`);
 
@@ -58,7 +62,7 @@ const proxyVideo = async (req, res) => {
     }
 
     playlist.push(`#EXT-X-ENDLIST`);
-  } else if (videoInfo && isNaN(videoInfo.totalDuration)) {
+  } else { 
     console.log(`[transcoder] proxyVideo - totalDuration is NaN, url ${url}`);
 
     playlist.push(`#EXT-X-TARGETDURATION:${1}`);
@@ -66,9 +70,7 @@ const proxyVideo = async (req, res) => {
     playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
 
     playlist.push(`#EXT-X-ENDLIST`);
-  } else if (!videoInfo){
-    loadVideoInfo(url);
-  }
+  } 
 
   res.writeHead(200, {
     'Content-Type': 'application/x-mpegURL',
@@ -161,8 +163,6 @@ const loadChunk = async (url, start, duration) => {
 
 const cache = {};
 
-const getVideoInfo = (url) => cache[url];
-
 const loadVideoInfo = (url, noCache) => new Promise((resolve, reject) => {
   if (!noCache && cache[url]) {
     resolve(cache[url]);
@@ -189,6 +189,7 @@ const loadVideoInfo = (url, noCache) => new Promise((resolve, reject) => {
   });
 
   child.on('error', err => {
+    console.log(`[transcoder] ffprobe error, url ${url}`);
     console.error(err);
     reject(err);
   });
@@ -198,7 +199,7 @@ const loadVideoInfo = (url, noCache) => new Promise((resolve, reject) => {
     cache[url] = {
       totalDuration: Number(parsedOutput.format.duration),
     };
-    console.log(`[transcoder] ffprobe successful for url ${url}`);
+    console.log(`[transcoder] ffprobe successful, url ${url}`);
     resolve(cache[url]);
   });
 });

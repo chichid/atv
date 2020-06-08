@@ -31,13 +31,7 @@ const proxyVideo = async (req, res) => {
   const url = decodeURIComponent(matches[1]);
   const duration = 10;
 
-  let videoInfo;
-
-  try {
-    videoInfo = await loadVideoInfo(url);
-  } catch(e) {
-    console.error(`[transcoder] proxyVideo - exception in loadVideoInfo`);
-  }
+  const videoInfo = await loadVideoInfo(url);
 
   console.log(`[transcoder] proxyVideo - url ${url}`);
 
@@ -193,11 +187,20 @@ const loadVideoInfo = (url, noCache) => new Promise((resolve, reject) => {
   });
 
   child.on('close', () => {
-    const parsedOutput = JSON.parse(output);
+    let totalDuration = null;
+
+    try {
+      const parsedOutput = JSON.parse(output);
+      totalDuration = Number(parsedOutput.format.duration);
+      console.log(`[transcoder] ffprobe successful, url ${url}`);
+    } catch(e) {
+      console.log(`[transcoder] ffprobe failed to parse output, url ${url}`);
+    }
+
     cache[url] = {
-      totalDuration: Number(parsedOutput.format.duration),
+      totalDuration
     };
-    console.log(`[transcoder] ffprobe successful, url ${url}`);
+
     resolve(cache[url]);
   });
 });

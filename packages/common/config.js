@@ -29,6 +29,7 @@ if (!GoogleSheetsApiKey) {
 const Transcoder = {
   BaseUrl: process.env.TRANSCODER_URL || Settings.TRANSCODER_URL || 'http://localhost:8666',
   FFMpegPath: process.env.FFMPEG_PATH,
+  FFProbePath: process.env.FFPROBE_PATH,
   EnableDiscovery: process.env.ENABLE_DISCOVERY === "true" ? true : false,
   WorkQueueLimit: 1,
   ChunkDuration: 10,

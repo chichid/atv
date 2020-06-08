@@ -78,7 +78,7 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
         start,
         end,
         duration,
-        streamURL: `${transcoderURL}/live/${encodeURIComponent(streamURL)}`,
+        streamURL: `${transcoderURL}/${encodeURIComponent(streamURL)}`,
       };
     });
 
@@ -144,7 +144,7 @@ const parseChannelGroups = (channelConfig) => {
       channelName,
       channelNameEncoded,
       logoURL,
-      streamURL: `${transcoderURL}/live/${encodeURIComponent(streamURL)}`,
+      streamURL: `${transcoderURL}/${encodeURIComponent(streamURL)}`,
       timeshiftURL,
       epgShift,
       epgDisplayShift,

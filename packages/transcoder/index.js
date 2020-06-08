@@ -57,8 +57,11 @@ const proxyVideo = async (req, res) => {
   } else { 
     console.log(`[transcoder] proxyVideo - totalDuration is NaN, url ${url}`);
 
-    playlist.push(`#EXT-X-TARGETDURATION:${1}`);
+    playlist.push(`#EXT-X-TARGETDURATION:${60}`);
     playlist.push(`#EXTINF:${1},`);
+    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+
+    playlist.push(`#EXTINF:${60},`);
     playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
 
     playlist.push(`#EXT-X-ENDLIST`);

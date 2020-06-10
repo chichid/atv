@@ -98,7 +98,7 @@ const proxyVideo = async (req, res) => {
     playlist.push(`#EXTINF:${1},`);
     playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
 
-    if (isNaN(videoInfo.totalDuration)) {
+    if (videoInfo && isNaN(videoInfo.totalDuration)) {
       playlist.push(`#EXT-X-ENDLIST`);
     }
   } 

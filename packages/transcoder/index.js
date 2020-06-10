@@ -211,6 +211,10 @@ const loadChunk = async (url, start, duration) => {
     cancel();
   });
 
+  child.on('exit', error => {
+    console.log(`[ffmpeg] exiting transcoding process ${url} / ${start} / ${duration}`);
+  });
+
   return { 
     stream: child.stdout,
     cancel,

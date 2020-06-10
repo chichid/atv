@@ -49,7 +49,7 @@ const Transcoder = {
   RemoteProxyPort: process.env.TRANSCODER_PROXY_PORT || Settings.TRANSCODER_PROXY_PORT,
   RemoteProxyUser: process.env.TRANSCODER_PROXY_USER || Settings.TRANSCODER_PROXY_USER,
   RemoteProxyPass: process.env.TRANSCODER_PROXY_PASS || Settings.TRANSCODER_PROXY_PASS,
-  ENABLE_FFMPEG_DEBUG_LOGGING: config('FFMPEG_DEBUG_LOGGING', false),
+  FFMpegDebugLogging: config('FFMPEG_DEBUG_LOGGING', false),
 };
 
 const Discovery = {

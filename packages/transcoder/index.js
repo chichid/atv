@@ -195,9 +195,11 @@ const loadChunk = async (url, start, duration) => {
     'pipe:1'
   ].filter(op => op !== null ? true : false);
 
+  console.log('[ffmpeg] ffmpeg' + options.join(' '));
   const child = spawn(ffmpeg, options);
+  const cancel = () => child.kill('SIGINT');
 
-  if (CONFIG.Transcoder.ENABLE_FFMPEG_DEBUG_LOGGING) {
+  if (CONFIG.Transcoder.FFMpegDebugLogging) {
     child.stderr.on('data', data => {
       console.log('[ffmpeg] ' + data.toString())
     });
@@ -205,12 +207,13 @@ const loadChunk = async (url, start, duration) => {
 
   child.on('error', error => {
     console.error(`[ffmpeg] error transcoding  ${url} / ${start} / ${duration}`);
-    console.log(error);
+    console.error(error);
+    cancel();
   });
 
   return { 
     stream: child.stdout,
-    cancel: () => child.kill('SIGINT'),
+    cancel,
   };
 };
 

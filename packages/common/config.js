@@ -26,6 +26,16 @@ if (!GoogleSheetsApiKey) {
   console.warn('[warning] - Config api Key for the google sheets not found, this is necessary for the channels API');
 }
 
+const config = (key, defaultValue) => {
+  let settingValue = process.env[key] || Settings[key] || null;
+
+  if (typeof settingValue === 'string' && settingValue.startsWith('$')) {
+    settingValue = process.env[settingValue.replace('$', '')];
+  }
+
+  return settingValue || defaultValue;
+};
+
 const Transcoder = {
   BaseUrl: process.env.TRANSCODER_URL || Settings.TRANSCODER_URL || 'http://localhost:8666',
   FFMpegPath: process.env.FFMPEG_PATH,
@@ -33,7 +43,7 @@ const Transcoder = {
   EnableDiscovery: process.env.ENABLE_DISCOVERY === "true" ? true : false,
   WorkQueueLimit: 1,
   ChunkDuration: 10,
-  Port: process.env.TRANSCODER_PORT || 8666,
+  Port: config('TRANSCODER_PORT', 8666),
   ProxyPort: process.env.TRANSCODER_LOCAL_PROXY_PORT || 6668,
   RemoteProxyHost: process.env.TRANSCODER_PROXY_HOST || Settings.TRANSCODER_PROXY_HOST,
   RemoteProxyPort: process.env.TRANSCODER_PROXY_PORT || Settings.TRANSCODER_PROXY_PORT,

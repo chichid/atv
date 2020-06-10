@@ -97,10 +97,26 @@ const proxyVideo = async (req, res) => {
     playlist.push(`#EXT-X-TARGETDURATION:${1}`);
     playlist.push(`#EXTINF:${1},`);
     playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-
-    if (videoInfo && isNaN(videoInfo.totalDuration)) {
-      playlist.push(`#EXT-X-ENDLIST`);
-    }
+    playlist.push(`#EXTINF:${1},`);
+    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+    playlist.push(`#EXTINF:${1},`);
+    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+    playlist.push(`#EXTINF:${1},`);
+    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+    playlist.push(`#EXTINF:${1},`);
+    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+    playlist.push(`#EXTINF:${1},`);
+    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+    playlist.push(`#EXTINF:${1},`);
+    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+    playlist.push(`#EXTINF:${1},`);
+    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+    playlist.push(`#EXTINF:${1},`);
+    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+    playlist.push(`#EXTINF:${1},`);
+    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+    playlist.push(`#EXTINF:${10},`);
+    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
   } 
 
   res.writeHead(200, {
@@ -142,7 +158,7 @@ const parseCookies = async (req, res) => {
 };
 
 const loadChunk = async (url, start, duration) => {
-  const ffmpeg = CONFIG.Transcoder.FFMpegPath || 'ffmpeg';
+  const ffmpeg = CONFIG.Transcoder.FMpegPath || 'ffmpeg';
 
   const options = [
     start ? '-ss' : null, start ? start : null,
@@ -175,11 +191,11 @@ const loadChunk = async (url, start, duration) => {
 
   const child = spawn(ffmpeg, options);
 
-  child.stderr.on('data', data => {
-    //const used = process.memoryUsage().heapUsed / 1024 / 1024;
-    //console.log(`[transcoder] memory use ${Math.round(used * 100) / 100} MB`);
-    //console.log('[ffmpeg] ' + data.toString())
-  });
+  if (CONFIG.ENABLE_FFMPEG_DEBUG_LOGGING) {
+    child.stderr.on('data', data => {
+      console.log('[ffmpeg] ' + data.toString())
+    });
+  }
 
   child.on('exit', code => {
     if (code !== 0) {

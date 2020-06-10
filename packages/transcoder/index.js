@@ -118,8 +118,10 @@ const proxyVideo = async (req, res) => {
       playlist.push(`#EXT-X-TARGETDURATION:${30}`);
       playlist.push(`#EXTINF:${1},`);
       playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-      playlist.push(`#EXTINF:${30},`);
-      playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+      for (let i = 0; i < 100; ++i) {
+        playlist.push(`#EXTINF:${30},`);
+        playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+      }
     }
   } 
 

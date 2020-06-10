@@ -6,6 +6,9 @@ const { post, get, wait, fileExists, readFile } = require('common/utils');
 const { CONFIG } = require('common/config');
 const { startDiscoveryService, getWorkerList } = require('./discovery');
 
+const cache = {};
+const playbackSessionCounter = {};
+
 (() => {
   http.createServer((req, res) => {
     if (req.url.startsWith('/proxy')) {
@@ -68,18 +71,22 @@ const proxyVideo = async (req, res) => {
   const url = decodeURIComponent(matches[1]);
   const duration = 10;
 
-  const videoInfo = await loadVideoInfo(url);
+  const videoInfo = cache[url];
+
+  if (typeof videoInfo === 'undefined') {
+    await loadVideoInfo(url);
+  }
 
   console.log(`[transcoder] proxyVideo - url ${url}`);
 
   playlist.push(`#EXTM3U`);
   playlist.push(`#EXT-X-VERSION:4`);
   playlist.push(`#EXT-X-ALLOW-CACHE:YES`);
-  playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
 
   if (videoInfo && videoInfo.totalDuration) {
     console.log(`[transcoder] proxyVideo - totalDuration: ${videoInfo.totalDuration}, url ${url}`);
 
+    playlist.push(`#EXT-X-MEDIA-SEQUENCE:1`);
     playlist.push(`#EXT-X-TARGETDURATION:${duration}`);
 
     let start = 0;
@@ -94,29 +101,26 @@ const proxyVideo = async (req, res) => {
   } else { 
     console.log(`[transcoder] proxyVideo - totalDuration is NaN, url ${url}`);
 
-    playlist.push(`#EXT-X-TARGETDURATION:${1}`);
-    playlist.push(`#EXTINF:${1},`);
-    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-    playlist.push(`#EXTINF:${1},`);
-    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-    playlist.push(`#EXTINF:${1},`);
-    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-    playlist.push(`#EXTINF:${1},`);
-    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-    playlist.push(`#EXTINF:${1},`);
-    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-    playlist.push(`#EXTINF:${1},`);
-    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-    playlist.push(`#EXTINF:${1},`);
-    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-    playlist.push(`#EXTINF:${1},`);
-    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-    playlist.push(`#EXTINF:${1},`);
-    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-    playlist.push(`#EXTINF:${1},`);
-    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-    playlist.push(`#EXTINF:${10},`);
-    playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+    const sessionId = req.headers['x-playback-session-id'];
+
+    if (!playbackSessionCounter[sessionId]) {
+      playbackSessionCounter[sessionId] = 0;
+    }
+
+    if (playbackSessionCounter[sessionId] < 10) {
+      playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
+      playlist.push(`#EXT-X-TARGETDURATION:${1}`);
+      playlist.push(`#EXTINF:${1},`);
+      playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+      playbackSessionCounter[sessionId]++;
+    } else {
+      playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
+      playlist.push(`#EXT-X-TARGETDURATION:${30}`);
+      playlist.push(`#EXTINF:${1},`);
+      playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+      playlist.push(`#EXTINF:${30},`);
+      playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+    }
   } 
 
   res.writeHead(200, {
@@ -191,16 +195,15 @@ const loadChunk = async (url, start, duration) => {
 
   const child = spawn(ffmpeg, options);
 
-  if (CONFIG.ENABLE_FFMPEG_DEBUG_LOGGING) {
+  if (CONFIG.Transcoder.ENABLE_FFMPEG_DEBUG_LOGGING) {
     child.stderr.on('data', data => {
       console.log('[ffmpeg] ' + data.toString())
     });
   }
 
-  child.on('exit', code => {
-    if (code !== 0) {
-      console.error(`[ffmpeg] error transcoding  ${url} / ${start} / ${duration}`);
-    } 
+  child.on('error', error => {
+    console.error(`[ffmpeg] error transcoding  ${url} / ${start} / ${duration}`);
+    console.log(error);
   });
 
   return { 
@@ -208,8 +211,6 @@ const loadChunk = async (url, start, duration) => {
     cancel: () => child.kill('SIGINT'),
   };
 };
-
-const cache = {};
 
 const loadVideoInfo = (url, noCache) => new Promise((resolve, reject) => {
   if (!noCache && cache[url]) {

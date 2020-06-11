@@ -7,7 +7,6 @@ const { CONFIG } = require('common/config');
 const { startDiscoveryService, getWorkerList } = require('./discovery');
 
 const cache = {};
-const playbackSessionCounter = {};
 
 (() => {
   http.createServer((req, res) => {
@@ -69,21 +68,46 @@ const proxyVideo = async (req, res) => {
   const playlist = [];
   const matches = req.url.match('/proxy/([^/]*)');
   const url = decodeURIComponent(matches[1]);
-  const duration = 10;
-
   const videoInfo = cache[url];
 
   if (typeof videoInfo === 'undefined') {
     await loadVideoInfo(url);
   }
 
-  console.log(`[transcoder] proxyVideo - url ${url}`);
+  const isVod = videoInfo && videoInfo.totalDuration;
+  const isLive = videoInfo && isNaN(videoInfo.totalDuration);
+  const headers = req.headers;
+  const userAgent = headers['user-agent'] || '';
+  const isVlc = userAgent.toLowerCase().indexOf('vlc') !== -1;
+  const isAppleTv = userAgent.toLowerCase().indexOf('apple tv') !== -1;
+  const sessionId = headers['x-playback-session-id'];
+
+  let delayResponse = false;
+
+  if (isAppleTv) {
+
+    if (!cache.playbackSessions) {
+      cache.playbackSessions = { };
+    }
+
+    if(!cache.playbackSessions[sessionId]) {
+      cache.playbackSessions[sessionId] = {
+        ...req.headers,
+        counter: 0,
+        timestamp: Date.now(),
+      };
+    } else {
+      cache.playbackSessions[sessionId].counter++;
+    }
+  }
+
+  console.log(`[transcoder] proxyVideo - url ${url}, user-agent: ${userAgent}`);
 
   playlist.push(`#EXTM3U`);
   playlist.push(`#EXT-X-VERSION:4`);
-  playlist.push(`#EXT-X-ALLOW-CACHE:YES`);
 
-  if (videoInfo && videoInfo.totalDuration) {
+  if (isVod) {
+    const duration = 10;
     console.log(`[transcoder] proxyVideo - totalDuration: ${videoInfo.totalDuration}, url ${url}`);
 
     playlist.push(`#EXT-X-MEDIA-SEQUENCE:1`);
@@ -101,27 +125,26 @@ const proxyVideo = async (req, res) => {
   } else { 
     console.log(`[transcoder] proxyVideo - totalDuration is NaN, url ${url}`);
 
-    const sessionId = req.headers['x-playback-session-id'];
-
-    if (!playbackSessionCounter[sessionId]) {
-      playbackSessionCounter[sessionId] = 0;
-    }
-
-    if (playbackSessionCounter[sessionId] < 10) {
-      playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
+    if (isAppleTv && cache.playbackSessions[sessionId].counter <= 10) {
       playlist.push(`#EXT-X-TARGETDURATION:${1}`);
-      playlist.push(`#EXTINF:${1},`);
-      playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-      playbackSessionCounter[sessionId]++;
-    } else {
       playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
-      playlist.push(`#EXT-X-TARGETDURATION:${30}`);
       playlist.push(`#EXTINF:${1},`);
       playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
-      for (let i = 0; i < 100; ++i) {
-        playlist.push(`#EXTINF:${30},`);
-        playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+    } else {
+      const duration = 60 * 15;
+      const maxLiveDuration = 3600 * 4;
+
+      playlist.push(`#EXT-X-TARGETDURATION:${duration}`);
+      playlist.push(`#EXT-X-MEDIA-SEQUENCE:1`);
+      
+      const timestamp = Date.now();//cache.playbackSessions[sessionId].timestamp;
+      
+      for (let i = 0; i < Math.floor(maxLiveDuration/duration); ++i) {
+        playlist.push(`#EXTINF:${duration},`);
+        playlist.push(`/chunk/${encodeURIComponent(url)}/-${timestamp + i*duration*1000}/${duration}`);
       }
+
+      playlist.push(`#EXT-X-ENDLIST`);
     }
   } 
 
@@ -129,6 +152,7 @@ const proxyVideo = async (req, res) => {
     'Content-Type': 'application/x-mpegURL',
   });
 
+  console.log(`[transcoder] /proxy, returning response`);
   res.end(playlist.join('\n'));
 };
 
@@ -163,16 +187,28 @@ const parseCookies = async (req, res) => {
   return list;
 };
 
-const loadChunk = async (url, start, duration) => {
+const loadChunk = async (url, s, d) => {
   const ffmpeg = CONFIG.Transcoder.FMpegPath || 'ffmpeg';
+  const start = Number(s);
+  const duration = Number(d);
 
+  if ( start < 0 ) {
+    const timestamp = -1 * start;
+    console.log('[ffmpeg] waiting for timestamp ' + timestamp);
+    while(Date.now() < timestamp) {
+      await wait(10);
+    }
+    console.log('[ffmpeg] timestamp reached, moving forward');
+  }
+  
   const options = [
-    start ? '-ss' : null, start ? start : null,
-    duration ? '-t' : null , duration ? duration : null,
+    Number(start) > 0 ? '-ss' : null, Number(start) > 0 ? start : null,
+    Number(duration) > 0 ? '-t' : null , Number(duration) > 0 ? duration : null,
     '-http_proxy', `http://localhost:${CONFIG.Transcoder.ProxyPort}`,
     '-i', url,
 
     '-y',
+    '-crf', '18',
     '-strict', 'experimental',
     '-preset', 'ultrafast',
     '-tune', 'zerolatency',
@@ -182,10 +218,9 @@ const loadChunk = async (url, start, duration) => {
     '-acodec', 'aac',
     '-ac', '6',
     '-ab', '640k',
-    '-crf', '14',
     '-max_muxing_queue_size', '1024',
     '-copyts',
-    '-r', 24,
+    //'-r', 25,
     '-pix_fmt', 'yuv420p',
     '-map_metadata', -1,
     '-f', 'mpegts',
@@ -195,7 +230,7 @@ const loadChunk = async (url, start, duration) => {
     'pipe:1'
   ].filter(op => op !== null ? true : false);
 
-  console.log('[ffmpeg] ffmpeg' + options.join(' '));
+  console.log('[ffmpeg] ffmpeg ' + options.join(' '));
   const child = spawn(ffmpeg, options);
   const cancel = () => child.kill('SIGINT');
 

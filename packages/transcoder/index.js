@@ -131,6 +131,7 @@ const proxyVideo = async (req, res) => {
     const latencyAdjuster = Number(CONFIG.Transcoder.LatencyAdjuster);
     const durationAdjuster = Number(CONFIG.Transcoder.DurationAdjuster);
 
+    console.log(`[transcoder] initialDuration: ${initialDuration}, duration: ${duration}, maxLiveDuration: ${maxLiveDuration}, latencyAdjuster: ${latencyAdjuster}, durationAdjuster: ${durationAdjuster}`);
     if(isAppleTv && cache.playbackSessions[sessionId].counter <= initialDuration) {
       playlist.push(`#EXT-X-TARGETDURATION:${1}`);
       playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);

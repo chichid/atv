@@ -87,3 +87,5 @@ module.exports.CONFIG = {
   MimeMap,
   XstreamCodes,
 };
+
+console.log(module.exports.CONFIG);

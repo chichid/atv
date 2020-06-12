@@ -128,7 +128,7 @@ const proxyVideo = async (req, res) => {
     const initialDuration = Number(CONFIG.Transcoder.InitialChunkDuration);
     const duration = Number(CONFIG.Transcoder.ChunkDuration);
     const maxLiveDuration = Number(CONFIG.Transcoder.MaxLiveStreamDuration);
-    const latencyAdjuster = Number(CONFIG.Transcoder.LatencyAdjuster);
+    const latencyAdjuster = Number(CONFIG.Transcoder.LantencyAdjuster);
     const durationAdjuster = Number(CONFIG.Transcoder.DurationAdjuster);
 
     console.log(`[transcoder] initialDuration: ${initialDuration}, duration: ${duration}, maxLiveDuration: ${maxLiveDuration}, latencyAdjuster: ${latencyAdjuster}, durationAdjuster: ${durationAdjuster}`);

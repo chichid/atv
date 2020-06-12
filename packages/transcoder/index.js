@@ -140,7 +140,8 @@ const proxyVideo = async (req, res) => {
       playlist.push(`#EXT-X-TARGETDURATION:${duration}`);
       playlist.push(`#EXT-X-MEDIA-SEQUENCE:1`);
 
-      const timestamp = cache.playbackSessions[sessionId].timestamp;
+      const playbackSession = cache.playbackSessions[sessionId];
+      const timestamp = playbackSessions ? playbackSessions.timestamp : Date.now();
 
       for (let i = 1; i < Math.floor(maxLiveDuration/duration); ++i) {
         playlist.push(`#EXTINF:${duration},`);

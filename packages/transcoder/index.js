@@ -125,9 +125,10 @@ const proxyVideo = async (req, res) => {
   } else { 
     console.log(`[transcoder] proxyVideo - totalDuration is NaN, url ${url}`);
 
-    const initialDuration = CONFIG.Transcoder.InitialChunkDuration;
-    const duration = CONFIG.Transcoder.ChunkDuration;
-    const maxLiveDuration = CONFIG.Transcoder.MaxLiveStreamDuration;
+    const initialDuration = Number(CONFIG.Transcoder.InitialChunkDuration);
+    const duration = Number(CONFIG.Transcoder.ChunkDuration);
+    const maxLiveDuration = Number(CONFIG.Transcoder.MaxLiveStreamDuration);
+    const latencyAdjuster = Number(CONFIG.Transcoder.LatencyAdjuster);
 
     if(cache.playbackSessions[sessionId].counter <= initialDuration) {
       playlist.push(`#EXT-X-TARGETDURATION:${1}`);
@@ -142,7 +143,7 @@ const proxyVideo = async (req, res) => {
 
       for (let i = 1; i < Math.floor(maxLiveDuration/duration); ++i) {
         playlist.push(`#EXTINF:${duration},`);
-        playlist.push(`/chunk/${encodeURIComponent(url)}/-${timestamp + i*duration*1000}/${duration - 0.001}`);
+        playlist.push(`/chunk/${encodeURIComponent(url)}/-${timestamp + i*duration*1000 + latencyAdjuster}/${duration}`);
       }
 
       playlist.push(`#EXT-X-ENDLIST`);

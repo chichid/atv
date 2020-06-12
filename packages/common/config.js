@@ -43,6 +43,7 @@ const Transcoder = {
   EnableDiscovery: config('TRANSCODER_ENABLE_DISCOVERY', false),
   InitialChunkDuration: config('TRANSCODER_INITIAL_CHUNK_DURATION', 10),
   ChunkDuration: config('TRANSCODER_CHUNK_DURATION', 10),
+  LantencyAdjuster: config('TRANSCODER_LATENCY_ADJUSTER', 1),
   MaxLiveStreamDuration: config('TRANSCODER_MAX_LIVE_STREAM_DURATION', 3600 * 4),
   Port: config('TRANSCODER_PORT', 8666),
   ProxyPort: process.env.TRANSCODER_LOCAL_PROXY_PORT || 6668,

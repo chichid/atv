@@ -141,12 +141,17 @@ const proxyVideo = async (req, res) => {
       playlist.push(`#EXT-X-TARGETDURATION:${duration}`);
       playlist.push(`#EXT-X-MEDIA-SEQUENCE:1`);
 
-      const playbackSessions = cache.playbackSessions && cache.playbackSessions[sessionId];
-      const timestamp = playbackSessions ? playbackSessions.timestamp : Date.now();
+      //const playbackSessions = cache.playbackSessions && cache.playbackSessions[sessionId];
+      //const timestamp = playbackSessions ? playbackSessions.timestamp : Date.now();
 
-      for (let i = 1; i < Math.floor(maxLiveDuration/duration); ++i) {
+      //for (let i = 1; i < Math.floor(maxLiveDuration/duration); ++i) {
+      //  playlist.push(`#EXTINF:${duration},`);
+      //  playlist.push(`/chunk/${encodeURIComponent(url)}/-${timestamp + i*duration*1000 + latencyAdjuster}/${duration + durationAdjuster}`);
+      //}
+
+      for (let i = 1; i < 10; ++i) {
         playlist.push(`#EXTINF:${duration},`);
-        playlist.push(`/chunk/${encodeURIComponent(url)}/-${timestamp + i*duration*1000 + latencyAdjuster}/${duration + durationAdjuster}`);
+        playlist.push(`/chunk/${encodeURIComponent(url)}/-${i}/0`);
       }
 
       playlist.push(`#EXT-X-ENDLIST`);
@@ -194,14 +199,14 @@ const loadChunk = async (url, s, d) => {
   const start = Number(s);
   const duration = Number(d);
 
-  if ( start < 0 ) {
-    const timestamp = -1 * start;
-    console.log('[ffmpeg] waiting for timestamp ' + timestamp);
-    while(Date.now() < timestamp) {
-      await wait(10);
-    }
-    console.log('[ffmpeg] timestamp reached, moving forward');
-  }
+  //if ( start < 0 ) {
+  //  const timestamp = -1 * start;
+  //  console.log('[ffmpeg] waiting for timestamp ' + timestamp);
+  //  while(Date.now() < timestamp) {
+  //    await wait(10);
+  //  }
+  //  console.log('[ffmpeg] timestamp reached, moving forward');
+  //}
   
   const options = [
     Number(start) > 0 ? '-ss' : null, Number(start) > 0 ? start : null,

@@ -129,6 +129,7 @@ const proxyVideo = async (req, res) => {
     const duration = Number(CONFIG.Transcoder.ChunkDuration);
     const maxLiveDuration = Number(CONFIG.Transcoder.MaxLiveStreamDuration);
     const latencyAdjuster = Number(CONFIG.Transcoder.LatencyAdjuster);
+    const durationAdjuster = Number(CONFIG.Transcoder.DurationAdjuster);
 
     if(isAppleTv && cache.playbackSessions[sessionId].counter <= initialDuration) {
       playlist.push(`#EXT-X-TARGETDURATION:${1}`);
@@ -143,7 +144,7 @@ const proxyVideo = async (req, res) => {
 
       for (let i = 1; i < Math.floor(maxLiveDuration/duration); ++i) {
         playlist.push(`#EXTINF:${duration},`);
-        playlist.push(`/chunk/${encodeURIComponent(url)}/-${timestamp + i*duration*1000 + latencyAdjuster}/${duration}`);
+        playlist.push(`/chunk/${encodeURIComponent(url)}/-${timestamp + i*duration*1000 + latencyAdjuster}/${duration + durationAdjuster}`);
       }
 
       playlist.push(`#EXT-X-ENDLIST`);

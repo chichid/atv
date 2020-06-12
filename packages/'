@@ -189,8 +189,7 @@ const serveChunk = async (req, res) => {
 };
 
 const loadChunk = async (url, s, d) => {
-  const ffmpeg = CONFIG.Transcoder.FFMpegPath || 'ffmpeg';
-  const crf = CONFIG.Transcoder.FFMpegCRF;
+  const ffmpeg = CONFIG.Transcoder.FMpegPath || 'ffmpeg';
   const start = Number(s);
   const duration = Number(d);
 
@@ -210,7 +209,7 @@ const loadChunk = async (url, s, d) => {
     '-i', url,
 
     '-y',
-    '-crf', crf,
+    '-crf', '16',
     '-strict', 'experimental',
     '-preset', 'ultrafast',
     '-tune', 'zerolatency',

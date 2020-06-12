@@ -40,6 +40,7 @@ const Transcoder = {
   BaseUrl: config('TRANSCODER_URL', 'http://localhost:8666'),
   FFMpegPath: process.env.FFMPEG_PATH,
   FFProbePath: process.env.FFPROBE_PATH,
+  FFMpegCRF: config('TRANSCODER_CRF', 24),
   EnableDiscovery: config('TRANSCODER_ENABLE_DISCOVERY', false),
   InitialChunkDuration: config('TRANSCODER_INITIAL_CHUNK_DURATION', 10),
   ChunkDuration: config('TRANSCODER_CHUNK_DURATION', 10),

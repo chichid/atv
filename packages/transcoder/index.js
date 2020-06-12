@@ -142,7 +142,7 @@ const proxyVideo = async (req, res) => {
 
       for (let i = 1; i < Math.floor(maxLiveDuration/duration); ++i) {
         playlist.push(`#EXTINF:${duration},`);
-        playlist.push(`/chunk/${encodeURIComponent(url)}/-${timestamp + i*duration*1000}/${duration}`);
+        playlist.push(`/chunk/${encodeURIComponent(url)}/-${timestamp + i*duration*1000}/${duration - 0.001}`);
       }
 
       playlist.push(`#EXT-X-ENDLIST`);

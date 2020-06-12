@@ -119,8 +119,6 @@ const proxyVideo = async (req, res) => {
       playlist.push(`/chunk/${encodeURIComponent(url)}/${start}/${chunkDuration}`);
       start += chunkDuration;
     }
-
-    playlist.push(`#EXT-X-ENDLIST`);
   } else { 
     console.log(`[transcoder] proxyVideo - totalDuration is NaN, url ${url}`);
 
@@ -131,9 +129,11 @@ const proxyVideo = async (req, res) => {
       playlist.push(`#EXTINF:${1},`);
       playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
     }
-
-    playlist.push(`#EXT-X-ENDLIST`);
   } 
+
+  if (isVod || isLive) {
+    playlist.push(`#EXT-X-ENDLIST`);
+  }
 
   res.writeHead(200, {
     'Content-Type': 'application/x-mpegURL',
@@ -176,15 +176,6 @@ const loadChunk = async (url, s, d) => {
   const start = Number(s);
   const duration = Number(d);
 
-  //if ( start < 0 ) {
-  //  const timestamp = -1 * start;
-  //  console.log('[ffmpeg] waiting for timestamp ' + timestamp);
-  //  while(Date.now() < timestamp) {
-  //    await wait(10);
-  //  }
-  //  console.log('[ffmpeg] timestamp reached, moving forward');
-  //}
-  
   const options = [
     Number(start) > 0 ? '-ss' : null, Number(start) > 0 ? start : null,
     Number(duration) > 0 ? '-t' : null , Number(duration) > 0 ? duration : null,
@@ -203,6 +194,7 @@ const loadChunk = async (url, s, d) => {
     '-ac', '6',
     '-ab', '640k',
     '-max_muxing_queue_size', '1024',
+    '-copyinkf',
     '-copyts',
     '-r', 25,
     '-pix_fmt', 'yuv420p',
@@ -242,7 +234,7 @@ const loadChunk = async (url, s, d) => {
       console.log(`[ffmpeg] chunk ${url} / ${start} / ${duration} reached the max run duration, closing it....`);
       cancel();
     }
-  }, 1000 * 30);
+  }, 1000 * 15);
 
   return { 
     stream: child.stdout,

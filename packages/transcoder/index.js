@@ -125,21 +125,22 @@ const proxyVideo = async (req, res) => {
   } else { 
     console.log(`[transcoder] proxyVideo - totalDuration is NaN, url ${url}`);
 
-    if (isAppleTv && cache.playbackSessions[sessionId].counter <= 10) {
+    const initialDuration = 10;
+    const duration = 30;
+    const maxLiveDuration = 3600 * 4;
+
+    if(cache.playbackSessions[sessionId].counter <= initialDuration) {
       playlist.push(`#EXT-X-TARGETDURATION:${1}`);
       playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
       playlist.push(`#EXTINF:${1},`);
-      playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+      playlist.push(`/chunk/${encodeURIComponent(url)}/0/${initialDuration}`);
     } else {
-      const duration = 60 * 15;
-      const maxLiveDuration = 3600 * 4;
-
       playlist.push(`#EXT-X-TARGETDURATION:${duration}`);
       playlist.push(`#EXT-X-MEDIA-SEQUENCE:1`);
-      
-      const timestamp = Date.now();//cache.playbackSessions[sessionId].timestamp;
-      
-      for (let i = 0; i < Math.floor(maxLiveDuration/duration); ++i) {
+
+      const timestamp = cache.playbackSessions[sessionId].timestamp;
+
+      for (let i = 1; i < Math.floor(maxLiveDuration/duration); ++i) {
         playlist.push(`#EXTINF:${duration},`);
         playlist.push(`/chunk/${encodeURIComponent(url)}/-${timestamp + i*duration*1000}/${duration}`);
       }
@@ -152,7 +153,6 @@ const proxyVideo = async (req, res) => {
     'Content-Type': 'application/x-mpegURL',
   });
 
-  console.log(`[transcoder] /proxy, returning response`);
   res.end(playlist.join('\n'));
 };
 
@@ -161,6 +161,11 @@ const serveChunk = async (req, res) => {
   const url = decodeURIComponent(matches[1]);
   const start = Number(matches[2]);
   const duration = Number(matches[3]);
+
+  if (cache.currentStream) {
+    cache.currentStream.end();
+    cache.currentStream = null;
+  }
 
   const { stream, cancel } = await loadChunk(url, start, duration);
 
@@ -171,20 +176,12 @@ const serveChunk = async (req, res) => {
   console.log(`[transcoder] serve - streaming content of chunk ${start} - ${duration}`);
   stream.pipe(res, { end: true });
 
+  cache.currentStream = stream;
+
   req.on('close', () => {
     console.log(`[transcoder] serve - client dropped`);
     cancel();
   });
-};
-
-const parseCookies = async (req, res) => {
-  const list = {};
-  const rc = req.headers.cookie;
-  rc && rc.split(';').forEach(cookie => {
-    const parts = cookie.split('=');
-    list[parts.shift().trim()] = decodeURI(parts.join('='));
-  }); 
-  return list;
 };
 
 const loadChunk = async (url, s, d) => {
@@ -208,7 +205,7 @@ const loadChunk = async (url, s, d) => {
     '-i', url,
 
     '-y',
-    '-crf', '18',
+    '-crf', '16',
     '-strict', 'experimental',
     '-preset', 'ultrafast',
     '-tune', 'zerolatency',
@@ -220,7 +217,7 @@ const loadChunk = async (url, s, d) => {
     '-ab', '640k',
     '-max_muxing_queue_size', '1024',
     '-copyts',
-    //'-r', 25,
+    '-r', 25,
     '-pix_fmt', 'yuv420p',
     '-map_metadata', -1,
     '-f', 'mpegts',

@@ -37,12 +37,13 @@ const config = (key, defaultValue) => {
 };
 
 const Transcoder = {
-  BaseUrl: process.env.TRANSCODER_URL || Settings.TRANSCODER_URL || 'http://localhost:8666',
+  BaseUrl: config('TRANSCODER_URL', 'http://localhost:8666'),
   FFMpegPath: process.env.FFMPEG_PATH,
   FFProbePath: process.env.FFPROBE_PATH,
-  EnableDiscovery: process.env.ENABLE_DISCOVERY === "true" ? true : false,
-  WorkQueueLimit: 1,
-  ChunkDuration: 10,
+  EnableDiscovery: config('TRANSCODER_ENABLE_DISCOVERY', false),
+  InitialChunkDuration: config('TRANSCODER_INITIAL_CHUNK_DURATION', 10),
+  ChunkDuration: config('TRANSCODER_CHUNK_DURATION', 10),
+  MaxLiveStreamDuration: config('TRANSCODER_MAX_LIVE_STREAM_DURATION', 3600 * 4),
   Port: config('TRANSCODER_PORT', 8666),
   ProxyPort: process.env.TRANSCODER_LOCAL_PROXY_PORT || 6668,
   RemoteProxyHost: process.env.TRANSCODER_PROXY_HOST || Settings.TRANSCODER_PROXY_HOST,

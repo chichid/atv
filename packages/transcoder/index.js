@@ -125,9 +125,9 @@ const proxyVideo = async (req, res) => {
   } else { 
     console.log(`[transcoder] proxyVideo - totalDuration is NaN, url ${url}`);
 
-    const initialDuration = 10;
-    const duration = 30;
-    const maxLiveDuration = 3600 * 4;
+    const initialDuration = CONFIG.Transcoder.InitialChunkDuration;
+    const duration = CONFIG.Transcoder.ChunkDuration;
+    const maxLiveDuration = CONFIG.Transcoder.MaxLiveStreamDuration;
 
     if(cache.playbackSessions[sessionId].counter <= initialDuration) {
       playlist.push(`#EXT-X-TARGETDURATION:${1}`);

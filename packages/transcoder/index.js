@@ -85,7 +85,6 @@ const proxyVideo = async (req, res) => {
   let delayResponse = false;
 
   if (isAppleTv) {
-
     if (!cache.playbackSessions) {
       cache.playbackSessions = { };
     }
@@ -125,37 +124,15 @@ const proxyVideo = async (req, res) => {
   } else { 
     console.log(`[transcoder] proxyVideo - totalDuration is NaN, url ${url}`);
 
-    const initialDuration = Number(CONFIG.Transcoder.InitialChunkDuration);
-    const duration = Number(CONFIG.Transcoder.ChunkDuration);
-    const maxLiveDuration = Number(CONFIG.Transcoder.MaxLiveStreamDuration);
-    const latencyAdjuster = Number(CONFIG.Transcoder.LantencyAdjuster);
-    const durationAdjuster = Number(CONFIG.Transcoder.DurationAdjuster);
+    playlist.push(`#EXT-X-TARGETDURATION:${1}`);
+    playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
 
-    console.log(`[transcoder] initialDuration: ${initialDuration}, duration: ${duration}, maxLiveDuration: ${maxLiveDuration}, latencyAdjuster: ${latencyAdjuster}, durationAdjuster: ${durationAdjuster}`);
-    if(isAppleTv && cache.playbackSessions[sessionId].counter <= initialDuration) {
-      playlist.push(`#EXT-X-TARGETDURATION:${1}`);
-      playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
+    for (let i = 0; i < 3600 * 4; ++i) {
       playlist.push(`#EXTINF:${1},`);
-      playlist.push(`/chunk/${encodeURIComponent(url)}/0/${initialDuration + durationAdjuster}`);
-    } else {
-      playlist.push(`#EXT-X-TARGETDURATION:${duration}`);
-      playlist.push(`#EXT-X-MEDIA-SEQUENCE:1`);
-
-      //const playbackSessions = cache.playbackSessions && cache.playbackSessions[sessionId];
-      //const timestamp = playbackSessions ? playbackSessions.timestamp : Date.now();
-
-      //for (let i = 1; i < Math.floor(maxLiveDuration/duration); ++i) {
-      //  playlist.push(`#EXTINF:${duration},`);
-      //  playlist.push(`/chunk/${encodeURIComponent(url)}/-${timestamp + i*duration*1000 + latencyAdjuster}/${duration + durationAdjuster}`);
-      //}
-
-      for (let i = 1; i < 10; ++i) {
-        playlist.push(`#EXTINF:${duration},`);
-        playlist.push(`/chunk/${encodeURIComponent(url)}/-${i}/0`);
-      }
-
-      playlist.push(`#EXT-X-ENDLIST`);
+      playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
     }
+
+    playlist.push(`#EXT-X-ENDLIST`);
   } 
 
   res.writeHead(200, {
@@ -253,9 +230,19 @@ const loadChunk = async (url, s, d) => {
     cancel();
   });
 
+  let didExit = false;
+
   child.on('exit', error => {
+    didExit = true;
     console.log(`[ffmpeg] exiting transcoding process ${url} / ${start} / ${duration}`);
   });
+
+  setTimeout(() => {
+    if (!didExit) {
+      console.log(`[ffmpeg] chunk ${url} / ${start} / ${duration} reached the max run duration, closing it....`);
+      cancel();
+    }
+  }, 1000 * 30);
 
   return { 
     stream: child.stdout,

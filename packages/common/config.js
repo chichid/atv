@@ -89,4 +89,6 @@ module.exports.CONFIG = {
   XstreamCodes,
 };
 
-console.log(module.exports.CONFIG);
+if (Profile === ProdProfile) {
+  console.log(module.exports.CONFIG);
+}

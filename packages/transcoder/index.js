@@ -229,13 +229,6 @@ const loadChunk = async (url, s, d) => {
     console.log(`[ffmpeg] exiting transcoding process ${url} / ${start} / ${duration}`);
   });
 
-  setTimeout(() => {
-    if (!didExit) {
-      console.log(`[ffmpeg] chunk ${url} / ${start} / ${duration} reached the max run duration, closing it....`);
-      cancel();
-    }
-  }, 1000 * 15);
-
   return { 
     stream: child.stdout,
     cancel,

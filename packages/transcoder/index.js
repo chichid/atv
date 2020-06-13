@@ -68,12 +68,8 @@ const proxyVideo = async (req, res) => {
   const playlist = [];
   const matches = req.url.match('/proxy/([^/]*)');
   const url = decodeURIComponent(matches[1]);
-  const videoInfo = cache[url];
 
-  if (typeof videoInfo === 'undefined') {
-    loadVideoInfo(url);
-  }
-
+  const videoInfo = await loadVideoInfo(url);
   const isVod = videoInfo && videoInfo.totalDuration;
   const isLive = videoInfo && isNaN(videoInfo.totalDuration);
   const headers = req.headers;
@@ -120,7 +116,7 @@ const proxyVideo = async (req, res) => {
       start += chunkDuration;
     }
   } else { 
-    console.log(`[transcoder] proxyVideo - totalDuration is NaN, url ${url}`);
+    console.log(`[transcoder] proxyVideo - totalDuration live stream, url ${url}`);
 
     playlist.push(`#EXT-X-TARGETDURATION:${1}`);
     playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
@@ -176,14 +172,17 @@ const loadChunk = async (url, s, d) => {
   const start = Number(s);
   const duration = Number(d);
 
+  const { audioCodecs, videoCodecs } = await loadVideoInfo(url);
+
+  const transcodeAudio = !audioCodecs || !audioCodecs.some(c => c.indexOf('aac') !== -1);
+  const transcodeVideo = !videoCodecs || !videoCodecs.some(c => c.indexOf('h264') !== -1);
+
   const options = [
     '-hide_banner',
     '-loglevel', 'quiet',
 
     Number(start) > 0 ? '-ss' : null, Number(start) > 0 ? start : null,
     Number(duration) > 0 ? '-t' : null , Number(duration) > 0 ? duration : null,
-    '-framerate', 25,
-    '-g', 14,
     '-http_proxy', `http://localhost:${CONFIG.Transcoder.ProxyPort}`,
     '-i', url,
 
@@ -191,23 +190,37 @@ const loadChunk = async (url, s, d) => {
     //'-crf', crf,
     //'-strict', 'experimental',
     '-preset', 'ultrafast',
-    //'-tune', 'zerolatency',
+    '-tune', 'zerolatency',
     //'-profile:v', 'baseline',
     //'-level', '3.0',
-    '-vcodec', 'h264',
-    '-acodec', 'aac',
-    '-ac', '6',
-    '-ab', '640k',
     '-max_muxing_queue_size', '1024',
     //'-copyinkf',
-    //'-copyts',
+    '-copyts',
     //'-r', 25,
-    //'-pix_fmt', 'yuv420p',
+    '-pix_fmt', 'yuv420p',
     //'-map_metadata', -1,
-    '-f', 'mpegts',
-
-    'pipe:1'
   ].filter(op => op !== null ? true : false);
+
+  options.push('-acodec');
+  if (transcodeAudio) {
+    options.push('aac');
+    options.push('-ab');
+    options.push('640k');
+  } else {
+    options.push('copy');
+  }
+
+  options.push('-vcodec');
+  if (transcodeVideo) {
+    options.push('libx264');
+  } else {
+    options.push('copy');
+  }
+
+  options.push('-f');
+  options.push('mpegts');
+
+  options.push('pipe:1');
 
   console.log('[ffmpeg] ffmpeg ' + options.join(' '));
   const child = spawn(ffmpeg, options);
@@ -277,18 +290,29 @@ const loadVideoInfo = (url, noCache) => new Promise((resolve, reject) => {
 
   child.on('close', () => {
     let totalDuration = null;
+    let videoCodecs = null;
+    let audioCodecs = null;
+
+    const notNull = (item) => item ? true : false;
 
     try {
       const parsedOutput = JSON.parse(output);
+
       totalDuration = Number(parsedOutput.format.duration);
-      console.log(`[transcoder] ffprobe successful, url ${url}`);
+      videoCodecs = parsedOutput.streams.map(s => s.codec_type === 'video' ? s.codec_name.toLowerCase() : null).filter(notNull);
+      audioCodecs = parsedOutput.streams.map(s => s.codec_type === 'audio' ? s.codec_name.toLowerCase() : null).filter(notNull);
+
     } catch(e) {
       console.log(`[transcoder] ffprobe failed to parse output, url ${url}`);
     }
 
     cache[url] = {
-      totalDuration
+      totalDuration,
+      videoCodecs,
+      audioCodecs,
     };
+
+    console.log(`[transcoder] ffprobe successful, url ${url}, ${JSON.stringify(cache[url])}`);
 
     resolve(cache[url]);
   });

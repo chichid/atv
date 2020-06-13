@@ -177,8 +177,13 @@ const loadChunk = async (url, s, d) => {
   const duration = Number(d);
 
   const options = [
+    '-hide_banner',
+    '-loglevel', 'quiet',
+
     Number(start) > 0 ? '-ss' : null, Number(start) > 0 ? start : null,
     Number(duration) > 0 ? '-t' : null , Number(duration) > 0 ? duration : null,
+    '-framerate', 25,
+    '-g', 14,
     '-http_proxy', `http://localhost:${CONFIG.Transcoder.ProxyPort}`,
     '-i', url,
 
@@ -200,9 +205,6 @@ const loadChunk = async (url, s, d) => {
     //'-pix_fmt', 'yuv420p',
     //'-map_metadata', -1,
     '-f', 'mpegts',
-
-    '-hide_banner',
-    '-loglevel', 'quiet',
 
     'pipe:1'
   ].filter(op => op !== null ? true : false);

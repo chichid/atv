@@ -6,7 +6,22 @@ const ProdProfile = 'prod';
 const Profile = process.env.PROFILE;
 const SettingsFile = '../../settings.json';
 const Settings = fs.existsSync(SettingsFile) ? JSON.parse(fs.readFileSync(SettingsFile)) : {};
+
+const config = (key, defaultValue) => {
+  let settingValue = process.env[key] || Settings[key] || null;
+
+  if (typeof settingValue === 'string' && settingValue.startsWith('$')) {
+    settingValue = process.env[settingValue.replace('$', '')];
+  }
+
+  const value = settingValue || defaultValue;
+  console.log(`[common/config] ${key} = ${value}`)
+
+  return value;
+};
+
 module.exports.Settings = Settings;
+module.exports.cfg = config;
 
 const UseSSL = process.env.USE_SSL === 'true' || Settings.USE_SSL;
 const Addr = process.env.OPENSHIFT_NODEJS_IP || process.env.ADDR || Settings.Addr;
@@ -27,15 +42,6 @@ if (!GoogleSheetsApiKey) {
   console.warn('[warning] - Config api Key for the google sheets not found, this is necessary for the channels API');
 }
 
-const config = (key, defaultValue) => {
-  let settingValue = process.env[key] || Settings[key] || null;
-
-  if (typeof settingValue === 'string' && settingValue.startsWith('$')) {
-    settingValue = process.env[settingValue.replace('$', '')];
-  }
-
-  return settingValue || defaultValue;
-};
 
 const Transcoder = {
   BaseUrl: config('TRANSCODER_URL', 'http://localhost:8666'),

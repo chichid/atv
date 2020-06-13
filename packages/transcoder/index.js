@@ -202,6 +202,7 @@ const loadChunk = async (url, s, d) => {
     '-f', 'mpegts',
 
     '-hide_banner',
+    '-loglevel', 'quiet',
 
     'pipe:1'
   ].filter(op => op !== null ? true : false);

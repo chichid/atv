@@ -182,7 +182,7 @@ const loadChunk = async (url, s, d) => {
     '-http_proxy', `http://localhost:${CONFIG.Transcoder.ProxyPort}`,
     '-i', url,
 
-    '-y',
+    //'-y',
     //'-crf', crf,
     //'-strict', 'experimental',
     //'-preset', 'ultrafast',

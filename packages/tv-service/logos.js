@@ -26,7 +26,7 @@ module.exports.getLogo = (config) => async (req, res) => {
   }
 };
 
-module.exports.beautifyLogo = async (source) => {
+const beautifyLogo = module.exports.beautifyLogo = async (source) => {
   if (!sharp) {
 	  throw "Not available for the current device";
   }

@@ -185,7 +185,7 @@ const loadChunk = async (url, s, d) => {
     //'-y',
     //'-crf', crf,
     //'-strict', 'experimental',
-    //'-preset', 'ultrafast',
+    '-preset', 'ultrafast',
     //'-tune', 'zerolatency',
     //'-profile:v', 'baseline',
     //'-level', '3.0',

@@ -71,7 +71,7 @@ const proxyVideo = async (req, res) => {
   const videoInfo = cache[url];
 
   if (typeof videoInfo === 'undefined') {
-    await loadVideoInfo(url);
+    loadVideoInfo(url);
   }
 
   const isVod = videoInfo && videoInfo.totalDuration;

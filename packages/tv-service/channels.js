@@ -9,8 +9,7 @@ module.exports.reloadChannels = (config) => async (req, res) => {
 
 module.exports.loadChannels = async (config, path, query) => {
   console.log('[model] loading channels...');
-  const rawSheetData = await get(config.ChannelConfigUrl);
-  const channelConfig = JSON.parse(rawSheetData);
+  const channelConfig = await get(config.ChannelConfigUrl);
 
   const groups = parseChannelGroups(channelConfig);
   const epgPrograms = path === config.EpgTemplatePath ? await loadEPGPrograms(config, query, groups) : {};
@@ -36,16 +35,21 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
   }));
 
   if (!channel) {
-    console.warn(`No EPG channel found for ${epgChannel}`);
+    console.warn(`[channels] No EPG channel found for ${epgChannel}`);
     return [];
   }
 
   if (!channel.timeshiftURL) {
-    console.warn(`Channel ${epgChannel} doesn't offer EPG`);
+    console.warn(`[channels] Channel ${epgChannel} doesn't offer EPG`);
     return [];
   }
 
   const { epgListings, baseURL, username, password, streamId } = await getSimpleDataTable(config, channel.timeshiftURL);
+
+  if (!epgListings) {
+    console.warn(`[channels] Channel ${epgChannel} did not return any listings`);
+    return [];
+  }
 
   const listingsByKey = {};
 
@@ -105,13 +109,12 @@ const getSimpleDataTable = async (config, timeshiftURL) => {
     stream_id: streamId
   };
 
-  const rawPostResponse = await post(baseURL + '/player_api.php', postData, {
+  const response = await post(baseURL + '/player_api.php', postData, {
     'User-Agent': config.XstreamCodes.UserAgent,
   });
 
-  const parsedResponse = JSON.parse(rawPostResponse);
   return {
-    epgListings: parsedResponse.epg_listings,
+    epgListings: response.epg_listings,
     baseURL,
     username,
     password,

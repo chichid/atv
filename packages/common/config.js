@@ -6,6 +6,7 @@ const ProdProfile = 'prod';
 const Profile = process.env.PROFILE;
 const SettingsFile = '../../settings.json';
 const Settings = fs.existsSync(SettingsFile) ? JSON.parse(fs.readFileSync(SettingsFile)) : {};
+module.exports.Settings = Settings;
 
 const UseSSL = process.env.USE_SSL === 'true' || Settings.USE_SSL;
 const Addr = process.env.OPENSHIFT_NODEJS_IP || process.env.ADDR || Settings.Addr;

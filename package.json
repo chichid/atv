@@ -8,8 +8,9 @@
   "homepage": "https://github.com/chichid/atv-test#readme",
   "scripts": {
     "start": "npm $NPM_START_COMMAND",
-    "transcoder": "npm start --prefix packages/transcoder",
-    "tv-service": "npm start --prefix packages/tv-service"
+    "proxy-service": "npm start --prefix packages/proxy-service",
+    "tv-service": "npm start --prefix packages/tv-service",
+    "transcoder": "npm start --prefix packages/transcoder"
   },
   "husky": {},
   "repository": {
@@ -30,6 +31,8 @@
     "nodemon": "^2.0.3"
   },
   "dependencies": {
+    "axios": "^0.19.2",
+    "request": "^2.88.2",
     "transcoder": "file:packages/transcoder",
     "tv-service": "file:packages/tv-service"
   }

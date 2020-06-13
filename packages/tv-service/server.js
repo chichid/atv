@@ -11,6 +11,6 @@ module.exports.startServer = (config, app) => {
   }, app);
 
   server.listen(config.Port, config.Addr, () =>
-    console.log(`server started on port ${config.Port} using ${httpFactory === http ? 'http' : 'https'}`)
+    console.log(`[tv-service] server started on port ${config.Port} using ${httpFactory === http ? 'http' : 'https'}`)
   );
 };

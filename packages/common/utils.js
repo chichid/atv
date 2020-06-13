@@ -1,9 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-const http = require('http');
-const https = require('https');
+const axios = require('axios');
 const querystring = require('querystring');
-const { URL } = require('url');
 
 module.exports.wait = (duration) => new Promise((resolve, reject) => {
   setTimeout(resolve, duration);
@@ -56,106 +54,53 @@ module.exports.writeJson = async (file, json, format) => {
   await writeFile(file, serializedContent);
 };
 
-module.exports.get = (url, buffer) => new Promise((resolve, reject) => {
-  if (url.startsWith('https://') || url.startsWith('http://')) {
-    const httpFactory = url.startsWith('https://') ? https : http;
+module.exports.get = async (url) => {
+  const response = await axios.get(url);
+  return response.data;
+};
 
-    httpFactory.get(url, (res) => {
-      let data = buffer ? [] : '';
+module.exports.post = async (url, postData, headers, logBody) => {
+  const contentType = Object.keys(headers).find(k => k.toLowerCase() === 'content-type');
+  let data = null; 
 
-      res.on('data', (chunk) => {
-        if (buffer) {
-          data.push(chunk);
-        } else {
-          data += chunk;
-        }
-      });
-
-      res.on('end', () => {
-        if (buffer) {
-          resolve(Buffer.concat(data));
-        } else {
-          resolve(data);
-        }
-      });
-    }).on('error', err => reject(new Error(err)));
-  } else if (url.startsWith('file://')) {
-    fs.readFile(url.replace('file://', ''), (err, data) => {
-      if (err) {
-        reject(new Error(err));
-      } else if (buffer) {
-        resolve(data);
+  switch(contentType) {
+    case 'application/x-www-form-urlencoded':
+      data = querystring.stringify(data);
+      break;
+    case 'application/json':
+      data = JSON.stringify(data);
+      break;
+    default: {
+      if (typeof postData === 'string') {
+        data = postData;
       } else {
-        resolve(data.toString());
+        data= JSON.stringify(postData);
       }
-    });
-  } else {
-    reject(new Error(`[get] Unsupported protocol in url: ${url}`));
+    }
   }
-});
-
-module.exports.post = async (url, data, headers, silent) => new Promise((resolve, reject) => {
-  const httpFactory = url.startsWith('https://') ? https : http;
-  const { hostname, port, pathname } = new URL(url);
 
   const options = {
-    hostname,
-    port: port || ((httpFactory === https) ? 443 : 80),
-    path: pathname,
+    url,
+    data,
     method: 'POST',
-    rejectUnauthorized: false,
-    requestCert: true,
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       ...headers
     },
   };
 
-  let postData = null; 
-
-  switch(options.headers['Content-Type'].toLowerCase()) {
-    case 'application/x-www-form-urlencoded':
-      postData = querystring.stringify(data);
-      break;
-    case 'application/json':
-      postData = JSON.stringify(data);
-      break;
-    default: {
-      if (typeof data === 'string') {
-        postData = data;
-      } else {
-        postData = JSON.stringify(data);
-      }
-    }
-  }
-
-  options.headers['Content-Length'] = postData.length;
-
-  if (!silent) {
+  if (logBody === true) {
     console.log(`[POST] sending post request with data: ${JSON.stringify(options, null, '  ')}`);
+  } else {
+    console.log(`[POST] sending post request ${url} `);
   }
 
-  const req = httpFactory.request(options, (res) => {
-    let data = '';
-
-    res.on('data', (chunk) => {
-      data += chunk;
-    });
-
-    res.on('end', () => {
-      resolve(data);
-    });
-
-    res.on('error', err => reject(err));
-  });
-
-  req.on('error', err => reject(err));
-
-  req.write(postData);
-  req.end();
-});
+  const response = await axios.request(options);
+  return response.data;
+};
 
 module.exports.decodeBase64 = (data) => {
   const buff = Buffer.alloc(data.length, data, 'base64');
   return buff.toString('utf-8');
 };
+

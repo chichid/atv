@@ -59,6 +59,13 @@ module.exports.get = async (url) => {
   return response.data;
 };
 
+module.exports.getBuffer = async (url) => {
+  const response = await axios.get(url, {
+    responseType: 'arraybuffer',
+  });
+  return response.data;
+};
+
 module.exports.post = async (url, postData, headers, logBody) => {
   const contentType = Object.keys(headers).find(k => k.toLowerCase() === 'content-type');
   let data = null; 

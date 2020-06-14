@@ -1,0 +1,20 @@
+{
+  "name": "logo-service",
+  "version": "1.0.0",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "start": "ts-node ./index.ts",
+    "watch": "nodemon ./index.ts "
+  },
+  "dependencies": {
+    "common": "file:../common",
+    "sharp": "^0.25.4"
+  },
+  "devDependencies": {
+    "@types/node": "^14.0.13",
+    "nodemon": "^2.0.4",
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.5"
+  }
+}

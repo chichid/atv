@@ -1,53 +1,69 @@
-const { get, post, decodeBase64 } = require('common/utils');
-const { CONFIG } = require('common/config');
+const { get, postForm, decodeBase64 } = require('common/utils');
+const Config = require('./config');
 
-module.exports.reloadChannels = (config) => async (req, res) => {
-  console.log('[model] reloading channels...');
-  await loadChannels(config);
-  res.end();
+const cache = {
+  groups: null,
+  channels: null,
 };
 
-module.exports.loadChannels = async (config, path, query) => {
-  console.log('[model] loading channels...');
-  const channelConfig = await get(config.ChannelConfigUrl);
-
-  const groups = parseChannelGroups(channelConfig);
-  const epgPrograms = path === config.EpgTemplatePath ? await loadEPGPrograms(config, query, groups) : {};
-
-  return { groups, epgPrograms };
+export const reloadChannels = async (req, res) => {
+  console.log('[tv-service] reloading channels...');
+  delete cache.groups;
+  await fetchAllChannels();
 };
 
-const loadEPGPrograms = async (config, query, channelGroups) => {
-  const { epgChannel } = query;
+export const getChannels = async (req, res) => {
+  console.log('[tv-service] loading all channels...');
+  const groups = await fetchAllChannels();
+  res.json(groups);
+};
 
-  if (!epgChannel) {
-    console.warn('[model] No epgChannel provided to loadEPGPrograms');
-    return [];
+export const getChannelConfig = async (req, res) => {
+  res.json(Config);
+};
+
+export const getChannelDetails = async (req, res) => {
+  const channelName = req.params.channelName;
+  console.log(`[tv-service] channels - loading channel details ${channelName}`);
+  
+  if (!cache.channels) {
+    await fetchAllChannels();
   }
 
-  let channel = null;
-
-  Object.keys(channelGroups).some(k => channelGroups[k].channels.some(c => {
-    if (c.channelName && c.channelName.toLowerCase() === epgChannel.toLowerCase()) {
-      channel = c;
-      return true;
-    }
-  }));
+  const channel = cache.channels.find(
+    ({ channelName:cn }) => cn && cn.toLowerCase() === channelName.toLowerCase()
+  );
 
   if (!channel) {
-    console.warn(`[channels] No EPG channel found for ${epgChannel}`);
-    return [];
+    console.warn(`[tv-service] channels - channel ${channelName} not found`);
+    res.status(404);
+    return;
   }
 
+  const epgPrograms = await fetchEPG(channel);
+  res.json({ ...channel, epgPrograms });
+};
+
+const fetchAllChannels = async () => {
+  const channelConfig = await get(Config.ChannelConfigUrl);
+  const { groups, channels } = parseChannelGroups(channelConfig);
+
+  cache.groups = groups;
+  cache.channels = channels;
+
+  return groups;
+};
+
+const fetchEPG = async (channel) => {
   if (!channel.timeshiftURL) {
-    console.warn(`[channels] Channel ${epgChannel} doesn't offer EPG`);
+    console.warn(`[tv-service] channel ${channel.channelName} doesn't offer EPG`);
     return [];
   }
 
-  const { epgListings, baseURL, username, password, streamId } = await getSimpleDataTable(config, channel.timeshiftURL);
+  const { epgListings, baseURL, username, password, streamId } = await getSimpleDataTable(channel.timeshiftURL);
 
   if (!epgListings) {
-    console.warn(`[channels] Channel ${epgChannel} did not return any listings`);
+    console.warn(`[channels] channel ${channel.channelName} did not return any listings`);
     return [];
   }
 
@@ -82,7 +98,7 @@ const loadEPGPrograms = async (config, query, channelGroups) => {
         start,
         end,
         duration,
-        streamURL: `${transcoderURL}/${encodeURIComponent(streamURL)}`,
+        streamURL: `${Config.TranscoderURL}/${encodeURIComponent(streamURL)}`,
       };
     });
 
@@ -95,7 +111,7 @@ const padDate = (n) => {
   return n.length >= width ? n : new Array(width - n.length + 1).join('0') + n;
 };
 
-const getSimpleDataTable = async (config, timeshiftURL) => {
+const getSimpleDataTable = async (timeshiftURL) => {
   const urlParts = timeshiftURL.split('/');
   const baseURL = urlParts[0] + '//' + urlParts[2].split(':')[0];
   const username = urlParts[4];
@@ -105,12 +121,12 @@ const getSimpleDataTable = async (config, timeshiftURL) => {
   const postData = {
     username,
     password,
-    action: config.XstreamCodes.GetSimpleDataTable,
+    action: Config.XstreamCodes.GetSimpleDataTable,
     stream_id: streamId
   };
 
-  const response = await post(baseURL + '/player_api.php', postData, {
-    'User-Agent': config.XstreamCodes.UserAgent,
+  const response = await postForm(baseURL + '/player_api.php', postData, {
+    'User-Agent': Config.XstreamCodes.UserAgent,
   });
 
   return {
@@ -123,7 +139,6 @@ const getSimpleDataTable = async (config, timeshiftURL) => {
 };
 
 const parseChannelGroups = (channelConfig) => {
-  const transcoderURL = CONFIG.Transcoder.BaseUrl;
   const columns = channelConfig.values[0];
   const columnIndex = {};
   for (let i = 0; i < columns.length; ++i) {
@@ -133,24 +148,27 @@ const parseChannelGroups = (channelConfig) => {
   const channels = [];
   const channelData = channelConfig.values.slice(1);
   for (const cfg of channelData) {
-    const groupName = cfg[columnIndex.GROUPE];
-    const channelName = cfg[columnIndex.CHANNEL];
-    const channelNameEncoded = encodeURIComponent(cfg[columnIndex.CHANNEL]);
-    const logoURL = cfg[columnIndex.LOGOURL];
-    const streamURL = cfg[columnIndex.STREAMURL];
-    const timeshiftURL = cfg[columnIndex.TIMESHIFTURL];
-    const epgShift = Number(cfg[columnIndex.EPGSHIFT] || 0);
-    const epgDisplayShift = Number(cfg[columnIndex.EPGDISPLAYSHIFT] || 0);
+    const groupName = cfg[columnIndex['GROUPE']];
+    const channelName = cfg[columnIndex['CHANNEL']];
+    const channelNameEncoded = encodeURIComponent(cfg[columnIndex['CHANNEL']]);
+    const logoURL = cfg[columnIndex['LOGOURL']];
+    const streamURL = cfg[columnIndex['STREAMURL']];
+    const timeshiftURL = cfg[columnIndex['TIMESHIFTURL']];
+    const epgShift = Number(cfg[columnIndex['EPGSHIFT']] || 0);
+    const epgDisplayShift = Number(cfg[columnIndex['EPGDISPLAYSHIFT']] || 0);
 
     channels.push({
       groupName,
       channelName,
       channelNameEncoded,
       logoURL,
-      streamURL: `${transcoderURL}/${encodeURIComponent(streamURL)}`,
+      streamURL: `${Config.TranscoderUrl}/${encodeURIComponent(streamURL)}`,
       timeshiftURL,
       epgShift,
       epgDisplayShift,
+      links: {
+        'detail': `/channels/${channelNameEncoded}`,
+      } 
     });
   }
 
@@ -167,5 +185,5 @@ const parseChannelGroups = (channelConfig) => {
     return groups;
   }, {});
 
-  return channelsByGroupName;
+  return { channels, groups: Object.keys(channelsByGroupName).map(k => channelsByGroupName[k])};
 };

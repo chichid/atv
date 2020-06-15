@@ -14,7 +14,7 @@
         <sections>
           <menuSection id="channelGroupsMenuSection">
             <items>
-              {{#each groups}}
+              {{#fetch '/channels'}}
               <oneLineMenuItem id="{{groupName}}">
                 <label>{{groupName}}</label>
                 <preview>
@@ -25,7 +25,7 @@
                           {{#each channels}}
                           <sixteenByNinePoster id="{{channelName}}" alwaysShowTitles="true" 
                             onSelect="playVideo('{{streamURL}}')"
-                            onHoldSelect="atv.loadURL('{{@root.config.BaseUrl}}/assets/epg.xml?epgChannel={{channelNameEncoded}}')">
+                            onHoldSelect="atv.loadURL('{{@root.config.BaseUrl}}/assets/epg.xml?channelName={{channelNameEncoded}}')">
                             <title>{{#if timeshiftURL}}*{{/if}} {{channelName}}</title>
                             <image src720="{{logoURL}}" src1080="{{logoURL}}" />
                             <defaultImage>resource://16x9.png</defaultImage>
@@ -37,7 +37,7 @@
                   </scrollerPreview>
                 </preview>
               </oneLineMenuItem>
-              {{/each}}
+              {{/fetch}}
             </items>
           </menuSection>
         </sections>

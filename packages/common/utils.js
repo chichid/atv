@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
+const url = require('url');
 const axios = require('axios');
+const https = require('https');
 const querystring = require('querystring');
 
 module.exports.wait = (duration) => new Promise((resolve, reject) => {
@@ -16,28 +18,10 @@ module.exports.readFile = (file) => new Promise((resolve, reject) => {
     if (err) {
       reject(err);
     } else {
-      resolve(content)
+      resolve(content.toString())
     }
   });
 });
-
-module.exports.setHeaders = (config) => (req, res, next) => {
-  res.removeHeader('Connection');
-  res.removeHeader('X-Powered-By');
-  res.removeHeader('Content-Length');
-  res.removeHeader('Transfer-Encoding');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Allow-Headers');
-
-  const ext = path.extname(req.originalUrl).replace('.', '');
-  res.setHeader('Content-Type', config.MimeMap[ext] || config.MimeMap.default);
-
-  next();
-};
-
-module.exports.ping = (config) => (req, res) => {
-  res.end('pong');
-};
 
 module.exports.writeFile = async (file, content) => new Promise((resolve, reject) => {
   fs.writeFile(file, content, (err) => {
@@ -54,28 +38,43 @@ module.exports.writeJson = async (file, json, format) => {
   await writeFile(file, serializedContent);
 };
 
-module.exports.get = async (url) => {
-  const response = await axios.get(url);
+module.exports.get = async (uri) => {
+  const parsedUrl = url.parse(process.env.http_proxy);
+  const response = await axios.get(uri, {
+    httpsAgent: getAxiosHttpsAgent(),
+    proxy: getAxiosProxy(uri) 
+  });
+
   return response.data;
 };
 
-module.exports.getBuffer = async (url) => {
-  const response = await axios.get(url, {
+module.exports.getBuffer = async (uri) => {
+  const response = await axios.get(uri, {
+    proxy: getAxiosProxy(uri),
+    httpsAgent: getAxiosHttpsAgent(),
     responseType: 'arraybuffer',
   });
+
   return response.data;
+};
+
+module.exports.postForm = (url, postData, headers, logBody) => {
+  return module.exports.post(url, postData, {
+    ...headers,
+    'Content-Type': 'application/x-www-form-urlencoded',
+  }, logBody);
 };
 
 module.exports.post = async (url, postData, headers, logBody) => {
   const contentType = Object.keys(headers).find(k => k.toLowerCase() === 'content-type');
   let data = null; 
 
-  switch(contentType) {
+  switch(headers[contentType]) {
     case 'application/x-www-form-urlencoded':
-      data = querystring.stringify(data);
+      data = querystring.stringify(postData);
       break;
     case 'application/json':
-      data = JSON.stringify(data);
+      data = JSON.stringify(postData);
       break;
     default: {
       if (typeof postData === 'string') {
@@ -90,10 +89,8 @@ module.exports.post = async (url, postData, headers, logBody) => {
     url,
     data,
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      ...headers
-    },
+    proxy: getAxiosProxy(url),
+    headers,
   };
 
   if (logBody === true) {
@@ -103,6 +100,7 @@ module.exports.post = async (url, postData, headers, logBody) => {
   }
 
   const response = await axios.request(options);
+
   return response.data;
 };
 
@@ -111,3 +109,30 @@ module.exports.decodeBase64 = (data) => {
   return buff.toString('utf-8');
 };
 
+const getAxiosHttpsAgent = () => {
+  return new https.Agent({
+    rejectUnauthorized: false,
+  });
+};
+
+const getAxiosProxy = (uri) => {
+  if (uri.indexOf('localhost') || uri.indexOf('127.0.0.1') !== -1) {
+    return null;
+  }
+
+  if (!process.env.http_proxy)  {
+    return null;
+  }
+  
+  const proxyUrl = url.parse(process.env.http_proxy);
+  const authParts = proxyUrl.auth && proxyUrl.auth.split(':');
+  
+  return {
+    host: proxyUrl.hostname,
+    port: proxyUrl.port,
+    auth: !authParts ? null : {
+      username: decodeURIComponent(authParts[0]),
+      password: decodeURIComponent(authParts[1]),
+    },
+  };
+};

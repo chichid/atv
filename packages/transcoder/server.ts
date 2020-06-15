@@ -12,6 +12,10 @@ const cache = {
 };
 
 export const startServer = () => {
+  if (!process.env.http_proxy) {
+    throw new Error('[transcoder] no http_proxy provided, crashing to avoid a ban');
+  }
+
   http.createServer((req, res) => handleRequest(req, res)).listen(Config.Port, () => {
     console.log(`[transcoder] transcoding worker started at ${Config.Port}`);
 

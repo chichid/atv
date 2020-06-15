@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "start": "ts-node ./index.ts",
-    "watch": "nodemon ./index.ts "
+    "watch": "nodemon --watch templates --watch ./ --watch ../common -e json,ts,xml,js ./index.ts"
   },
   "dependencies": {
     "common": "file:../common",

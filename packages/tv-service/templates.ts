@@ -6,8 +6,8 @@ import { get, fileExists, readFile } from 'common/utils';
 
 handlebarsAsync(handlebars);
 
-export const getAsset = async (req, res) => {
-  console.log(`[assets] getAsset ${req.path}`);
+export const getTemplate = async (req, res) => {
+  console.log(`[templates] getTemplate ${req.path}`);
   const filePath = path.join(__dirname, req.path);
 
   if (!await fileExists(filePath)) {

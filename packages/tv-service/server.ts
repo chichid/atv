@@ -4,7 +4,7 @@ import * as http from 'http';
 import * as path from 'path';
 import * as express from 'express';
 import * as Config from './config';
-import { getAsset } from './assets'
+import { getTemplate } from './templates'
 import { getChannelConfig, getChannels, getChannelDetails, reloadChannels } from './channels'
 
 export const startServer = () => {
@@ -24,7 +24,7 @@ const createApp = () => {
   app.use(express.json());
   app.use(setHeaders);
   app.get('/config', handler(getChannelConfig));
-  app.get('/assets/:path', handler(getAsset));
+  app.get('/templates/:path', handler(getTemplate));
   app.get('/channels', handler(getChannels));
   app.get('/channels/:channelName', handler(getChannelDetails));
   app.post('/channels/reload', handler(reloadChannels));

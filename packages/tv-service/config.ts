@@ -6,7 +6,6 @@ export const Addr = cfg('TV_SERVICE_ADDR', null);
 export const Port = cfg('TV_SERVICE_PORT', UseSSL ? 443 : 80);
 export const BaseUrl = rcfg('TV_SERVICE_BASE_URL');
 export const TranscoderUrl = rcfg('TRANSCODER_URL');
-export const AssetsFolder = 'assets';
 
 const GoogleSheetsEndpoint = 'https://sheets.googleapis.com/v4/spreadsheets';
 const GoogleSheetId = '1XDyp6-zvlorSwmcQRizriub2pAleYskmyvrYOyfYXgA';
@@ -18,11 +17,6 @@ export const SSL = {
   Enabled: cfg('USE_SSL', false),
   Key: path.join(__dirname, '../appletv-bootstrapper/certificates/kortv.key'),
   Cert: path.join(__dirname, '../appletv-bootstrapper/certificates/kortv.pem'),
-};
-
-export const Templates = {
-  Main: `/${AssetsFolder}/index.xml`,
-  Epg: `/${AssetsFolder}/epg.xml`,
 };
 
 export const MimeMap = {

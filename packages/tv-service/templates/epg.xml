@@ -4,7 +4,7 @@
     <script src="/assets/utils.js" />
   </head>
   <body>
-    {{#fetch '/channels/{query.channelName}'}}
+    {{#fetch '/tv-service/channels/{query.channelName}'}}
       {{#if epgPrograms.[0]}}
       <listScrollerSplit id="com.sample.list-scroller-split">
         <header>

@@ -8,7 +8,9 @@
     "watch": "nodemon --watch templates --watch ./ --watch ../common -e json,ts,xml,js ./index.ts"
   },
   "dependencies": {
-    "common": "file:../common"
+    "common": "file:../common",
+    "http-proxy": "^1.18.1",
+    "node-http-proxy": "^0.2.3"
   },
   "devDependencies": {
     "@types/node": "^14.0.13",

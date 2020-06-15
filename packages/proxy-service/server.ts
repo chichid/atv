@@ -1,45 +1,59 @@
-const http = require('http');
-const url = require('url');
-const request = require('request');
-const cfg  = require('./config');
+import * as http from 'http';
+import * as url from 'url';
+import * as httpProxy from 'http-proxy';
+import * as Config from './config';
 
 export const startServer = () => {
-  const options = getProxyOptions();
-  console.log(`[proxy-service] starting proxy service, ${options.protocol}://${options.hostname}:${options.port}`);
+  const proxy = httpProxy.createProxyServer({}); 
+  const pathMap = parsePathMapConfig();
 
-  http.createServer((req, res) => handleProxyRequest(req, res, options)).listen(cfg.ServicePort, () => {
-    console.log(`[proxy-service] proxy started at ${cfg.ServicePort}`);
+  http.createServer(
+    (req, res) => handleProxyRequest(proxy, pathMap, req, res)
+  ).listen(Config.ServicePort, () => {
+    console.log(`[proxy-service] proxy started at ${Config.ServicePort}`);
   });
 };
 
-const getProxyOptions = () => {
-  const { protocol, hostname, port } = url.parse(cfg.ProxyUrl);
+const handleProxyRequest = (proxy, pathMap, req, res) => {
+  const path: string = req.url;
+  const pathConfig = pathMap[path];
 
-  return {
-    hostname,
-    protocol: protocol ? protocol.replace(':', '') : 'http',
-    port: port || (protocol === 'https:' ? 443 : 80),
-    credentials: 'Basic ' + Buffer.from(`${cfg.ProxyUser}:${cfg.ProxyPass}`).toString('base64'),
-  };
+  if (pathMap[path]) {
+    proxy.web(req, res, {
+      target: pathMap[path].target,
+    });
+  } else {
+    res.writeHead(404);
+    res.end(`${path} not found`);
+  }
 };
 
-const handleProxyRequest = (req, res, {protocol, credentials, hostname, port}) => {
-  console.log(`[proxy-service] proxying request ${req.url}`);
+const parsePathMapConfig = () => {
+  const lines = Config.PortMapping instanceof Array ? Config.PortMapping : Config.PortMapping.split('\n');
+  const map = {};
 
-  const options = {
-    host: hostname,
-    port: port,
-    path: req.url,
-    headers: {
-      ...req.headers,
-      'Proxy-Authorization': credentials,
-    },
-  };
+  const filteredLines = lines.filter(l => l && !(l.startsWith('#')));
 
-  http.get(options, (proxyRes) => {
-    console.log(`[proxy-service] proxy responded by ${proxyRes.statusCode}, ${req.url}`);
-    res.writeHead(proxyRes.statusCode, proxyRes.headers);
-    proxyRes.pipe(res, { end: true });
-  });
+  for (const line of filteredLines) {
+    const parts = line.split(' ');
+
+    if (parts.length !== 2) {
+      throw new Error(`[proxy-service] unable to parse pathMap, this line is invalid ${line}`);
+    }
+
+    const path = parts[0];
+    const target = parts[1];
+
+    if (!path || !target) {
+      throw new Error(`[proxy-service] invalid port map config, unable to find path or port, this line is invalid ${line}`);
+    }
+
+    console.log(`[proxy-service] mapping ${path} to ${target}`);
+    map[path] = {
+      path,
+      target,
+    };
+  }
+
+  return map;
 };
-

@@ -26,9 +26,9 @@ export const startServer = () => {
 };
 
 const handleRequest = (req, res) => {
-  if (req.url.startsWith('/proxy')) {
+  if (req.url.startsWith('/transcoder/proxy')) {
     proxyVideo(req, res);
-  } else if (req.url.startsWith('/chunk')) {
+  } else if (req.url.startsWith('/transcoder/chunk')) {
     serveChunk(req, res);
   } else {
     res.writeHead(404);
@@ -38,7 +38,7 @@ const handleRequest = (req, res) => {
 
 const proxyVideo = async (req, res) => {
   const playlist = [];
-  const matches = req.url.match('/proxy/([^/]*)');
+  const matches = req.url.match('/transcoder/proxy/([^/]*)');
   const url = decodeURIComponent(matches[1]);
 
   console.log(`[transcoder] proxyVideo - fetching video info...`);
@@ -60,7 +60,7 @@ const proxyVideo = async (req, res) => {
     while (start < videoInfo.totalDuration) {
       const chunkDuration = Math.min(videoInfo.totalDuration - start, duration);
       playlist.push(`#EXTINF:${chunkDuration},`);
-      playlist.push(`/chunk/${encodeURIComponent(url)}/${start}/${chunkDuration}`);
+      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/${start}/${chunkDuration}`);
       start += chunkDuration;
     }
   } else { 
@@ -71,7 +71,7 @@ const proxyVideo = async (req, res) => {
 
     for (let i = 0; i < 3600 * 4; ++i) {
       playlist.push(`#EXTINF:${1},`);
-      playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/0/0`);
     }
   } 
 
@@ -85,7 +85,7 @@ const proxyVideo = async (req, res) => {
 };
 
 const serveChunk = async (req, res) => {
-  const matches = req.url.match('/chunk/([^/]*)/([^/]*)/([^/]*)');
+  const matches = req.url.match('/transcoder/chunk/([^/]*)/([^/]*)/([^/]*)');
   const url = decodeURIComponent(matches[1]);
   const start = Number(matches[2]);
   const duration = Number(matches[3]);

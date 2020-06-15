@@ -23,11 +23,11 @@ const createApp = () => {
 
   app.use(express.json());
   app.use(setHeaders);
-  app.get('/config', handler(getChannelConfig));
-  app.get('/templates/:path', handler(getTemplate));
-  app.get('/channels', handler(getChannels));
-  app.get('/channels/:channelName', handler(getChannelDetails));
-  app.post('/channels/reload', handler(reloadChannels));
+  app.get('/tv-service/config', handler(getChannelConfig));
+  app.get('/tv-service/templates/:path', handler(getTemplate));
+  app.get('/tv-service/channels', handler(getChannels));
+  app.get('/tv-service/channels/:channelName', handler(getChannelDetails));
+  app.post('/tv-service/channels/reload', handler(reloadChannels));
   app.use(errorHandler);
 
   return app;

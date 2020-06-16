@@ -1,26 +1,42 @@
+import * as fs from 'fs';
 import * as http from 'http';
+import * as https from 'https';
 import * as url from 'url';
 import * as httpProxy from 'http-proxy';
 import * as Config from './config';
 
 export const startServer = () => {
-  const proxy = httpProxy.createProxyServer({}); 
-  const pathMap = parsePathMapConfig();
-
-  http.createServer(
-    (req, res) => handleProxyRequest(proxy, pathMap, req, res)
-  ).listen(Config.ServicePort, () => {
+  createServer().listen(Config.ServicePort, () => {
     console.log(`[proxy-service] proxy started at ${Config.ServicePort}`);
   });
 };
 
-const handleProxyRequest = (proxy, pathMap, req, res) => {
-  const path: string = req.url;
+const createServer = () => {
+  const httpFactory = Config.SSL.Enabled ? https : http;
+  console.log(`[tv-service] creating server using ${httpFactory === https ? 'https' : 'http'}`);
+
+  const serverConfig = !Config.SSL.Enabled ? null : {
+    key: fs.readFileSync(Config.SSL.Key),
+    cert: fs.readFileSync(Config.SSL.Cert),
+  };
+
+  const proxy = httpProxy.createProxyServer({}); 
+  const pathMap = parsePathMapConfig();
+
+  return httpFactory.createServer(
+    serverConfig, 
+    handleProxyRequest(proxy, pathMap),
+  );
+};
+
+const handleProxyRequest = (proxy, pathMap) => (req, res) => {
+  const path: string = '/' + req.url.split('/')[1];
   const pathConfig = pathMap[path];
 
-  if (pathMap[path]) {
+  if (pathConfig) {
+    console.log(`[proxy-service] proxy request ${req.url} to ${pathConfig.target}${req.url}`);
     proxy.web(req, res, {
-      target: pathMap[path].target,
+      target: pathConfig.target,
     });
   } else {
     res.writeHead(404);

@@ -7,8 +7,10 @@ import { get, fileExists, readFile } from 'common/utils';
 handlebarsAsync(handlebars);
 
 export const getTemplate = async (req, res) => {
-  console.log(`[templates] getTemplate ${req.path}`);
-  const filePath = path.join(__dirname, req.path);
+  const resourcePath = 'templates/' + req.params.path;
+
+  console.log(`[templates] getTemplate loading resource file, ${resourcePath}`);
+  const filePath = path.join(__dirname, resourcePath);
 
   if (!await fileExists(filePath)) {
     res.writeHead(404);
@@ -21,7 +23,7 @@ export const getTemplate = async (req, res) => {
   res.end(content);
 };
 
-const runTemplate = (query, fileContent) => {
+const runTemplate = (query, fileContent) => new Promise((resolve, reject) => {
   const context = {
     query,
   };
@@ -38,7 +40,7 @@ const runTemplate = (query, fileContent) => {
   };
 
   const getUrl = (path) => {
-    let url = `http${Config.UseSSL ? 's' : ''}://localhost:${Config.Port}${path}`;
+    let url = `http://localhost:${Config.Port}${path}`;
 
     const matches = (url.match('{[^\\]]*}')) || [];
     for (const match of matches) {
@@ -60,12 +62,13 @@ const runTemplate = (query, fileContent) => {
     const options = arguments[arguments.length - 1];
     const url = getUrl(path);
 
-    console.log(`[handlebars] fetch - ${url}, ${arguments.length > 2 ? sel : ''}`);
+    console.log(`[handlebars] fetch helper - ${url} - select: ${arguments.length > 2 ? sel : ''}`);
 
     get(url).then(data => {
       const selectedProperty = getProperty(data, sel);
 
       let result = '';
+
       if (selectedProperty instanceof Array) {
         for (const prop of selectedProperty) {
           result += options.fn(prop);
@@ -75,17 +78,22 @@ const runTemplate = (query, fileContent) => {
       }
 
       done(null, result);
+    }).catch(err => {
+      const exp = { ...err, message: 'fetch helper error - ' + err.message  }
+      console.error(`[handlebars] fetch helper failed - ${url} - ${exp.message}`);
+      reject(exp);
+      done();
     });
   });
 
   const template: any = handlebars.compile(fileContent) as any;
 
-  return new Promise((resolve, reject) => template(context, function(err, result) {
+  template(context, function(err, result) {
     if (err) {
       reject(err);
     } else {
       resolve(result);
     }
-  }));
-};
+  });
+});
 

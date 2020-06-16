@@ -39,18 +39,21 @@ module.exports.writeJson = async (file, json, format) => {
 };
 
 module.exports.get = async (uri) => {
-  const parsedUrl = url.parse(process.env.http_proxy);
+  const proxy = getAxiosProxy(uri);
+
   const response = await axios.get(uri, {
     httpsAgent: getAxiosHttpsAgent(),
-    proxy: getAxiosProxy(uri) 
+    proxy: proxy ? proxy : false,
   });
 
   return response.data;
 };
 
 module.exports.getBuffer = async (uri) => {
+  const proxy = getAxiosProxy(uri);
+
   const response = await axios.get(uri, {
-    proxy: getAxiosProxy(uri),
+    proxy: proxy ? proxy : false,
     httpsAgent: getAxiosHttpsAgent(),
     responseType: 'arraybuffer',
   });
@@ -85,11 +88,12 @@ module.exports.post = async (url, postData, headers, logBody) => {
     }
   }
 
+  const proxy = getAxiosProxy(url);
   const options = {
     url,
     data,
     method: 'POST',
-    proxy: getAxiosProxy(url),
+    proxy: proxy ? proxy : false,
     headers,
   };
 
@@ -116,7 +120,7 @@ const getAxiosHttpsAgent = () => {
 };
 
 const getAxiosProxy = (uri) => {
-  if (uri.indexOf('localhost') || uri.indexOf('127.0.0.1') !== -1) {
+  if (uri && (uri.toLowerCase().indexOf('localhost') !== -1 || uri.indexOf('127.0.0.1') !== -1)) {
     return null;
   }
 

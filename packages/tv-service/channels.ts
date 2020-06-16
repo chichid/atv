@@ -167,7 +167,7 @@ const parseChannelGroups = (channelConfig) => {
       epgShift,
       epgDisplayShift,
       links: {
-        'detail': `/channels/${channelNameEncoded}`,
+        'detail': `/tv-service/channels/${channelNameEncoded}`,
       } 
     });
   }

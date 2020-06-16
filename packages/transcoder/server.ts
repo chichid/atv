@@ -3,7 +3,7 @@ const URL = require('url');
 const http = require('http');
 const { spawn } = require('child_process'); 
 const { post, get, wait, fileExists, readFile } = require('common/utils');
-const { Config } = require('./config');
+const Config = require('./config');
 const { startDiscoveryService, getWorkerList } = require('./discovery');
 
 const cache = {
@@ -166,7 +166,7 @@ const loadChunk = async (url, s, d) => {
   const child = spawn(ffmpeg, options);
   const cancel = () => child.kill('SIGINT');
 
-  if (Config.FFMpegDebugLogging) {
+  if (Config.DebugLogging) {
     child.stderr.on('data', data => {
       console.log('[ffmpeg] ' + data.toString())
     });

@@ -4,7 +4,7 @@ import { rcfg, cfg } from 'common/config';
 export const Port = cfg('TV_SERVICE_PORT', 8888);
 export const Addr = cfg('TV_SERVICE_ADDR', null);
 export const BaseUrl = rcfg('TV_SERVICE_BASE_URL');
-export const TranscoderUrl = rcfg('TRANSCODER_URL');
+export const TranscoderUrl = rcfg('TRANSCODER_URL', '/transcoder/proxy');
 
 const GoogleSheetsEndpoint = 'https://sheets.googleapis.com/v4/spreadsheets';
 const GoogleSheetId = '1XDyp6-zvlorSwmcQRizriub2pAleYskmyvrYOyfYXgA';

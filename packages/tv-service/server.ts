@@ -8,6 +8,11 @@ import { getTemplate } from './templates'
 import { getChannelConfig, getChannels, getChannelDetails, reloadChannels } from './channels'
 
 export const startServer = () => {
+  if (!process.env.http_proxy && Config.HttpProxy) {
+    console.log(`[tv-service] setting the http proxy from the settings to ${Config.HttpProxy}`);
+    process.env.http_proxy = Config.HttpProxy;
+  }
+
   const app = createApp();
   http.createServer(app).listen(Config.Port, Config.Addr, () =>
     console.log(`[tv-service] server started on port ${Config.Port}`)

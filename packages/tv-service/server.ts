@@ -8,10 +8,6 @@ import { getTemplate } from './templates'
 import { getChannelConfig, getChannels, getChannelDetails, reloadChannels } from './channels'
 
 export const startServer = () => {
-  if (!process.env.http_proxy) { 
-    throw new Error(`[tv-service] http_proxy not provided, crashing to avoid a ban`);
-  }
-
   const app = createApp();
   http.createServer(app).listen(Config.Port, Config.Addr, () =>
     console.log(`[tv-service] server started on port ${Config.Port}`)

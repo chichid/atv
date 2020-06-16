@@ -55,6 +55,10 @@ const fetchAllChannels = async () => {
 };
 
 const fetchEPG = async (channel) => {
+  if (!process.env.http_proxy) { 
+    throw new Error(`[tv-service] http_proxy not provided, this service needs the proxy set`);
+  }
+
   if (!channel.timeshiftURL) {
     console.warn(`[tv-service] channel ${channel.channelName} doesn't offer EPG`);
     return [];

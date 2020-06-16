@@ -10,13 +10,12 @@ const Messages = {
 	Bye: 'Bye',
 };
 
-module.exports.startDiscoveryService = () => {
+export const startDiscoveryService = () => {
   console.log(`[discovery] discovery service initializing...`);
   server.bind(CONFIG.Discovery.Port);
 
   process.on('SIGINT', () => {
     console.log(`[discovery] SIGINT`);
-    sendMessage(Messages.Bye);
     setTimeout(() => process.exit(), 500);
   });
 
@@ -26,7 +25,7 @@ module.exports.startDiscoveryService = () => {
   });
 };
 
-module.exports.getWorkerList = async () => new Promise((resolve, reject) => {
+export const getWorkerList = async () => new Promise((resolve, reject) => {
   const byCpuScore =  (a, b) => brothers[b].cpuScore - brothers[a].cpuScore;
   const workerUrls = Object.keys(brothers)
     .sort(byCpuScore)
@@ -105,7 +104,7 @@ const sendBonjour = () => {
   });
 };
 
-const sendMessage = (type, payload) => {
+const sendMessage = (type, payload = null) => {
 	const message = Buffer.from(JSON.stringify({
     type,
     pid: process.pid,

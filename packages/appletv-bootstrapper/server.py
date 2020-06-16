@@ -23,7 +23,7 @@ ssl_server_port = 443
 ssl_key_file = 'certificates/{}.key'.format(intercepted_app)
 ssl_certificate_file = 'certificates/{}.pem'.format(intercepted_app)
 
-app_entry_url = 'https://{}/assets/index.xml'
+app_entry_url = 'https://{}/tv-service/templates/index.xml'
 prod_entry_point = 'tv-service.herokuapp.com'
 application_js = open('application.js', 'r').read(); 
 

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<atv>
+  <head>
+    <script src="/assets/utils.js" />
+  </head>
+  <body>
+    {{#fetch '/tv-service/channels/{query.channelName}'}}
+      {{#if epgPrograms.[0]}}
+      <listScrollerSplit id="com.sample.list-scroller-split">
+        <header>
+          <simpleHeader accessibilityLabel="Movie list">
+            <title>{{ channelName}} </title>
+          </simpleHeader>
+        </header>
+        <menu>
+          <sections>
+            <menuSection>
+              <items>
+                {{#each epgPrograms}}
+                <twoLineMenuItem id="list_{{programTitle}}" accessibilityLabel="Recent items" onSelect="playVideo('{{streamURL}}')">
+                  <label>{{programTitle}}</label>
+                  <label2>{{day}} {{start}}</label2>
+                  <rightLabel></rightLabel>
+                  <preview>
+                    <keyedPreview>
+                      <title>{{programTitle}}</title>
+                      <rightLabel>{{start}}-{{end}}</rightLabel>
+                      <rating></rating>
+                      <summary>{{programSummary}}</summary>
+                      <image></image>
+                    </keyedPreview>
+                  </preview>
+                </twoLineMenuItem>
+                {{/each}}
+              </items>
+            </menuSection>
+          </sections>
+        </menu>
+      </listScrollerSplit>
+      {{else}}
+      <dialog id="com.sample.error-dialog">
+        <title>Non Disponible</title>
+        <description>Cette Option n'est pas disponible pour ce canal.</description>
+      </dialog>
+      {{/if}}
+   {{/fetch}}
+  </body>
+</atv>

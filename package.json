@@ -1,36 +1,13 @@
 {
-  "name": "atv-test",
+  "name": "atv",
+  "private": "true",
   "version": "1.0.0",
-  "description": "",
-  "main": "src/index.js",
-  "author": "",
-  "license": "ISC",
   "homepage": "https://github.com/chichid/atv-test#readme",
   "scripts": {
-    "start": "npm $NPM_START_COMMAND",
-    "transcoder": "npm start --prefix packages/transcoder",
-    "tv-service": "npm start --prefix packages/tv-service"
-  },
-  "husky": {},
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/chichid/atv-test.git"
-  },
-  "bugs": {
-    "url": "https://github.com/chichid/atv-test/issues"
+    "postinstall": "lerna exec npm install",
+    "start": "lerna run --parallel start --scope=\"{$START_SERVICES}\""
   },
   "devDependencies": {
-    "eslint": "^6.8.0",
-    "eslint-config-standard": "^14.1.1",
-    "eslint-plugin-import": "^2.20.2",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^4.2.1",
-    "eslint-plugin-standard": "^4.0.1",
-    "husky": "^4.2.5",
-    "nodemon": "^2.0.3"
-  },
-  "dependencies": {
-    "transcoder": "file:packages/transcoder",
-    "tv-service": "file:packages/tv-service"
+    "lerna": "^3.22.1"
   }
 }

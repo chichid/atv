@@ -1,17 +1,16 @@
 {
-  "name": "tv-service",
+  "name": "proxy-service",
   "version": "0.1.0",
+  "description": "proxy service",
   "main": "index.js",
   "scripts": {
     "start": "ts-node ./index.ts",
     "watch": "nodemon --watch templates --watch ./ --watch ../common -e json,ts,xml,js ./index.ts"
   },
   "dependencies": {
-    "async-helper": "^1.0.3",
     "common": "file:../common",
-    "express": "^4.17.1",
-    "handlebars": "^4.7.6",
-    "handlebars-async": "^1.0.0"
+    "http-proxy": "^1.18.1",
+    "node-http-proxy": "^0.2.3"
   },
   "devDependencies": {
     "@types/node": "^14.0.13",

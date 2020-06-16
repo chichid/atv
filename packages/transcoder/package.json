@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "common": "file:../common",
+    "common": "common",
     "follow-redirects": "^1.11.0"
   },
   "devDependencies": {

@@ -14,5 +14,8 @@
     "proxy-service": "file:packages/proxy-service",
     "transcoder": "file:packages/transcoder",
     "tv-service": "file:packages/tv-service"
+  },
+  "devDependencies": {
+    "lerna": "^3.22.1"
   }
 }

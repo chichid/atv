@@ -1,25 +1,23 @@
-const { get, postForm, decodeBase64 } = require('common/utils');
-const Config = require('./config');
+import { get, postForm, decodeBase64 } from 'common/utils';
+import * as Config from './config';
 
 const cache = {
   groups: null,
   channels: null,
-};
+}
 
 export const reloadChannels = async (req, res) => {
   console.log('[tv-service] reloading channels...');
   delete cache.groups;
-  await fetchAllChannels();
+  delete cache.channels;
+  const groups = await fetchAllChannels();
+  res.json(groups);
 };
 
 export const getChannels = async (req, res) => {
   console.log('[tv-service] loading all channels...');
   const groups = await fetchAllChannels();
   res.json(groups);
-};
-
-export const getChannelConfig = async (req, res) => {
-  res.json(Config);
 };
 
 export const getChannelDetails = async (req, res) => {
@@ -45,11 +43,19 @@ export const getChannelDetails = async (req, res) => {
 };
 
 const fetchAllChannels = async () => {
-  const channelConfig = await get(Config.ChannelConfigUrl);
-  const { groups, channels } = parseChannelGroups(channelConfig);
+  if (cache.groups) {
+    console.log(`[tv-service] returning channel groups form cache`);
+    return cache.groups;
+  }
 
+  console.log(`[tv-service] calling GetChannelGroups...`);
+  const groups = await get(Config.GoogleSheetActions.GetChannelGroups);
+
+  let flatMap = [];
+  groups.forEach(({ channels }) => (flatMap = [...flatMap, ...channels]));
+
+  cache.channels = flatMap;
   cache.groups = groups;
-  cache.channels = channels;
 
   return groups;
 };
@@ -102,7 +108,7 @@ const fetchEPG = async (channel) => {
         start,
         end,
         duration,
-        streamURL: `${Config.TranscoderURL}/${encodeURIComponent(streamURL)}`,
+        streamURL: `${Config.TranscoderUrl}/${encodeURIComponent(streamURL)}`,
       };
     });
 
@@ -142,52 +148,3 @@ const getSimpleDataTable = async (timeshiftURL) => {
   };
 };
 
-const parseChannelGroups = (channelConfig) => {
-  const columns = channelConfig.values[0];
-  const columnIndex = {};
-  for (let i = 0; i < columns.length; ++i) {
-    columnIndex[columns[i].toUpperCase()] = i;
-  }
-
-  const channels = [];
-  const channelData = channelConfig.values.slice(1);
-  for (const cfg of channelData) {
-    const groupName = cfg[columnIndex['GROUPE']];
-    const channelName = cfg[columnIndex['CHANNEL']];
-    const channelNameEncoded = encodeURIComponent(cfg[columnIndex['CHANNEL']]);
-    const logoURL = cfg[columnIndex['LOGOURL']];
-    const streamURL = cfg[columnIndex['STREAMURL']];
-    const timeshiftURL = cfg[columnIndex['TIMESHIFTURL']];
-    const epgShift = Number(cfg[columnIndex['EPGSHIFT']] || 0);
-    const epgDisplayShift = Number(cfg[columnIndex['EPGDISPLAYSHIFT']] || 0);
-
-    channels.push({
-      groupName,
-      channelName,
-      channelNameEncoded,
-      logoURL,
-      streamURL: `${Config.TranscoderUrl}/${encodeURIComponent(streamURL)}`,
-      timeshiftURL,
-      epgShift,
-      epgDisplayShift,
-      links: {
-        'detail': `/tv-service/channels/${channelNameEncoded}`,
-      } 
-    });
-  }
-
-  const channelsByGroupName = channels.reduce((groups, channel) => {
-    if (!groups[channel.groupName]) {
-      groups[channel.groupName] = {
-        groupName: channel.groupName,
-        channels: [],
-      };
-    }
-
-    groups[channel.groupName].channels.push(channel);
-
-    return groups;
-  }, {});
-
-  return { channels, groups: Object.keys(channelsByGroupName).map(k => channelsByGroupName[k])};
-};

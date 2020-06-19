@@ -10,10 +10,12 @@
     "async-helper": "^1.0.3",
     "common": "file:../common",
     "express": "^4.17.1",
+    "fuse.js": "^6.2.0",
     "handlebars": "^4.7.6",
     "handlebars-async": "^1.0.0"
   },
   "devDependencies": {
+    "@types/express": "^4.17.6",
     "@types/node": "^14.0.13",
     "nodemon": "^2.0.4",
     "ts-node": "^8.10.2",

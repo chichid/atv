@@ -1,4 +1,3 @@
-import * as path from 'path';
 import { rcfg, cfg } from 'common/config';
 
 export const Port = cfg('TV_SERVICE_PORT', 8888);
@@ -7,11 +6,11 @@ export const BaseUrl = rcfg('TV_SERVICE_BASE_URL');
 export const TranscoderUrl = rcfg('TRANSCODER_URL', '/transcoder/proxy');
 export const HttpProxy = rcfg('HTTP_PROXY', process.env.http_proxy);
 
-const GoogleSheetsEndpoint = 'https://sheets.googleapis.com/v4/spreadsheets';
-const GoogleSheetId = '1XDyp6-zvlorSwmcQRizriub2pAleYskmyvrYOyfYXgA';
-const GoogleSheetsApiKey = rcfg('GOOGLE_SHEETS_API_KEY');
-const GoogleSheetConfigRange = 'Config!H:N';
-export const ChannelConfigUrl = `${GoogleSheetsEndpoint}/${GoogleSheetId}/values/${GoogleSheetConfigRange}?key=${GoogleSheetsApiKey}`;
+const GoogleSheetsEndpoint = rcfg('TV_SERVICE_GOOGLE_SHEET_ENDPOINT');
+export const GoogleSheetActions = {
+  GetSources: GoogleSheetsEndpoint + '?action=getSources',
+  GetChannelGroups: GoogleSheetsEndpoint + '?action=getChannelGroups',
+};
 
 export const MimeMap = {
   default: 'text/plain',

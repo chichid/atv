@@ -1,11 +1,11 @@
-import * as fs from 'fs';
 import * as http from 'http';
 import * as url from 'url';
 import * as path from 'path';
 import * as express from 'express';
 import * as Config from './config';
 import { getTemplate } from './templates'
-import { getChannelConfig, getChannels, getChannelDetails, reloadChannels } from './channels'
+import { getChannels, getChannelDetails, reloadChannels } from './channels'
+import { getAllMovies } from './movies';
 
 export const startServer = () => {
   if (!process.env.http_proxy && Config.HttpProxy) {
@@ -24,8 +24,9 @@ const createApp = () => {
 
   app.use(express.json());
   app.use(setHeaders);
-  app.get('/tv-service/config', handler(getChannelConfig));
+  app.post('/tv-service/reloadChannels', handler(reloadChannels));
   app.get('/tv-service/templates/:path', handler(getTemplate));
+  app.get('/tv-service/movies', handler(getAllMovies));
   app.get('/tv-service/channels', handler(getChannels));
   app.get('/tv-service/channels/:channelName', handler(getChannelDetails));
   app.post('/tv-service/channels/reload', handler(reloadChannels));

@@ -1,0 +1,74 @@
+import * as Config from './config';
+import * as fuzzy from 'fuzzy';
+import { get } from 'common/utils';
+
+const cache = {
+  movieSources: null,
+  movies: null, 
+};
+
+export const reloadMovies = async (req, res) => {
+  delete cache.movies;
+  await fetchAllMovies();
+  res.json(cache.movies);
+};
+
+export const getAllMovies = async (req, res) => {
+  const { offset, limit, search } = req.query;
+
+  const movies = await fetchAllMovies();
+  const filteredMovies = search ? fuzzy.filter(search, movies, { extract: (movie: any) =>  movie.MovieName }) : movies;
+  const moviesPage = filteredMovies.slice(Number(offset), Number(offset) + Number(limit));
+
+  res.json(moviesPage);
+};
+
+//const filterMovies = (movieList, searchTerm) => {
+//  return movieList;
+//};
+
+const fetchAllMovies = async () => {
+  if (cache.movies) {
+    console.log(`[tv-service] returning movies`);
+    return cache.movies;
+  }
+
+  console.log(`[tv-service] calling GetChannelGroups...`);
+  const sources = await get(Config.GoogleSheetActions.GetSources);
+  cache.movieSources = sources;
+ 
+  let flatMap = [];
+
+  Object.keys(sources).forEach(k => {
+    const source = sources[k];
+    const movies = source.vodStreams.map(vod => mapMovieFromVodStream(source,  vod));
+    flatMap = [...flatMap, ...movies]
+  });
+
+  return flatMap;
+};
+
+const mapMovieFromVodStream = (source, vod) => {
+  const serverUrl = source.serverUrl.replace('http://', '').replace('https://', '');
+  const serverInfo = source.serverInfo;
+  const userInfo = source.userInfo;
+
+  const MovieName = vod.name;
+  const LogoUrl = vod.stream_icon;
+  const Rating = Number(vod.rating) || 0;
+
+  const protocol = serverInfo.protocol || 'http';
+  const username = userInfo.username;
+  const password = userInfo.password;
+  const ext = vod.container_extension;
+  const streamType = vod.stream_type || 'movies';
+  const streamId = vod.stream_id;
+  const MovieUrl = `${protocol}://${serverUrl}/${streamType}/${username}/${password}/${streamId}.${ext}`;
+
+  return {
+    MovieName,
+    MovieUrl,
+    LogoUrl,
+    Rating,
+  };
+};

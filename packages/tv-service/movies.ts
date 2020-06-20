@@ -6,56 +6,76 @@ import { get } from 'common/utils';
 const cache = {
   movieSources: null,
   movies: null, 
+  categories: null,
 };
 
 export const reloadMovies = async (req, res) => {
   delete cache.movies;
-  await fetchAllMovies();
+  await fetchSources();
   res.json(cache.movies);
 };
 
-export const getAllMovies = async (req, res) => {
-  const { offset, limit, search } = req.query;
+export const getMovies = async (req, res) => {
+  const { offset, limit, search, categoryId } = req.query;
 
-  const movies = await fetchAllMovies();
-  const filteredMovies = filterMovies(movies, search);
-  const moviesPage = filteredMovies.slice(Number(offset), Number(offset) + Number(limit));
+  const { movies }= await fetchSources();
+  const filteredMovies = filterMovies(movies, search, categoryId);
+	const sortedMovies = filteredMovies.sort((a, b) => b.Rating - a.Rating);
+
+  const off = Number(offset) || 0;
+  const lim = Number(limit) || Config.DefaultPageSize;
+  const moviesPage = sortedMovies.slice(off, off + lim);
 
   res.json(moviesPage);
 };
 
-const filterMovies = (movieList, searchTerm) => {
+export const getMovieCategories = async (req, res) => {
+  const { categories }= await fetchSources();
+  res.json(categories);
+};
+
+const filterMovies = (movieList, searchTerm, categoryId) => {
+  const categoryMovies = !categoryId ? movieList : movieList.filter(m => m.Category && m.Category.Id == categoryId);
+
   if (searchTerm) {
-    const fuse = new Fuse(movieList, {
+    const fuse = new Fuse(categoryMovies, {
       keys: ['MovieName'],
     });
 
     return fuse.search(searchTerm).map(i => i.item);
   } else {
-    return movieList;
+    return categoryMovies;
   }
 };
 
-const fetchAllMovies = async () => {
+const fetchSources = async () => {
   if (cache.movies) {
-    console.log(`[tv-service] returning movies from cache`);
-    return cache.movies;
+    console.log(`[tv-service] returning movies and categories from cache`);
+
+    return {
+      movies: cache.movies,
+      categories: cache.categories
+    };
   }
 
   console.log(`[tv-service] calling GetChannelGroups...`);
   const sources = await get(Config.GoogleSheetActions.GetSources);
-  let flatMap = [];
+  let movies = [];
 
   Object.keys(sources).forEach(k => {
     const source = sources[k];
-    const movies = source.vodStreams.map(vod => mapMovieFromVodStream(source,  vod));
-    flatMap = [...flatMap, ...movies]
+    const sourceMovies = source.vodStreams.map(vod => mapMovieFromVodStream(source,  vod));
+    movies = [...movies, ...sourceMovies]
   });
 
-  cache.movieSources = sources;
-  cache.movies = flatMap;
+  const categoriesSet = new Set(movies.map(m => m.Category).filter(c => c ? true : false));
+  const categories = Array.from(categoriesSet);
 
-  return flatMap;
+  cache.movieSources = sources;
+  cache.movies = movies;
+  cache.categories = categories; 
+
+  return { movies, categories };
 };
 
 const mapMovieFromVodStream = (source, vod) => {
@@ -67,6 +87,13 @@ const mapMovieFromVodStream = (source, vod) => {
   const LogoUrl = vod.stream_icon;
   const Rating = Number(vod.rating) || 0;
 
+  const vodCategory = source.vodCategories.find(c => c.category_id === vod.category_id);
+  const Category = !vodCategory ? null : {
+    Id: vodCategory.category_id,
+    Name: vodCategory.category_name,
+    ParentId: vodCategory.parent_id,
+  };
+   
   const protocol = serverInfo.protocol || 'http';
   const username = userInfo.username;
   const password = userInfo.password;
@@ -80,5 +107,7 @@ const mapMovieFromVodStream = (source, vod) => {
     MovieUrl,
     LogoUrl,
     Rating,
+    Category,
   };
 };
+

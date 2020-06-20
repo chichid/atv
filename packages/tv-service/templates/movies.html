@@ -1,8 +1,53 @@
 <html>
   <head>
+   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
+   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+	 <style>
+			html, head, body { margin: 0; padding: 0; height: 100% } 
+
+			.movie-list {
+				column-count: 5;	
+				column-width: 10rem;
+				padding: 5rem 1rem;
+			}
+
+			.movie-list li {
+				padding-bottom: 2rem;
+			}
+
+			.movie-image {
+				border-radius: 0.5rem;
+			}
+			
+			.movie-title {
+				text-align: center;
+				white-space: normal;
+				width: 100%;		
+			  font-weight: bold;
+			}
+	 </style>
   </head>
+
   <body>
-    {{#fetch '/movies' }}
-    {{/fetch}}
+		<header class="mdc-top-app-bar">
+			<div class="mdc-top-app-bar__row">
+				<section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
+					<span class="mdc-top-app-bar__title">Filmes</span>
+				</section>
+
+				<section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" role="toolbar">
+					<button class="material-icons mdc-top-app-bar__action-item mdc-icon-button" aria-label="Search">search</button>
+				</section>
+			</div>
+		</header>
+
+		<ul class="movie-list mdc-image-list mdc-image-list--masonry my-masonry-image-list"">
+			{{#fetch '/tv-service/movies?limit=25'}}
+			<li class="mdc-image-list__item">
+				<img class="movie-image mdc-image-list__image" src="{{LogoUrl}}" alt="{{MovieName}}"/>
+			</li>
+			{{/fetch}}
+		</ul>
   </body>
 </html>

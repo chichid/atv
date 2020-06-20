@@ -5,7 +5,7 @@ import * as express from 'express';
 import * as Config from './config';
 import { getTemplate } from './templates'
 import { getChannels, getChannelDetails, reloadChannels } from './channels'
-import { getAllMovies } from './movies';
+import { getMovieCategories, getMovies } from './movies';
 
 export const startServer = () => {
   if (!process.env.http_proxy && Config.HttpProxy) {
@@ -26,7 +26,8 @@ const createApp = () => {
   app.use(setHeaders);
   app.post('/tv-service/reloadChannels', handler(reloadChannels));
   app.get('/tv-service/templates/:path', handler(getTemplate));
-  app.get('/tv-service/movies', handler(getAllMovies));
+  app.get('/tv-service/movies', handler(getMovies));
+  app.get('/tv-service/movies/categories', handler(getMovieCategories));
   app.get('/tv-service/channels', handler(getChannels));
   app.get('/tv-service/channels/:channelName', handler(getChannelDetails));
   app.post('/tv-service/channels/reload', handler(reloadChannels));
@@ -53,9 +54,11 @@ const setHeaders = (req, res, next) => {
   next();
 };
 
-const handler = (fn) => {
+const handler = (...fns: Function[]) => {
   return (req, res, next) =>  {
-    fn(req, res, next).catch(next);
+    for (const fn of fns) {
+      fn(req, res, next).catch(next);
+    }
   };
 };
 

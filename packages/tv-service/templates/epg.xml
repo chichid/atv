@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <atv>
   <head>
-    <script src="/assets/utils.js" />
+    <script src="/tv-service/templates/utils.js" />
   </head>
   <body>
     {{#fetch '/tv-service/channels/{query.channelName}'}}
       {{#if epgPrograms.[0]}}
-      <listScrollerSplit id="com.sample.list-scroller-split">
+      <listScrollerSplit id="mainListScrollerSplit">
         <header>
           <simpleHeader accessibilityLabel="Movie list">
             <title>{{ channelName}} </title>
@@ -38,7 +38,7 @@
         </menu>
       </listScrollerSplit>
       {{else}}
-      <dialog id="com.sample.error-dialog">
+      <dialog id="errorDialog">
         <title>Non Disponible</title>
         <description>Cette Option n'est pas disponible pour ce canal.</description>
       </dialog>

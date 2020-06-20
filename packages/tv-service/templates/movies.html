@@ -14,6 +14,12 @@
         display: none;
       }
 
+			.progress-indicator {
+        position: fixed;
+        bottom: 0;
+        z-index: 10;
+			}
+
 			.movie-list {
 				column-count: 5;	
 				column-width: 10rem;
@@ -57,6 +63,7 @@
     let currentSearchTimer = null;
     let currentSearchValue = null;
     let currentCategory = null;
+    let progressIndicatorRequests = 0;
     let allCategory = {
       Id: -666,
       Name: 'TOUT LES FILMS',
@@ -71,11 +78,25 @@
 			loadMovies(true);
 		}
 
+    function showProgressIndicator() {
+      progressIndicatorRequests++;
+      byId('progressIndicator').style.display = 'initial';
+    }
+
+    function hideProgressIndicator() {
+      progressIndicatorRequests--;
+      if (progressIndicatorRequests === 0) {
+        byId('progressIndicator').style.display = 'none';
+      }
+    }
+
     function loadCategories() {
       const categoriesList = byId('categories');
       const tpl = categoriesList.querySelector('template').innerHTML;
       const template = Handlebars.compile(tpl);
      
+      showProgressIndicator();
+
       fetch(`/tv-service/movies/categories`)
         .then(response => response.text())
         .then(responseText => {
@@ -83,7 +104,8 @@
           categories.items.unshift(allCategory);
           const html = categories.items.map(category => template(category)).join('\n');
           categoriesList.innerHTML = `<template>${tpl}</template>` + html;
-        });
+        })
+        .then(hideProgressIndicator);
     };
 
     function loadMovies(reset) {
@@ -101,6 +123,8 @@
 
       const search = currentSearchValue ? `&search=${encodeURIComponent(currentSearchValue)}` : '';
       const categoryId = currentCategory ? `&categoryId=${currentCategory.Id}` : '';
+
+      showProgressIndicator();
 
       fetch(`/tv-service/movies?offset=${loadedMovies}&limit=${PAGE_SIZE}${categoryId}${search}`)
         .then(response => response.text())
@@ -120,7 +144,8 @@
           }
 
           isLoading = false;
-        });
+        })
+        .then(hideProgressIndicator);
     };
 
     function onPlayMovie() {
@@ -204,6 +229,19 @@
   </head>
 
   <body onload="onLoad()" onscroll="onScroll()">
+		<div id="progressIndicator" role="progressbar" class="progress-indicator mdc-linear-progress mdc-linear-progress--indeterminate" aria-label="Example Progress Bar" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
+			<div class="mdc-linear-progress__buffer">
+				<div class="mdc-linear-progress__buffer-bar"></div>
+				<div class="mdc-linear-progress__buffer-dots"></div>
+			</div>
+			<div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
+				<span class="mdc-linear-progress__bar-inner"></span>
+			</div>
+			<div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
+				<span class="mdc-linear-progress__bar-inner"></span>
+			</div>
+		</div>
+
 		<aside id="drawer" class="mdc-drawer" style="display: none">
 			<div class="mdc-drawer__content">
 				<nav id="categories" class="mdc-list">

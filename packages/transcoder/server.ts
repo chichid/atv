@@ -121,7 +121,7 @@ const loadChunk = async (url, s, d) => {
 
   const { audioCodecs, videoCodecs } = await loadVideoInfo(url);
   const transcodeAudio = !audioCodecs || !audioCodecs.some(c => c.indexOf('aac') !== -1);
-  const transcodeVideo = !videoCodecs || !videoCodecs.some(c => c.indexOf('h264') !== -1);
+  const transcodeVideo = url.toLowerCase().endsWith('.ts') ? !videoCodecs || !videoCodecs.some(c => c.indexOf('h264') !== -1) : true;
 
   const options = [
     '-hide_banner',

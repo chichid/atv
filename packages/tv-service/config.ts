@@ -2,8 +2,8 @@ import { rcfg, cfg } from 'common/config';
 
 export const Port = cfg('TV_SERVICE_PORT', 8888);
 export const Addr = cfg('TV_SERVICE_ADDR', null);
-export const BaseUrl = rcfg('TV_SERVICE_BASE_URL');
-export const TranscoderUrl = rcfg('TRANSCODER_URL', '/transcoder/proxy');
+export const BaseUrl = cfg('TV_SERVICE_BASE_URL');
+export const TranscoderUrl = rcfg('TRANSCODER_URL', BaseUrl + '/transcoder/proxy');
 export const HttpProxy = rcfg('HTTP_PROXY', process.env.http_proxy);
 export const DefaultPageSize = 25;
 export const ClientSideTemplateTag = '<!-- CLIENT_SIDE_TEMPLATE -->';

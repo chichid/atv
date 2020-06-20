@@ -42,11 +42,16 @@ const filterMovies = (movieList, searchTerm, categoryId) => {
   const categoryMovies = !categoryId ? movieList : movieList.filter(m => m.Category && m.Category.Id == categoryId);
 
   if (searchTerm) {
-    const fuse = new Fuse(categoryMovies, {
+    const options = {
       keys: ['MovieName'],
-    });
+      threshold: 0.01,
+      includeScore: true,
+    };
 
-    return fuse.search(searchTerm).map(i => i.item);
+    const items = new Fuse(movieList, options).search(searchTerm);
+    const searchResultSort = (a, b) => a.item.Category && a.item.Category.Id === categoryId ? - 1 : 1;
+
+    return items.sort(searchResultSort).map(i => i.item);
   } else {
     return categoryMovies;
   }
@@ -110,11 +115,11 @@ const mapMovieFromVodStream = (source, vod) => {
   const ext = vod.container_extension;
   const streamType = vod.stream_type || 'movies';
   const streamId = vod.stream_id;
-  const MovieUrl = `${protocol}://${serverUrl}/${streamType}/${username}/${password}/${streamId}.${ext}`;
+  const StreamUrl = `${protocol}://${serverUrl}/${streamType}/${username}/${password}/${streamId}.${ext}`;
 
   return {
     MovieName,
-    MovieUrl,
+    StreamUrl: `${Config.TranscoderUrl}/${encodeURIComponent(StreamUrl)}`,
     LogoUrl,
     Rating,
     Category,

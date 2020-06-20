@@ -52,13 +52,23 @@ const fetchAllChannels = async () => {
   const groups = await get(Config.GoogleSheetActions.GetChannelGroups);
 
   let flatMap = [];
-  groups.forEach(({ channels }) => (flatMap = [...flatMap, ...channels]));
+  groups.forEach(group => {
+    group.channels = group.channels.map(mapChannel);
+    flatMap = [...flatMap, ...group.channels];
+  });
 
   cache.channels = flatMap;
   cache.groups = groups;
 
   return groups;
 };
+
+const mapChannel = (channel) => {
+  return {
+    ...channel,
+    StreamUrl: `${Config.TranscoderUrl}/${encodeURIComponent(channel.StreamUrl)}`,
+  };
+}
 
 const fetchEPG = async (channel) => {
   if (!process.env.http_proxy) { 

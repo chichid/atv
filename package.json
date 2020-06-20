@@ -5,7 +5,8 @@
   "homepage": "https://github.com/chichid/atv-test#readme",
   "scripts": {
     "postinstall": "lerna exec npm install",
-    "start": "lerna run --parallel start --scope=\"{$START_SERVICES}\""
+    "start": "lerna run --parallel start --scope=\"{$START_SERVICES}\"",
+    "watch": "lerna run --parallel watch --scope=\"{$START_SERVICES}\""
   },
   "devDependencies": {
     "lerna": "^3.22.1"

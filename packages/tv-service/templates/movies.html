@@ -2,7 +2,6 @@
 <html>
   <head>
    <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
-
    <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
    <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
@@ -28,6 +27,10 @@
 
 			.movie-list li {
 				padding-bottom: 2rem;
+			}
+
+			.movie-list li:hover {
+        cursor: hand;
 			}
 
 			.movie-image {
@@ -148,7 +151,14 @@
         .then(hideProgressIndicator);
     };
 
-    function onPlayMovie() {
+    function onPlayMovie(streamUrl) {
+      // TODO need to solve this hardcoded IP
+      fetch('https://192.168.2.39/play', {
+        method: 'POST',
+        body: JSON.stringify({
+          videoUrl: streamUrl 
+        })
+      });
     }
 
     function loadMore() {
@@ -273,7 +283,7 @@
 
 		<ul id="moviesList" class="movie-list mdc-image-list mdc-image-list--masonry my-masonry-image-list">
       <template>
-        <li class="mdc-image-list__item">
+        <li class="mdc-image-list__item" onclick="onPlayMovie('{{StreamUrl}}')">
           <img class="movie-image mdc-image-list__image" src="{{LogoUrl}}" alt="{{MovieName}}"/>
         </li>
       </template>

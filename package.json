@@ -8,7 +8,7 @@
     "start": "lerna run --parallel start --scope=\"{$START_SERVICES}\"",
     "watch": "lerna run --parallel watch --scope=\"{$START_SERVICES}\""
   },
-  "devDependencies": {
+  "dependencies": {
     "lerna": "^3.22.1"
   }
 }

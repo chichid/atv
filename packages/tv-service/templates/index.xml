@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <atv>
   <head>
-    <script src="{{config.BaseUrl}}/assets/utils.js" />
+    <script src="/tv-service/templates/utils.js" />
   </head>
   <body>
     <listScrollerSplit id="listScoller">
@@ -14,20 +14,20 @@
         <sections>
           <menuSection id="channelGroupsMenuSection">
             <items>
-              {{#each groups}}
-              <oneLineMenuItem id="{{groupName}}">
-                <label>{{groupName}}</label>
+              {{#fetch '/tv-service/channels'}}
+              <oneLineMenuItem id="{{GroupName}}">
+                <label>{{GroupName}}</label>
                 <preview>
-                  <scrollerPreview id="scrollerPreview-{{groupName}}">
+                  <scrollerPreview id="scrollerPreview-{{GroupName}}">
                     <items>
-                      <grid id="channelsGrid-{{groupName}}" columnCount="4">
+                      <grid id="channelsGrid-{{GroupName}}" columnCount="4">
                         <items>
                           {{#each channels}}
-                          <sixteenByNinePoster id="{{channelName}}" alwaysShowTitles="true" 
-                            onSelect="playVideo('{{streamURL}}')"
-                            onHoldSelect="atv.loadURL('{{@root.config.BaseUrl}}/assets/epg.xml?epgChannel={{channelNameEncoded}}')">
-                            <title>{{#if timeshiftURL}}*{{/if}} {{channelName}}</title>
-                            <image src720="{{logoURL}}" src1080="{{logoURL}}" />
+                          <sixteenByNinePoster id="{{Channel}}" alwaysShowTitles="true" 
+                            onSelect="playVideo('{{StreamUrl}}')"
+                            onHoldSelect="atv.loadURL('/tv-service/templates/epg.xml?Channel={{Channel}}')">
+                            <title>{{#if timeshiftURL}}*{{/if}} {{Channel}}</title>
+                            <image src720="{{LogoUrl}}" src1080="{{LogoUrl}}" />
                             <defaultImage>resource://16x9.png</defaultImage>
                           </sixteenByNinePoster>
                           {{/each}}
@@ -37,7 +37,7 @@
                   </scrollerPreview>
                 </preview>
               </oneLineMenuItem>
-              {{/each}}
+              {{/fetch}}
             </items>
           </menuSection>
         </sections>

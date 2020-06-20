@@ -1,0 +1,292 @@
+<!-- CLIENT_SIDE_TEMPLATE -->
+<html>
+  <head>
+   <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
+   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
+   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+
+	 <style>
+			html, head, body { margin: 0; padding: 0; height: 100% } 
+
+      template {
+        display: none;
+      }
+
+			.progress-indicator {
+        position: fixed;
+        bottom: 0;
+        z-index: 10;
+			}
+
+			.movie-list {
+				column-count: 5;	
+				column-width: 10rem;
+				padding: 5rem 1rem;
+			}
+
+			.movie-list li {
+				padding-bottom: 2rem;
+			}
+
+			.movie-list li:hover {
+        cursor: hand;
+			}
+
+			.movie-image {
+				border-radius: 0.5rem;
+        max-height: 30rem;
+			}
+			
+			.movie-title {
+				text-align: center;
+				white-space: normal;
+				width: 100%;		
+			  font-weight: bold;
+			}
+			
+			.header-bar-input {
+				border-radius: 0.3rem;
+				height: 3rem;
+			}
+
+			.mdc-drawer {
+				width: 30%;
+				max-width: 20rem;
+				position: fixed;
+        transition: width 300ms ease;
+			}
+	 </style>
+
+   <script type="text/javascript">
+    const PAGE_SIZE = 25;
+    let totalMovies = null;
+    let loadedMovies = 0;
+    let isLoadingMore = false;
+    let currentSearchTimer = null;
+    let currentSearchValue = null;
+    let currentCategory = null;
+    let progressIndicatorRequests = 0;
+    let allCategory = {
+      Id: -666,
+      Name: 'TOUT LES FILMS',
+    };
+
+    function byId(id) {
+      return document.getElementById(id);
+    };
+
+		function onLoad() {
+			loadCategories();
+			loadMovies(true);
+		}
+
+    function showProgressIndicator() {
+      progressIndicatorRequests++;
+      byId('progressIndicator').style.display = 'initial';
+    }
+
+    function hideProgressIndicator() {
+      progressIndicatorRequests--;
+      if (progressIndicatorRequests === 0) {
+        byId('progressIndicator').style.display = 'none';
+      }
+    }
+
+    function loadCategories() {
+      const categoriesList = byId('categories');
+      const tpl = categoriesList.querySelector('template').innerHTML;
+      const template = Handlebars.compile(tpl);
+     
+      showProgressIndicator();
+
+      fetch(`/tv-service/movies/categories`)
+        .then(response => response.text())
+        .then(responseText => {
+          const categories = JSON.parse(responseText);
+          categories.items.unshift(allCategory);
+          const html = categories.items.map(category => template(category)).join('\n');
+          categoriesList.innerHTML = `<template>${tpl}</template>` + html;
+        })
+        .then(hideProgressIndicator);
+    };
+
+    function loadMovies(reset) {
+      const moviesList = byId('moviesList');
+      const tpl = moviesList.querySelector('template').innerHTML;
+      const template = Handlebars.compile(tpl);
+     
+      isLoading = true;
+
+      if (reset) {
+        loadedMovies = 0;
+        totalMovies = 0;
+        document.body.scrollTop = 0;
+      }
+
+      const search = currentSearchValue ? `&search=${encodeURIComponent(currentSearchValue)}` : '';
+      const categoryId = currentCategory ? `&categoryId=${currentCategory.Id}` : '';
+
+      showProgressIndicator();
+
+      fetch(`/tv-service/movies?offset=${loadedMovies}&limit=${PAGE_SIZE}${categoryId}${search}`)
+        .then(response => response.text())
+        .then(responseText => {
+          const movies = JSON.parse(responseText);
+
+          totalMovies = movies.count;
+
+          const html = movies.items.map(movie => template(movie)).join('\n');
+
+          if (reset) {
+            moviesList.innerHTML = `<template>${tpl}</template>` + html;
+            loadedMovies = movies.items.length;
+          } else {
+            moviesList.insertAdjacentHTML('beforeend', html);
+            loadedMovies += movies.items.length;
+          }
+
+          isLoading = false;
+        })
+        .then(hideProgressIndicator);
+    };
+
+    function onPlayMovie(streamUrl) {
+      // TODO need to solve this hardcoded IP
+      fetch('https://192.168.2.39/play', {
+        method: 'POST',
+        body: JSON.stringify({
+          videoUrl: streamUrl 
+        })
+      });
+    }
+
+    function loadMore() {
+      if (!isLoading && loadedMovies < totalMovies) {
+        loadMovies(false);
+      }
+    }
+
+    function onScroll() {
+      const element = document.body;
+      if (element.scrollTop > (element.scrollHeight - element.offsetHeight - 20)) {
+        loadMore();
+      }
+    }
+
+    function onMenuPress() {
+      openDrawer();
+    }
+
+    function onSelectCategory(Id, Name) {
+      const pageTitle = byId('pageTitle');
+
+      clearSearch(false);
+
+      if (Id === String(allCategory.Id)) {
+        currentCategory = null;
+        pageTitle.innerHTML = '';
+      } else {
+        currentCategory = { Id, Name };
+        pageTitle.innerHTML = currentCategory.Name;
+      }
+      
+      loadMovies(true);
+    }
+
+    function clearSearch(reload) {
+      byId('searchField').value = '';
+      currentSearchValue = '';
+
+      if (reload !== false) {
+        loadMovies(true);
+      }
+    }
+
+    function onSearch() {
+      if (currentSearchTimer) {
+        clearTimeout(currentSearchTimer);
+      }
+
+      currentSearchTimer = setTimeout(() => {
+        currentSearchValue = byId('searchField').value;
+        loadMovies(true);
+      }, 500);
+    }
+
+    function openDrawer() {
+      const drawer = byId('drawer');
+      drawer.style.display = 'initial';
+      drawer.style.width = 0;
+
+      const onCloseAnimationEnd = () => {
+        drawer.style.display = 'none';
+      };
+
+      const closeListener = () => {
+        drawer.style.width = 0;
+        setTimeout(onCloseAnimationEnd, 300);
+      };
+
+      const registerCloseListener = () => {
+        drawer.style.removeProperty('width');
+        document.addEventListener('click', closeListener, { once: true });
+      };
+
+      setTimeout(registerCloseListener, 200);
+    }
+   </script>
+  </head>
+
+  <body onload="onLoad()" onscroll="onScroll()">
+		<div id="progressIndicator" role="progressbar" class="progress-indicator mdc-linear-progress mdc-linear-progress--indeterminate" aria-label="Example Progress Bar" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
+			<div class="mdc-linear-progress__buffer">
+				<div class="mdc-linear-progress__buffer-bar"></div>
+				<div class="mdc-linear-progress__buffer-dots"></div>
+			</div>
+			<div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
+				<span class="mdc-linear-progress__bar-inner"></span>
+			</div>
+			<div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
+				<span class="mdc-linear-progress__bar-inner"></span>
+			</div>
+		</div>
+
+		<aside id="drawer" class="mdc-drawer" style="display: none">
+			<div class="mdc-drawer__content">
+				<nav id="categories" class="mdc-list">
+					<template>
+            <a class="mdc-list-item mdc-list-item--activated" href="#" onclick="onSelectCategory('{{Id}}', '{{Name}}')" aria-current="page">
+              <span class="mdc-list-item__text">{{Name}}</span>
+						</a>
+					</template>
+				</nav>
+			</div>
+		</aside>
+
+		<header class="mdc-top-app-bar">
+			<div class="mdc-top-app-bar__row">
+				<section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
+					<button class="material-icons mdc-top-app-bar__navigation-icon mdc-icon-button" aria-label="Open navigation menu" onclick="onMenuPress()">menu</button>
+					<span id="pageTitle" class="mdc-top-app-bar__title"></span>
+				</section>
+
+				<section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" role="toolbar">
+					<label class="header-bar-input mdc-text-field mdc-text-field--filled mdc-text-field--no-label">
+						<span class="mdc-text-field__ripple"></span>
+						<input id="searchField" class="mdc-text-field__input" type="text" placeholder="Recherche" aria-label="Label" oninput="onSearch()">
+						<span class="mdc-line-ripple"></span>
+					</label>
+				</section>
+			</div>
+		</header>
+
+		<ul id="moviesList" class="movie-list mdc-image-list mdc-image-list--masonry my-masonry-image-list">
+      <template>
+        <li class="mdc-image-list__item" onclick="onPlayMovie('{{StreamUrl}}')">
+          <img class="movie-image mdc-image-list__image" src="{{LogoUrl}}" alt="{{MovieName}}"/>
+        </li>
+      </template>
+		</ul>
+  </body>
+</html>

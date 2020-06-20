@@ -1,109 +1,55 @@
-const fs = require('fs');
-const URL = require('url');
-const { http, https } = require('follow-redirects');
-const { spawn } = require('child_process'); 
-const { post, get, wait, fileExists, readFile } = require('common/utils');
-const { CONFIG } = require('common/config');
-const { startDiscoveryService, getWorkerList } = require('./discovery');
+import * as http from 'http';
+import { spawn } from 'child_process';
+import * as Config from './config';
+import { startDiscoveryService, getWorkerList } from './discovery';
 
-const cache = {};
+const cache = {
+  videoInfo: {},
+  currentStream: null,
+};
 
-(() => {
-  http.createServer((req, res) => {
-    if (req.url.startsWith('/proxy')) {
-      proxyVideo(req, res);
-    } else if (req.url.startsWith('/chunk')) {
-      serveChunk(req, res);
-    } else {
-      res.writeHead(404);
-      res.end('resource not found');
-    }
-  }).listen(CONFIG.Transcoder.Port, () => {
-    console.log(`[transcoder] transcoding worker started at ${CONFIG.Transcoder.Port}`);
+export const startServer = () => {
+  if (Config.IptvHttpProxy) {
+    console.log(`[transcoder] setting the http proxy from the settings to ${Config.IptvHttpProxy}`);
+    process.env.http_proxy = Config.IptvHttpProxy;
+  }
 
-    if (CONFIG.Transcoder.EnableDiscovery) {
+  http.createServer((req, res) => handleRequest(req, res)).listen(Config.Port, () => {
+    console.log(`[transcoder] transcoding worker started at ${Config.Port}`);
+
+    if (Config.EnableDiscovery) {
       startDiscoveryService();
     }
-
-    startTranscoderProxy();
   });
-})();
+};
 
-const startTranscoderProxy = () => {
-  const proxyOptions = {
-    host: CONFIG.Transcoder.RemoteProxyHost,
-    port: CONFIG.Transcoder.RemoteProxyPort,
-    credentials: 'Basic ' + Buffer.from(CONFIG.Transcoder.RemoteProxyUser + ':' + CONFIG.Transcoder.RemoteProxyPass).toString('base64'),
-  };
-
-  const nodeHttp = require('http');
-
-  http.createServer((req, res) => {
-    console.log(`[transcoder] transcoderProxy - proxying request ${req.url}`);
-    const url = URL.parse(req.url);
-
-    const options = {
-      host: proxyOptions.host,
-      port: proxyOptions.port,
-      path: req.url,
-      headers: {
-        ...req.headers,
-        'Proxy-Authorization': proxyOptions.credentials,
-        'Host': url.hostname,
-      },
-    };
-
-    nodeHttp.get(options, proxyRes => {
-      console.log(`[transcoder] proxy responded by ${proxyRes.statusCode}, ${req.url}`);
-      res.writeHead(proxyRes.statusCode, proxyRes.headers);
-      proxyRes.pipe(res, { end: true });
-    });
-  }).listen(CONFIG.Transcoder.ProxyPort, () => {
-    console.log(`[transcoder] transcoder proxy started at ${CONFIG.Transcoder.ProxyPort}, options:`);
-    console.log(proxyOptions);
-  });
+const handleRequest = (req, res) => {
+  if (req.url.startsWith('/transcoder/proxy')) {
+    proxyVideo(req, res);
+  } else if (req.url.startsWith('/transcoder/chunk')) {
+    serveChunk(req, res);
+  } else {
+    res.writeHead(404);
+    res.end('resource not found');
+  }
 };
 
 const proxyVideo = async (req, res) => {
   const playlist = [];
-  const matches = req.url.match('/proxy/([^/]*)');
+  const matches = req.url.match('/transcoder/proxy/([^/]*)');
   const url = decodeURIComponent(matches[1]);
 
+  console.log(`[transcoder] proxyVideo - fetching video info...`);
   const videoInfo = await loadVideoInfo(url);
   const isVod = videoInfo && videoInfo.totalDuration;
   const isLive = videoInfo && isNaN(videoInfo.totalDuration);
-  const headers = req.headers;
-  const userAgent = headers['user-agent'] || '';
-  const isVlc = userAgent.toLowerCase().indexOf('vlc') !== -1;
-  const isAppleTv = userAgent.toLowerCase().indexOf('apple tv') !== -1;
-  const sessionId = headers['x-playback-session-id'];
-
-  let delayResponse = false;
-
-  if (isAppleTv) {
-    if (!cache.playbackSessions) {
-      cache.playbackSessions = { };
-    }
-
-    if(!cache.playbackSessions[sessionId]) {
-      cache.playbackSessions[sessionId] = {
-        ...req.headers,
-        counter: 0,
-        timestamp: Date.now(),
-      };
-    } else {
-      cache.playbackSessions[sessionId].counter++;
-    }
-  }
-
-  console.log(`[transcoder] proxyVideo - url ${url}, user-agent: ${userAgent}`);
 
   playlist.push(`#EXTM3U`);
   playlist.push(`#EXT-X-VERSION:4`);
 
   if (isVod) {
     const duration = 10;
-    console.log(`[transcoder] proxyVideo - totalDuration: ${videoInfo.totalDuration}, url ${url}`);
+    console.log(`[transcoder] constructing VOD playlist, totalDuration: ${videoInfo.totalDuration}, url ${url}`);
 
     playlist.push(`#EXT-X-MEDIA-SEQUENCE:1`);
     playlist.push(`#EXT-X-TARGETDURATION:${duration}`);
@@ -112,24 +58,22 @@ const proxyVideo = async (req, res) => {
     while (start < videoInfo.totalDuration) {
       const chunkDuration = Math.min(videoInfo.totalDuration - start, duration);
       playlist.push(`#EXTINF:${chunkDuration},`);
-      playlist.push(`/chunk/${encodeURIComponent(url)}/${start}/${chunkDuration}`);
+      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/${start}/${chunkDuration}`);
       start += chunkDuration;
     }
   } else { 
-    console.log(`[transcoder] proxyVideo - totalDuration live stream, url ${url}`);
+    console.log(`[transcoder] constructing live playlist, url ${url}`);
 
     playlist.push(`#EXT-X-TARGETDURATION:${1}`);
     playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
 
     for (let i = 0; i < 3600 * 4; ++i) {
       playlist.push(`#EXTINF:${1},`);
-      playlist.push(`/chunk/${encodeURIComponent(url)}/0/0`);
+      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/0/0`);
     }
   } 
 
-  if (isVod || isLive) {
-    playlist.push(`#EXT-X-ENDLIST`);
-  }
+  playlist.push(`#EXT-X-ENDLIST`);
 
   res.writeHead(200, {
     'Content-Type': 'application/x-mpegURL',
@@ -139,7 +83,7 @@ const proxyVideo = async (req, res) => {
 };
 
 const serveChunk = async (req, res) => {
-  const matches = req.url.match('/chunk/([^/]*)/([^/]*)/([^/]*)');
+  const matches = req.url.match('/transcoder/chunk/([^/]*)/([^/]*)/([^/]*)');
   const url = decodeURIComponent(matches[1]);
   const start = Number(matches[2]);
   const duration = Number(matches[3]);
@@ -167,15 +111,14 @@ const serveChunk = async (req, res) => {
 };
 
 const loadChunk = async (url, s, d) => {
-  const ffmpeg = CONFIG.Transcoder.FFMpegPath || 'ffmpeg';
-  const crf = CONFIG.Transcoder.FFMpegCRF;
+  const ffmpeg = Config.FFMpegPath || 'ffmpeg';
+  const crf = Config.FFMpegCRF;
   const start = Number(s);
   const duration = Number(d);
 
   const { audioCodecs, videoCodecs } = await loadVideoInfo(url);
-
   const transcodeAudio = !audioCodecs || !audioCodecs.some(c => c.indexOf('aac') !== -1);
-  const transcodeVideo = !videoCodecs || !videoCodecs.some(c => c.indexOf('h264') !== -1);
+  const transcodeVideo = url.toLowerCase().endsWith('.ts') ? !videoCodecs || !videoCodecs.some(c => c.indexOf('h264') !== -1) : true;
 
   const options = [
     '-hide_banner',
@@ -183,23 +126,19 @@ const loadChunk = async (url, s, d) => {
 
     Number(start) > 0 ? '-ss' : null, Number(start) > 0 ? start : null,
     Number(duration) > 0 ? '-t' : null , Number(duration) > 0 ? duration : null,
-    '-http_proxy', `http://localhost:${CONFIG.Transcoder.ProxyPort}`,
     '-i', url,
 
-    //'-y',
-    //'-crf', crf,
-    //'-strict', 'experimental',
     '-preset', 'ultrafast',
     '-tune', 'zerolatency',
-    //'-profile:v', 'baseline',
-    //'-level', '3.0',
     '-max_muxing_queue_size', '1024',
-    //'-copyinkf',
     '-copyts',
-    //'-r', 25,
     '-pix_fmt', 'yuv420p',
-    //'-map_metadata', -1,
   ].filter(op => op !== null ? true : false);
+
+  if (process.env.http_proxy) {
+    options.push('-http_proxy');
+    options.push(process.env.http_proxy);
+  }
 
   options.push('-acodec');
   if (transcodeAudio) {
@@ -217,16 +156,20 @@ const loadChunk = async (url, s, d) => {
     options.push('copy');
   }
 
+  if (crf) {
+    options.push('-crf');
+    options.push(crf);
+  }
+
   options.push('-f');
   options.push('mpegts');
-
   options.push('pipe:1');
 
   console.log('[ffmpeg] ffmpeg ' + options.join(' '));
   const child = spawn(ffmpeg, options);
   const cancel = () => child.kill('SIGINT');
 
-  if (CONFIG.Transcoder.FFMpegDebugLogging) {
+  if (Config.DebugLogging) {
     child.stderr.on('data', data => {
       console.log('[ffmpeg] ' + data.toString())
     });
@@ -238,10 +181,7 @@ const loadChunk = async (url, s, d) => {
     cancel();
   });
 
-  let didExit = false;
-
   child.on('exit', error => {
-    didExit = true;
     console.log(`[ffmpeg] exiting transcoding process ${url} / ${start} / ${duration}`);
   });
 
@@ -251,23 +191,30 @@ const loadChunk = async (url, s, d) => {
   };
 };
 
-const loadVideoInfo = (url, noCache) => new Promise((resolve, reject) => {
-  if (!noCache && cache[url]) {
-    resolve(cache[url]);
+interface VideoInfo {
+  totalDuration: number;
+  videoCodecs: string[];
+  audioCodecs: string[];
+};
+
+const loadVideoInfo = (url, noCache = false) => new Promise<VideoInfo>((resolve, reject) => {
+  if (!noCache && cache.videoInfo[url]) {
+    resolve(cache.videoInfo[url]);
     return;
   }
 
-  const ffprobe = CONFIG.Transcoder.FFProbePath || 'ffprobe';
+  const proxy = process.env.http_proxy || null;
+  const ffprobe = Config.FFProbePath || 'ffprobe';
   const options = [
-    '-http_proxy', `http://localhost:${CONFIG.Transcoder.ProxyPort}`,
+    proxy ? '-http_proxy' : null, proxy || null,
     '-i', url, 
     '-hide_banner', '-loglevel', 'fatal', '-show_error', '-show_format', 
     '-show_streams', '-show_programs', '-show_chapters', '-show_private_data', 
     '-print_format', 'json'
-  ];
-  const child = spawn(module.exports.FFPROBE_PATH || 'ffprobe', options);
+  ].filter(op => op !== null ? true : false);
 
   console.log(`[transcoder] ffprobe ${options.join(' ')}`);
+  const child = spawn(ffprobe, options);
 
   let output = '';
 
@@ -306,14 +253,14 @@ const loadVideoInfo = (url, noCache) => new Promise((resolve, reject) => {
       console.log(`[transcoder] ffprobe failed to parse output, url ${url}`);
     }
 
-    cache[url] = {
+    cache.videoInfo[url] = {
       totalDuration,
       videoCodecs,
       audioCodecs,
     };
 
-    console.log(`[transcoder] ffprobe successful, url ${url}, ${JSON.stringify(cache[url])}`);
+    console.log(`[transcoder] ffprobe successful, url ${url}, ${JSON.stringify(cache.videoInfo[url])}`);
 
-    resolve(cache[url]);
+    resolve(cache.videoInfo[url]);
   });
 });

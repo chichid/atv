@@ -1,19 +1,17 @@
 {
   "name": "transcoder",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "0.1.0",
   "scripts": {
-    "start": "node ./index.js",
-    "watch": "nodemon node ./index.js"
+    "start": "ts-node ./index.ts",
+    "watch": "nodemon --watch templates --watch ./ --watch ../common -e json,ts,xml,js ./index.ts"
   },
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "common": "file:../common",
-    "follow-redirects": "^1.11.0"
+    "common": "file:../common"
   },
   "devDependencies": {
-    "nodemon": "^2.0.4"
+    "@types/node": "^14.0.13",
+    "nodemon": "^2.0.4",
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.5"
   }
 }

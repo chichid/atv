@@ -1,9 +1,9 @@
 const fs = require('fs');
 const path = require('path');
-const http = require('http');
+const url = require('url');
+const axios = require('axios');
 const https = require('https');
 const querystring = require('querystring');
-const { URL } = require('url');
 
 module.exports.wait = (duration) => new Promise((resolve, reject) => {
   setTimeout(resolve, duration);
@@ -18,28 +18,10 @@ module.exports.readFile = (file) => new Promise((resolve, reject) => {
     if (err) {
       reject(err);
     } else {
-      resolve(content)
+      resolve(content.toString())
     }
   });
 });
-
-module.exports.setHeaders = (config) => (req, res, next) => {
-  res.removeHeader('Connection');
-  res.removeHeader('X-Powered-By');
-  res.removeHeader('Content-Length');
-  res.removeHeader('Transfer-Encoding');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Allow-Headers');
-
-  const ext = path.extname(req.originalUrl).replace('.', '');
-  res.setHeader('Content-Type', config.MimeMap[ext] || config.MimeMap.default);
-
-  next();
-};
-
-module.exports.ping = (config) => (req, res) => {
-  res.end('pong');
-};
 
 module.exports.writeFile = async (file, content) => new Promise((resolve, reject) => {
   fs.writeFile(file, content, (err) => {
@@ -56,106 +38,105 @@ module.exports.writeJson = async (file, json, format) => {
   await writeFile(file, serializedContent);
 };
 
-module.exports.get = (url, buffer) => new Promise((resolve, reject) => {
-  if (url.startsWith('https://') || url.startsWith('http://')) {
-    const httpFactory = url.startsWith('https://') ? https : http;
+module.exports.get = async (uri) => {
+  const proxy = getAxiosProxy(uri);
 
-    httpFactory.get(url, (res) => {
-      let data = buffer ? [] : '';
+  const response = await axios.get(uri, {
+    httpsAgent: getAxiosHttpsAgent(),
+    proxy: proxy ? proxy : false,
+  });
 
-      res.on('data', (chunk) => {
-        if (buffer) {
-          data.push(chunk);
-        } else {
-          data += chunk;
-        }
-      });
+  return response.data;
+};
 
-      res.on('end', () => {
-        if (buffer) {
-          resolve(Buffer.concat(data));
-        } else {
-          resolve(data);
-        }
-      });
-    }).on('error', err => reject(new Error(err)));
-  } else if (url.startsWith('file://')) {
-    fs.readFile(url.replace('file://', ''), (err, data) => {
-      if (err) {
-        reject(new Error(err));
-      } else if (buffer) {
-        resolve(data);
-      } else {
-        resolve(data.toString());
-      }
-    });
-  } else {
-    reject(new Error(`[get] Unsupported protocol in url: ${url}`));
-  }
-});
+module.exports.getBuffer = async (uri) => {
+  const proxy = getAxiosProxy(uri);
 
-module.exports.post = async (url, data, headers, silent) => new Promise((resolve, reject) => {
-  const httpFactory = url.startsWith('https://') ? https : http;
-  const { hostname, port, pathname } = new URL(url);
+  const response = await axios.get(uri, {
+    proxy: proxy ? proxy : false,
+    httpsAgent: getAxiosHttpsAgent(),
+    responseType: 'arraybuffer',
+  });
 
-  const options = {
-    hostname,
-    port: port || ((httpFactory === https) ? 443 : 80),
-    path: pathname,
-    method: 'POST',
-    rejectUnauthorized: false,
-    requestCert: true,
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      ...headers
-    },
-  };
+  return response.data;
+};
 
-  let postData = null; 
+module.exports.postForm = (url, postData, headers, logBody) => {
+  return module.exports.post(url, postData, {
+    ...headers,
+    'Content-Type': 'application/x-www-form-urlencoded',
+  }, logBody);
+};
 
-  switch(options.headers['Content-Type'].toLowerCase()) {
+module.exports.post = async (url, postData, headers, logBody) => {
+  const contentType = Object.keys(headers).find(k => k.toLowerCase() === 'content-type');
+  let data = null; 
+
+  switch(headers[contentType]) {
     case 'application/x-www-form-urlencoded':
-      postData = querystring.stringify(data);
+      data = querystring.stringify(postData);
       break;
     case 'application/json':
-      postData = JSON.stringify(data);
+      data = JSON.stringify(postData);
       break;
     default: {
-      if (typeof data === 'string') {
-        postData = data;
+      if (typeof postData === 'string') {
+        data = postData;
       } else {
-        postData = JSON.stringify(data);
+        data= JSON.stringify(postData);
       }
     }
   }
 
-  options.headers['Content-Length'] = postData.length;
+  const proxy = getAxiosProxy(url);
+  const options = {
+    url,
+    data,
+    method: 'POST',
+    proxy: proxy ? proxy : false,
+    headers,
+  };
 
-  if (!silent) {
+  if (logBody === true) {
     console.log(`[POST] sending post request with data: ${JSON.stringify(options, null, '  ')}`);
+  } else {
+    console.log(`[POST] sending post request ${url} `);
   }
 
-  const req = httpFactory.request(options, (res) => {
-    let data = '';
+  const response = await axios.request(options);
 
-    res.on('data', (chunk) => {
-      data += chunk;
-    });
-
-    res.on('end', () => {
-      resolve(data);
-    });
-
-    res.on('error', err => reject(err));
-  });
-
-  req.on('error', err => reject(err));
-
-  req.write(postData);
-  req.end();
-});
+  return response.data;
+};
 
 module.exports.decodeBase64 = (data) => {
   const buff = Buffer.alloc(data.length, data, 'base64');
   return buff.toString('utf-8');
+};
+
+const getAxiosHttpsAgent = () => {
+  return new https.Agent({
+    rejectUnauthorized: false,
+  });
+};
+
+const getAxiosProxy = (uri) => {
+  if (uri && (uri.toLowerCase().indexOf('localhost') !== -1 || uri.indexOf('127.0.0.1') !== -1)) {
+    return null;
+  }
+
+  if (!process.env.http_proxy)  {
+    return null;
+  }
+  
+  const proxyUrl = url.parse(process.env.http_proxy);
+  const authParts = proxyUrl.auth && proxyUrl.auth.split(':');
+  
+  return {
+    host: proxyUrl.hostname,
+    port: proxyUrl.port,
+    auth: !authParts ? null : {
+      username: decodeURIComponent(authParts[0]),
+      password: decodeURIComponent(authParts[1]),
+    },
+  };
 };

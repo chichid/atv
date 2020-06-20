@@ -26,6 +26,7 @@
 
 			.movie-image {
 				border-radius: 0.5rem;
+        max-height: 30rem;
 			}
 			
 			.movie-title {
@@ -34,6 +35,18 @@
 				width: 100%;		
 			  font-weight: bold;
 			}
+			
+			.header-bar-input {
+				border-radius: 0.3rem;
+				height: 3rem;
+			}
+
+			.mdc-drawer {
+				width: 30%;
+				max-width: 20rem;
+				position: fixed;
+        transition: width 300ms ease;
+			}
 	 </style>
 
    <script type="text/javascript">
@@ -41,9 +54,36 @@
     let totalMovies = null;
     let loadedMovies = 0;
     let isLoadingMore = false;
+    let currentSearchTimer = null;
+    let currentSearchValue = null;
+    let currentCategory = null;
+    let allCategory = {
+      Id: -666,
+      Name: 'TOUT LES FILMS',
+    };
 
     function byId(id) {
       return document.getElementById(id);
+    };
+
+		function onLoad() {
+			loadCategories();
+			loadMovies(true);
+		}
+
+    function loadCategories() {
+      const categoriesList = byId('categories');
+      const tpl = categoriesList.querySelector('template').innerHTML;
+      const template = Handlebars.compile(tpl);
+     
+      fetch(`/tv-service/movies/categories`)
+        .then(response => response.text())
+        .then(responseText => {
+          const categories = JSON.parse(responseText);
+          categories.items.unshift(allCategory);
+          const html = categories.items.map(category => template(category)).join('\n');
+          categoriesList.innerHTML = `<template>${tpl}</template>` + html;
+        });
     };
 
     function loadMovies(reset) {
@@ -53,7 +93,16 @@
      
       isLoading = true;
 
-      fetch(`/tv-service/movies?offset=${loadedMovies}&limit=${PAGE_SIZE}`)
+      if (reset) {
+        loadedMovies = 0;
+        totalMovies = 0;
+        document.body.scrollTop = 0;
+      }
+
+      const search = currentSearchValue ? `&search=${encodeURIComponent(currentSearchValue)}` : '';
+      const categoryId = currentCategory ? `&categoryId=${currentCategory.Id}` : '';
+
+      fetch(`/tv-service/movies?offset=${loadedMovies}&limit=${PAGE_SIZE}${categoryId}${search}`)
         .then(response => response.text())
         .then(responseText => {
           const movies = JSON.parse(responseText);
@@ -63,7 +112,7 @@
           const html = movies.items.map(movie => template(movie)).join('\n');
 
           if (reset) {
-            moviesList.innerHTML = tpl + html;
+            moviesList.innerHTML = `<template>${tpl}</template>` + html;
             loadedMovies = movies.items.length;
           } else {
             moviesList.insertAdjacentHTML('beforeend', html);
@@ -73,6 +122,9 @@
           isLoading = false;
         });
     };
+
+    function onPlayMovie() {
+    }
 
     function loadMore() {
       if (!isLoading && loadedMovies < totalMovies) {
@@ -86,18 +138,97 @@
         loadMore();
       }
     }
+
+    function onMenuPress() {
+      openDrawer();
+    }
+
+    function onSelectCategory(Id, Name) {
+      const pageTitle = byId('pageTitle');
+
+      clearSearch(false);
+
+      if (Id === String(allCategory.Id)) {
+        currentCategory = null;
+        pageTitle.innerHTML = '';
+      } else {
+        currentCategory = { Id, Name };
+        pageTitle.innerHTML = currentCategory.Name;
+      }
+      
+      loadMovies(true);
+    }
+
+    function clearSearch(reload) {
+      byId('searchField').value = '';
+      currentSearchValue = '';
+
+      if (reload !== false) {
+        loadMovies(true);
+      }
+    }
+
+    function onSearch() {
+      if (currentSearchTimer) {
+        clearTimeout(currentSearchTimer);
+      }
+
+      currentSearchTimer = setTimeout(() => {
+        currentSearchValue = byId('searchField').value;
+        loadMovies(true);
+      }, 500);
+    }
+
+    function openDrawer() {
+      const drawer = byId('drawer');
+      drawer.style.display = 'initial';
+      drawer.style.width = 0;
+
+      const onCloseAnimationEnd = () => {
+        drawer.style.display = 'none';
+      };
+
+      const closeListener = () => {
+        drawer.style.width = 0;
+        setTimeout(onCloseAnimationEnd, 300);
+      };
+
+      const registerCloseListener = () => {
+        drawer.style.removeProperty('width');
+        document.addEventListener('click', closeListener, { once: true });
+      };
+
+      setTimeout(registerCloseListener, 200);
+    }
    </script>
   </head>
 
-  <body onload="loadMovies(0, true)" onscroll="onScroll()">
+  <body onload="onLoad()" onscroll="onScroll()">
+		<aside id="drawer" class="mdc-drawer" style="display: none">
+			<div class="mdc-drawer__content">
+				<nav id="categories" class="mdc-list">
+					<template>
+            <a class="mdc-list-item mdc-list-item--activated" href="#" onclick="onSelectCategory('{{Id}}', '{{Name}}')" aria-current="page">
+              <span class="mdc-list-item__text">{{Name}}</span>
+						</a>
+					</template>
+				</nav>
+			</div>
+		</aside>
+
 		<header class="mdc-top-app-bar">
 			<div class="mdc-top-app-bar__row">
 				<section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
-					<span class="mdc-top-app-bar__title">Films</span>
+					<button class="material-icons mdc-top-app-bar__navigation-icon mdc-icon-button" aria-label="Open navigation menu" onclick="onMenuPress()">menu</button>
+					<span id="pageTitle" class="mdc-top-app-bar__title"></span>
 				</section>
 
 				<section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" role="toolbar">
-					<button class="material-icons mdc-top-app-bar__action-item mdc-icon-button" aria-label="Search">search</button>
+					<label class="header-bar-input mdc-text-field mdc-text-field--filled mdc-text-field--no-label">
+						<span class="mdc-text-field__ripple"></span>
+						<input id="searchField" class="mdc-text-field__input" type="text" placeholder="Recherche" aria-label="Label" oninput="onSearch()">
+						<span class="mdc-line-ripple"></span>
+					</label>
 				</section>
 			</div>
 		</header>

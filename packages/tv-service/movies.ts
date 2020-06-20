@@ -19,21 +19,23 @@ export const getMovies = async (req, res) => {
 
   const { movies }= await fetchSources();
   const filteredMovies = filterMovies(movies, search, categoryId);
-	const sortedMovies = filteredMovies.sort((a, b) => b.Rating - a.Rating);
+	const sortedMovies = search ? filteredMovies : filteredMovies.sort((a, b) => b.Rating - a.Rating);
 
   const off = Number(offset) || 0;
   const lim = Number(limit) || Config.DefaultPageSize;
   const moviesPage = sortedMovies.slice(off, off + lim);
 
   res.json({
-    count: movies.length,
+    count: filteredMovies.length,
     items: moviesPage,
   });
 };
 
 export const getMovieCategories = async (req, res) => {
   const { categories }= await fetchSources();
-  res.json(categories);
+  res.json({
+		items: categories
+	});
 };
 
 const filterMovies = (movieList, searchTerm, categoryId) => {
@@ -70,8 +72,14 @@ const fetchSources = async () => {
     movies = [...movies, ...sourceMovies]
   });
 
-  const categoriesSet = new Set(movies.map(m => m.Category).filter(c => c ? true : false));
-  const categories = Array.from(categoriesSet);
+  const categoriesMap = {};
+  movies.forEach(({ Category }) => { 
+    if (Category) {
+      categoriesMap[Category.Id] = Category; 
+    }
+  });
+
+  const categories = Object.keys(categoriesMap).map(k => categoriesMap[k]);
 
   cache.movieSources = sources;
   cache.movies = movies;

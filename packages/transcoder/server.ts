@@ -1,10 +1,7 @@
-const fs = require('fs');
-const URL = require('url');
-const http = require('http');
-const { spawn } = require('child_process'); 
-const { post, get, wait, fileExists, readFile } = require('common/utils');
-const Config = require('./config');
-const { startDiscoveryService, getWorkerList } = require('./discovery');
+import * as http from 'http';
+import { spawn } from 'child_process';
+import * as Config from './config';
+import { startDiscoveryService, getWorkerList } from './discovery';
 
 const cache = {
   videoInfo: {},
@@ -12,9 +9,9 @@ const cache = {
 };
 
 export const startServer = () => {
-  if (!process.env.http_proxy && Config.HttpProxy) {
-    console.log(`[transcoder] setting the http proxy from the settings to ${Config.HttpProxy}`);
-    process.env.http_proxy = Config.HttpProxy;
+  if (Config.IptvHttpProxy) {
+    console.log(`[transcoder] setting the http proxy from the settings to ${Config.IptvHttpProxy}`);
+    process.env.http_proxy = Config.IptvHttpProxy;
   }
 
   http.createServer((req, res) => handleRequest(req, res)).listen(Config.Port, () => {
@@ -157,6 +154,11 @@ const loadChunk = async (url, s, d) => {
     options.push('libx264');
   } else {
     options.push('copy');
+  }
+
+  if (crf) {
+    options.push('-crf');
+    options.push(crf);
   }
 
   options.push('-f');

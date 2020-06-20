@@ -1,5 +1,4 @@
 const Fuse = require('fuse.js');
-
 import * as Config from './config';
 import { get } from 'common/utils';
 
@@ -26,7 +25,10 @@ export const getMovies = async (req, res) => {
   const lim = Number(limit) || Config.DefaultPageSize;
   const moviesPage = sortedMovies.slice(off, off + lim);
 
-  res.json(moviesPage);
+  res.json({
+    count: movies.length,
+    items: moviesPage,
+  });
 };
 
 export const getMovieCategories = async (req, res) => {

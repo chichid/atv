@@ -24,6 +24,11 @@ export const getTemplate = async (req, res) => {
 };
 
 const runTemplate = (query, fileContent) => new Promise((resolve, reject) => {
+  if (fileContent.indexOf(Config.ClientSideTemplateTag) !== -1) {
+    resolve(fileContent);
+    return;
+  }
+
   const context = {
     query,
   };

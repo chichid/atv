@@ -1,10 +1,18 @@
+<!-- CLIENT_SIDE_TEMPLATE -->
 <html>
   <head>
+   <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
+
    <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
    <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+
 	 <style>
 			html, head, body { margin: 0; padding: 0; height: 100% } 
+
+      template {
+        display: none;
+      }
 
 			.movie-list {
 				column-count: 5;	
@@ -27,13 +35,65 @@
 			  font-weight: bold;
 			}
 	 </style>
+
+   <script type="text/javascript">
+    const PAGE_SIZE = 25;
+    let totalMovies = null;
+    let loadedMovies = 0;
+    let isLoadingMore = false;
+
+    function byId(id) {
+      return document.getElementById(id);
+    };
+
+    function loadMovies(reset) {
+      const moviesList = byId('moviesList');
+      const tpl = moviesList.querySelector('template').innerHTML;
+      const template = Handlebars.compile(tpl);
+     
+      isLoading = true;
+
+      fetch(`/tv-service/movies?offset=${loadedMovies}&limit=${PAGE_SIZE}`)
+        .then(response => response.text())
+        .then(responseText => {
+          const movies = JSON.parse(responseText);
+
+          totalMovies = movies.count;
+
+          const html = movies.items.map(movie => template(movie)).join('\n');
+
+          if (reset) {
+            moviesList.innerHTML = tpl + html;
+            loadedMovies = movies.items.length;
+          } else {
+            moviesList.insertAdjacentHTML('beforeend', html);
+            loadedMovies += movies.items.length;
+          }
+
+          isLoading = false;
+        });
+    };
+
+    function loadMore() {
+      if (!isLoading && loadedMovies < totalMovies) {
+        loadMovies(false);
+      }
+    }
+
+    function onScroll() {
+      const element = document.body;
+      if (element.scrollTop > (element.scrollHeight - element.offsetHeight - 20)) {
+        loadMore();
+      }
+    }
+   </script>
   </head>
 
-  <body>
+  <body onload="loadMovies(0, true)" onscroll="onScroll()">
 		<header class="mdc-top-app-bar">
 			<div class="mdc-top-app-bar__row">
 				<section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
-					<span class="mdc-top-app-bar__title">Filmes</span>
+					<span class="mdc-top-app-bar__title">Films</span>
 				</section>
 
 				<section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" role="toolbar">
@@ -42,12 +102,12 @@
 			</div>
 		</header>
 
-		<ul class="movie-list mdc-image-list mdc-image-list--masonry my-masonry-image-list"">
-			{{#fetch '/tv-service/movies?limit=25'}}
-			<li class="mdc-image-list__item">
-				<img class="movie-image mdc-image-list__image" src="{{LogoUrl}}" alt="{{MovieName}}"/>
-			</li>
-			{{/fetch}}
+		<ul id="moviesList" class="movie-list mdc-image-list mdc-image-list--masonry my-masonry-image-list">
+      <template>
+        <li class="mdc-image-list__item">
+          <img class="movie-image mdc-image-list__image" src="{{LogoUrl}}" alt="{{MovieName}}"/>
+        </li>
+      </template>
 		</ul>
   </body>
 </html>

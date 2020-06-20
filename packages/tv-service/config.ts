@@ -6,6 +6,7 @@ export const BaseUrl = rcfg('TV_SERVICE_BASE_URL');
 export const TranscoderUrl = rcfg('TRANSCODER_URL', '/transcoder/proxy');
 export const HttpProxy = rcfg('HTTP_PROXY', process.env.http_proxy);
 export const DefaultPageSize = 25;
+export const ClientSideTemplateTag = '<!-- CLIENT_SIDE_TEMPLATE -->';
 
 const GoogleSheetsEndpoint = rcfg('TV_SERVICE_GOOGLE_SHEET_ENDPOINT');
 export const GoogleSheetActions = {

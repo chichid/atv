@@ -1,5 +1,6 @@
 import { get, postForm, decodeBase64 } from 'common/utils';
 import * as Config from './config';
+import { ChannelPayload, ChannelGroupPayload, Group, Channel, EpgProgram } from './model';
 
 const cache = {
   groups: null,
@@ -10,13 +11,13 @@ export const reloadChannels = async (req, res) => {
   console.log('[tv-service] reloading channels...');
   delete cache.groups;
   delete cache.channels;
-  const groups = await fetchAllChannels();
+  const { groups } = await fetchAllChannels();
   res.json(groups);
 };
 
 export const getChannels = async (req, res) => {
   console.log('[tv-service] loading all channels...');
-  const groups = await fetchAllChannels();
+  const { groups } = await fetchAllChannels();
   res.json(groups);
 };
 
@@ -24,17 +25,16 @@ export const getChannelDetails = async (req, res) => {
   const channelName = req.params.channelName;
   console.log(`[tv-service] channels - loading channel details ${channelName}`);
   
-  if (!cache.channels) {
-    await fetchAllChannels();
-  }
+  const { channels } = await fetchAllChannels();
 
-  const channel = cache.channels.find(
-    ({ channelName:cn }) => cn && cn.toLowerCase() === channelName.toLowerCase()
+  const channel = channels.find(
+    ({ name }) => name.toLowerCase() === channelName.toLowerCase()
   );
 
   if (!channel) {
     console.warn(`[tv-service] channels - channel ${channelName} not found`);
     res.status(404);
+    res.end(`Channel ${channelName} Not Found`);
     return;
   }
 
@@ -42,52 +42,69 @@ export const getChannelDetails = async (req, res) => {
   res.json({ ...channel, epgPrograms });
 };
 
-const fetchAllChannels = async () => {
+const fetchAllChannels = async (): Promise<{ groups: Group[], channels: Channel[] }> => {
   if (cache.groups) {
     console.log(`[tv-service] returning channel groups form cache`);
-    return cache.groups;
+    return {
+      groups: cache.groups,
+      channels: cache.channels,
+    };
   }
 
   console.log(`[tv-service] calling GetChannelGroups...`);
-  const groups = await get(Config.GoogleSheetActions.GetChannelGroups);
+  let channels = [];
+  const groupsResponse = await get(Config.GoogleSheetActions.GetChannelGroups) as ChannelGroupPayload[];
 
-  let flatMap = [];
-  groups.forEach(group => {
-    group.channels = group.channels.map(mapChannel);
-    flatMap = [...flatMap, ...group.channels];
+  const groups = groupsResponse.map(groupPayload => {
+    const group = {
+      groupName: groupPayload.groupName,
+      channels: groupPayload.channels.map(mapChannel),
+    };
+
+    channels = [...channels, ...group.channels];
+
+    return group;
   });
 
-  cache.channels = flatMap;
+  cache.channels = channels;
   cache.groups = groups;
 
-  return groups;
+  return {
+    groups,
+    channels,
+  };
 };
 
-const mapChannel = (channel) => {
+const mapChannel = (payload: ChannelPayload): Channel => {
   return {
-    ...channel,
-    StreamUrl: `${Config.TranscoderUrl}/${encodeURIComponent(channel.StreamUrl)}`,
+    id: encodeURIComponent(payload.Channel),
+    name: payload.Channel,
+    logoUrl: payload.LogoUrl,
+    streamUrl: `${Config.TranscoderUrl}/${encodeURIComponent(payload.StreamUrl)}`,
+    timeshiftUrl: payload.TimeshiftUrl,
+    epgShift: Number(payload.EpgShift),
+    epgDisplayShift: Number(payload.EpgDisplayShift),
   };
 }
 
-const fetchEPG = async (channel) => {
+const fetchEPG = async (channel: Channel): Promise<EpgProgram[]> => {
   if (!process.env.http_proxy) { 
     throw new Error(`[tv-service] http_proxy not provided, this service needs the proxy set`);
   }
 
-  if (!channel.timeshiftURL) {
-    console.warn(`[tv-service] channel ${channel.channelName} doesn't offer EPG`);
+  if (!channel.timeshiftUrl) {
+    console.warn(`[tv-service] channel ${channel.name} doesn't offer EPG`);
     return [];
   }
 
-  const { epgListings, baseURL, username, password, streamId } = await getSimpleDataTable(channel.timeshiftURL);
+  const { epgListings, baseURL, username, password, streamId } = await getSimpleDataTable(channel.timeshiftUrl);
 
   if (!epgListings) {
-    console.warn(`[channels] channel ${channel.channelName} did not return any listings`);
+    console.warn(`[channels] channel ${channel.name} did not return any listings`);
     return [];
   }
 
-  const listingsByKey = {};
+  const listingsByKey: { [key: string]: EpgProgram } = {};
 
   epgListings
     .filter(dt => dt.has_archive === 1)
@@ -108,7 +125,7 @@ const fetchEPG = async (channel) => {
       const dateUrlComponent = `${urlComponentDate}:${urlComponentTime}`;
 
       // TODO extension .ts is hardcoded, fix
-      const streamURL = `${baseURL}/timeshift/${username}/${password}/${Math.floor(duration / 60)}/${dateUrlComponent}/${streamId}.ts`;
+      const streamUrl = `${baseURL}/timeshift/${username}/${password}/${Math.floor(duration / 60)}/${dateUrlComponent}/${streamId}.ts`;
 
       listingsByKey[key] = {
         key,
@@ -118,7 +135,7 @@ const fetchEPG = async (channel) => {
         start,
         end,
         duration,
-        streamURL: `${Config.TranscoderUrl}/${encodeURIComponent(streamURL)}`,
+        streamUrl: `${Config.TranscoderUrl}/${encodeURIComponent(streamUrl)}`,
       };
     });
 

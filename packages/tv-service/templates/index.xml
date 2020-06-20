@@ -15,19 +15,19 @@
           <menuSection id="channelGroupsMenuSection">
             <items>
               {{#fetch '/tv-service/channels'}}
-              <oneLineMenuItem id="{{GroupName}}">
-                <label>{{GroupName}}</label>
+              <oneLineMenuItem id="{{groupName}}">
+                <label>{{groupName}}</label>
                 <preview>
-                  <scrollerPreview id="scrollerPreview-{{GroupName}}">
+                  <scrollerPreview id="scrollerPreview-{{groupName}}">
                     <items>
-                      <grid id="channelsGrid-{{GroupName}}" columnCount="4">
+                      <grid id="channelsGrid-{{groupName}}" columnCount="4">
                         <items>
                           {{#each channels}}
-                          <sixteenByNinePoster id="{{Channel}}" alwaysShowTitles="true" 
-                            onSelect="playVideo('{{StreamUrl}}')"
-                            onHoldSelect="atv.loadURL('/tv-service/templates/epg.xml?Channel={{Channel}}')">
+                          <sixteenByNinePoster id="{{id}}" alwaysShowTitles="true" 
+                            onSelect="playVideo('{{streamUrl}}')"
+                            onHoldSelect="atv.loadURL('/tv-service/templates/epg.xml?Channel={{id}}')">
                             <title>{{#if timeshiftURL}}*{{/if}} {{Channel}}</title>
-                            <image src720="{{LogoUrl}}" src1080="{{LogoUrl}}" />
+                            <image src720="{{logoUrl}}" src1080="{{logoUrl}}" />
                             <defaultImage>resource://16x9.png</defaultImage>
                           </sixteenByNinePoster>
                           {{/each}}

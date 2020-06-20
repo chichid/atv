@@ -9,7 +9,7 @@
       <listScrollerSplit id="mainListScrollerSplit">
         <header>
           <simpleHeader accessibilityLabel="Movie list">
-            <title>{{ channelName}} </title>
+            <title>{{ name }} </title>
           </simpleHeader>
         </header>
         <menu>
@@ -17,7 +17,7 @@
             <menuSection>
               <items>
                 {{#each epgPrograms}}
-                <twoLineMenuItem id="list_{{programTitle}}" accessibilityLabel="Recent items" onSelect="playVideo('{{streamURL}}')">
+                <twoLineMenuItem id="list_{{programTitle}}" accessibilityLabel="Recent items" onSelect="playVideo('{{streamUrl}}')">
                   <label>{{programTitle}}</label>
                   <label2>{{day}} {{start}}</label2>
                   <rightLabel></rightLabel>

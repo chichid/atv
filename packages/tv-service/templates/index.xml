@@ -25,7 +25,7 @@
                           {{#each channels}}
                           <sixteenByNinePoster id="{{id}}" alwaysShowTitles="true" 
                             onSelect="playVideo('{{streamUrl}}')"
-                            onHoldSelect="atv.loadURL('/tv-service/templates/epg.xml?Channel={{id}}')">
+                            onHoldSelect="atv.loadURL('/tv-service/templates/epg.xml?channelName={{id}}')">
                             <title>{{#if timeshiftURL}}*{{/if}} {{Channel}}</title>
                             <image src720="{{logoUrl}}" src1080="{{logoUrl}}" />
                             <defaultImage>resource://16x9.png</defaultImage>

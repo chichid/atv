@@ -18,19 +18,27 @@ export const getTemplate = async (req, res) => {
   }
 
   const fileContent = await readFile(filePath);
-  const content = await runTemplate(req.query, fileContent);
+  const content = await runTemplate(req, fileContent);
 
   res.end(content);
 };
 
-const runTemplate = (query, fileContent) => new Promise((resolve, reject) => {
+const isLocalHost = (host: string) => {
+  return host.toLowerCase().indexOf('localhost') !== -1 || host.indexOf('127.0.0.1') !== -1;
+};
+
+const runTemplate = (req, fileContent: string) => new Promise((resolve, reject) => {
   if (fileContent.indexOf(Config.ClientSideTemplateTag) !== -1) {
     resolve(fileContent);
     return;
   }
 
+  const requestBaseUrl = `${req.protocol}://${req.get('host')}`;
+  const baseUrl = isLocalHost(requestBaseUrl) ? Config.AppleTvRedirectedApp : requestBaseUrl;
+
   const context = {
-    query,
+    query: req.query,
+    baseUrl,
   };
 
   const getProperty = (obj, path) => {

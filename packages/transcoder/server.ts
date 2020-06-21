@@ -159,8 +159,8 @@ const loadChunk = async (url, s, d) => {
   options.push('-level', '3.0');
   options.push('-tune', 'zerolatency');
   options.push('-max_muxing_queue_size', '1024');
-  options.push('-r', '24');
-  options.push('-copyinkf');
+  //options.push('-r', '24');
+  //options.push('-copyinkf');
   options.push('-copyts');
   options.push('-movflags', '+faststart');
   options.push('-pix_fmt', 'yuv420p');

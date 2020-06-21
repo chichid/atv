@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <atv>
   <head>
-    <script src="/tv-service/templates/utils.js" />
+    <script src="https://kortv.com/tv-service/templates/utils.js" />
   </head>
   <body>
     {{#fetch '/tv-service/channels/{query.channelName}'}}

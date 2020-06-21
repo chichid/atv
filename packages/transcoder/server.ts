@@ -117,8 +117,9 @@ const loadChunk = async (url, s, d) => {
   const duration = Number(d);
 
   const { audioCodecs, videoCodecs } = await loadVideoInfo(url);
-  const transcodeAudio = !audioCodecs || !audioCodecs.some(c => c.indexOf('aac') !== -1);
-  const transcodeVideo = url.toLowerCase().endsWith('.ts') ? !videoCodecs || !videoCodecs.some(c => c.indexOf('h264') !== -1) : true;
+  const isTs = url.toLowerCase().endsWith('.ts'); 
+  const transcodeAudio = !isTs || (audioCodecs && audioCodecs.some(c => c.indexOf('aac') === -1));
+  const transcodeVideo = !isTs || (videoCodecs && videoCodecs.some(c => c.indexOf('h264') === -1));
 
   const options = [
     '-hide_banner',
@@ -131,6 +132,8 @@ const loadChunk = async (url, s, d) => {
     '-preset', 'ultrafast',
     '-tune', 'zerolatency',
     '-max_muxing_queue_size', '1024',
+    '-r', 30,
+    '-copyinkf',
     '-copyts',
     '-pix_fmt', 'yuv420p',
   ].filter(op => op !== null ? true : false);
@@ -141,6 +144,7 @@ const loadChunk = async (url, s, d) => {
   }
 
   options.push('-acodec');
+
   if (transcodeAudio) {
     options.push('aac');
     options.push('-ab');

@@ -149,18 +149,20 @@ const loadChunk = async (url, s, d) => {
 
   options.push('-vcodec');
   if (transcodeVideo) {
-    options.push('libx264');
+    options.push('h264');
   } else {
     options.push('copy');
   }
 
-
   options.push('-preset', 'ultrafast');
+  options.push('-profile:v', 'baseline');
+  options.push('-level', '3.0');
   options.push('-tune', 'zerolatency');
   options.push('-max_muxing_queue_size', '1024');
   options.push('-r', '24');
   options.push('-copyinkf');
   options.push('-copyts');
+  options.push('-movflags', '+faststart');
   options.push('-pix_fmt', 'yuv420p');
 
   if (extraFlags) {

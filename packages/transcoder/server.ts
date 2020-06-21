@@ -112,7 +112,7 @@ const serveChunk = async (req, res) => {
 
 const loadChunk = async (url, s, d) => {
   const ffmpeg = Config.FFMpegPath || 'ffmpeg';
-  const crf = Config.FFMpegCRF;
+  const extraFlags = Config.FFMpegExtraFlags;
   const start = Number(s);
   const duration = Number(d);
 
@@ -154,9 +154,6 @@ const loadChunk = async (url, s, d) => {
     options.push('copy');
   }
 
-  if (crf) {
-    options.push('-crf', crf);
-  }
 
   options.push('-preset', 'ultrafast');
   options.push('-tune', 'zerolatency');
@@ -165,8 +162,12 @@ const loadChunk = async (url, s, d) => {
   options.push('-copyinkf');
   options.push('-copyts');
   options.push('-pix_fmt', 'yuv420p');
-  options.push('-f', 'mpegts');
 
+  if (extraFlags) {
+    options.push.apply(options, extraFlags.split(' '));
+  }
+
+  options.push('-f', 'mpegts');
   options.push('pipe:1');
 
   console.log('[ffmpeg] ffmpeg ' + options.join(' '));

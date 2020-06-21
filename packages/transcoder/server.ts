@@ -124,31 +124,25 @@ const loadChunk = async (url, s, d) => {
   const options = [
     '-hide_banner',
     '-loglevel', 'quiet',
-
-    Number(start) > 0 ? '-ss' : null, Number(start) > 0 ? start : null,
-    Number(duration) > 0 ? '-t' : null , Number(duration) > 0 ? duration : null,
-    '-i', url,
-
-    '-preset', 'ultrafast',
-    '-tune', 'zerolatency',
-    '-max_muxing_queue_size', '1024',
-    '-r', 30,
-    '-copyinkf',
-    '-copyts',
-    '-pix_fmt', 'yuv420p',
-  ].filter(op => op !== null ? true : false);
+  ];
 
   if (process.env.http_proxy) {
-    options.push('-http_proxy');
-    options.push(process.env.http_proxy);
+    options.push('-http_proxy', process.env.http_proxy);
   }
 
-  options.push('-acodec');
+  if (Number(start) > 0) {
+    options.push('-ss', String(start));
+  }
 
+  if (Number(duration) > 0) {
+    options.push('-t', String(duration));
+  }
+
+  options.push('-i', url);
+
+  options.push('-acodec');
   if (transcodeAudio) {
-    options.push('aac');
-    options.push('-ab');
-    options.push('640k');
+    options.push('aac', '-ab', '640k');
   } else {
     options.push('copy');
   }
@@ -161,12 +155,18 @@ const loadChunk = async (url, s, d) => {
   }
 
   if (crf) {
-    options.push('-crf');
-    options.push(crf);
+    options.push('-crf', crf);
   }
 
-  options.push('-f');
-  options.push('mpegts');
+  options.push('-preset', 'ultrafast');
+  options.push('-tune', 'zerolatency');
+  options.push('-max_muxing_queue_size', '1024');
+  options.push('-r', '24');
+  options.push('-copyinkf');
+  options.push('-copyts');
+  options.push('-pix_fmt', 'yuv420p');
+  options.push('-f', 'mpegts');
+
   options.push('pipe:1');
 
   console.log('[ffmpeg] ffmpeg ' + options.join(' '));

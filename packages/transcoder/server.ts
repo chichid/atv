@@ -142,7 +142,7 @@ const loadChunk = async (url, s, d) => {
 
   options.push('-acodec');
   if (transcodeAudio) {
-    options.push('aac', '-ab', '640k');
+    options.push('aac', '-ab', '640k', '-ac', '6');
   } else {
     options.push('copy');
   }

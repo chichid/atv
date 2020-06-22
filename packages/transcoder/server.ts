@@ -58,7 +58,7 @@ const proxyVideo = async (req, res) => {
     while (start < videoInfo.totalDuration) {
       const chunkDuration = Math.min(videoInfo.totalDuration - start, duration);
       playlist.push(`#EXTINF:${chunkDuration},`);
-      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/${start}/${0}`);
+      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/${start}/${duration}`);
       start += chunkDuration;
     }
   } else { 

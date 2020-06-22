@@ -112,7 +112,6 @@ const serveChunk = async (req, res) => {
 
 const loadChunk = async (url, s, d) => {
   const ffmpeg = Config.FFMpegPath || 'ffmpeg';
-  const extraFlags = Config.FFMpegExtraFlags;
   const start = Number(s);
   const duration = Number(d);
 
@@ -150,24 +149,23 @@ const loadChunk = async (url, s, d) => {
   options.push('-vcodec');
   if (transcodeVideo) {
     options.push('h264');
+    options.push('-crf', '28');
+    options.push('-preset', 'ultrafast');
+    options.push('-profile:v', 'baseline');
+    options.push('-level', '3.0');
+    options.push('-tune', 'zerolatency');
+    options.push('-movflags', '+faststart');
+
+    if (Config.FFMpegExtraVideoFlags) {
+      options.push.apply(options, Config.FFMpegExtraVideoFlags.split(' '));
+    }
   } else {
     options.push('copy');
   }
 
-  options.push('-preset', 'ultrafast');
-  options.push('-profile:v', 'baseline');
-  options.push('-level', '3.0');
-  options.push('-tune', 'zerolatency');
   options.push('-max_muxing_queue_size', '1024');
-  //options.push('-r', '24');
-  //options.push('-copyinkf');
   options.push('-copyts');
-  options.push('-movflags', '+faststart');
   options.push('-pix_fmt', 'yuv420p');
-
-  if (extraFlags) {
-    options.push.apply(options, extraFlags.split(' '));
-  }
 
   options.push('-f', 'mpegts');
   options.push('pipe:1');

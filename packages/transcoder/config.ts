@@ -7,7 +7,7 @@ export const EnableDiscovery = cfg('TRANSCODER_ENABLE_DISCOVERY', false);
 export const ChunkDuration = cfg('TRANSCODER_CHUNK_DURATION', 10);
 export const FFMpegPath = cfg('TRANSCODER_FFMPEG_PATH');
 export const FFProbePath = cfg('TRANSCODER_FFPROBE_PATH');
-export const FFMpegExtraFlags = cfg('TRANSCODER_FFMPEG_EXTRA_FLAGS', '');
+export const FFMpegExtraVideoFlags = cfg('TRANSCODER_FFMPEG_EXTRA_VIDEO_FLAGS', '');
 
 export const Discovery = {
   Port: cfg('TRANSCODER_DISCOVERY_PORT', 23456),

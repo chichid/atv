@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as http from 'http';
 import * as https from 'https';
-import * as url from 'url';
 import * as httpProxy from 'http-proxy';
 import * as Config from './config';
 
@@ -35,9 +34,16 @@ const handleProxyRequest = (proxy, pathMap) => (req, res) => {
 
   if (pathConfig) {
     console.log(`[proxy-service] proxy request ${req.url} to ${pathConfig.target}${req.url}`);
-    proxy.web(req, res, {
-      target: pathConfig.target,
-    });
+    try {
+      proxy.web(req, res, {
+        target: pathConfig.target,
+        xfwd: true,
+      });
+    } catch(e) {
+      console.error(`[proxy-service] unable to proxy request ${req.url}, error: ${e.message}`);
+      res.writeHead(500);
+      res.end(`[proxy-service] Unable to proxy request`);
+    }
   } else {
     res.writeHead(404);
     res.end(`${path} not found`);
@@ -72,4 +78,7 @@ const parsePathMapConfig = () => {
   }
 
   return map;
+};
+
+const errorHandler = (err, req, res) => {
 };

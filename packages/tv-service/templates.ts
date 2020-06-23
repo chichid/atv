@@ -23,8 +23,13 @@ export const getTemplate = async (req, res) => {
   res.end(content);
 };
 
-const isLocalHost = (host: string) => {
-  return host.toLowerCase().indexOf('localhost') !== -1 || host.indexOf('127.0.0.1') !== -1;
+const getBaseUrl = (req) => {
+  const protocol = req.get('x-forwarded-proto') || req.protocol;
+  const host = req.get('host').toLowerCase().replace('http://','').replace('https://', '');
+  const requestBaseUrl = `${protocol}://${host}`;
+  const isLocalHost = host.toLowerCase().indexOf('localhost') !== -1 || host.indexOf('127.0.0.1') !== -1
+
+  return isLocalHost ? Config.AppleTvRedirectedApp : requestBaseUrl;
 };
 
 const runTemplate = (req, fileContent: string) => new Promise((resolve, reject) => {
@@ -33,12 +38,9 @@ const runTemplate = (req, fileContent: string) => new Promise((resolve, reject) 
     return;
   }
 
-  const requestBaseUrl = `${req.protocol}://${req.get('host')}`;
-  const baseUrl = isLocalHost(requestBaseUrl) ? Config.AppleTvRedirectedApp : requestBaseUrl;
-
   const context = {
     query: req.query,
-    baseUrl,
+    baseUrl: getBaseUrl(req),
   };
 
   const getProperty = (obj, path) => {

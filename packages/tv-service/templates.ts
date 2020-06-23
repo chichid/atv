@@ -24,7 +24,8 @@ export const getTemplate = async (req, res) => {
 };
 
 const getBaseUrl = (req) => {
-  const protocol = req.get('x-forwarded-proto') || req.protocol;
+  const forwardedProto = (req.get('x-forwarded-proto') || '').replace(',http', '').replace(',https', '');
+  const protocol = forwardedProto || req.protocol;
   const host = req.get('host').toLowerCase().replace('http://','').replace('https://', '');
   const requestBaseUrl = `${protocol}://${host}`;
   const isLocalHost = host.toLowerCase().indexOf('localhost') !== -1 || host.indexOf('127.0.0.1') !== -1

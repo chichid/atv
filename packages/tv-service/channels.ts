@@ -16,6 +16,9 @@ export const reloadChannels = async (req, res) => {
 };
 
 export const getChannels = async (req, res) => {
+  console.log('[tv-service] getChannels waking up the transcoder...');
+  get(`${Config.TranscoderPingUrl}`);
+
   console.log('[tv-service] loading all channels...');
   const { groups } = await fetchAllChannels();
   res.json(groups);

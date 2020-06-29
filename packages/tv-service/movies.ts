@@ -17,6 +17,9 @@ export const reloadMovies = async (req, res) => {
 export const getMovies = async (req, res) => {
   const { offset, limit, search, categoryId } = req.query;
 
+  console.log('[tv-service] getMovies is waking up the transcoder...');
+  get(`${Config.TranscoderPingUrl}`);
+
   const { movies }= await fetchSources();
   const filteredMovies = filterMovies(movies, search, categoryId);
 	const sortedMovies = search ? filteredMovies : filteredMovies.sort((a, b) => b.Rating - a.Rating);

@@ -24,7 +24,9 @@ export const startServer = () => {
 };
 
 const handleRequest = (req, res) => {
-  if (req.url.startsWith('/transcoder/proxy')) {
+  if (req.url.startsWith('/transcoder/ping')) {
+    ping(req, res);
+  } else if (req.url.startsWith('/transcoder/proxy')) {
     proxyVideo(req, res);
   } else if (req.url.startsWith('/transcoder/chunk')) {
     serveChunk(req, res);
@@ -32,6 +34,12 @@ const handleRequest = (req, res) => {
     res.writeHead(404);
     res.end('resource not found');
   }
+};
+
+const ping = (req, res) => {
+  console.log(`[transcoder] sending pong...`);
+  res.writeHead(200);
+  res.end('pong');
 };
 
 const proxyVideo = async (req, res) => {

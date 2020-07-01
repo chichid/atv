@@ -155,7 +155,7 @@
 
     function onPlayMovie(streamUrl) {
       // TODO need to solve this hardcoded IP
-      fetch('https://192.168.2.39/play', {
+      fetch('http://192.168.2.39:8080/play', {
         method: 'POST',
         body: JSON.stringify({
           videoUrl: streamUrl 

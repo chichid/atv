@@ -8,37 +8,123 @@
    <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
 
 	 <style>
-			html, head, body { margin: 0; padding: 0; height: 100% } 
+			html, head, body { 
+        margin: 0; 
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+      } 
 
       template {
         display: none;
       }
 
+      .mdc-top-app-bar__title {
+        font-size: 1rem;
+      }
+
+      @media screen and (max-width: 500px) {
+        .mdc-top-app-bar__title {
+          font-size: 0.5rem;
+          padding: 0;
+        }
+      }
+
+      .progress-mask {
+        background: #ababab;
+        opacity: 70%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+      }
+
 			.progress-indicator {
-        position: fixed;
+        position: absolute;
         bottom: 0;
         z-index: 10;
 			}
 
+      .stencil-container {
+        overflow: hidden;
+        background-color: #efefef;
+      }
+      
+      .stencil-container::before {
+        content: " ";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1;
+        animation: phAnimation 0.9s linear infinite;
+        background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 20%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0) 100%) 100% 100%;
+      }
+
+      @keyframes phAnimation {
+        0% {
+          transform: translate3d(0, -50%, 0); 
+        }
+
+        70% {
+          transform: translate3d(0, 50%, 0); 
+        } 
+
+        100% {
+          transform: translate3d(0, -50%, 0); 
+        } 
+      }
+
 			.movie-list {
-				column-count: 5;	
-				column-width: 10rem;
-				padding: 5rem 1rem;
+        height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+				padding: 4rem 0rem;
+        justify-content: center;
 			}
 
-			.movie-list li {
-				padding-bottom: 2rem;
-			}
+      .movie-list li {
+        width: calc(100% / 5 - 0.2rem);
+        padding: 0.2rem;
+      }
 
+      @media screen and (max-width: 1600px) {
+        .movie-list li {
+          width: calc(100% / 4 - 0.2rem);
+          padding: 0.2rem;
+        }
+      }
+
+      @media screen and (max-width: 1280px) {
+        .movie-list li {
+          width: calc(100% / 3 - 0.2rem);
+          padding: 0.2rem;
+        }
+      }
+
+      @media screen and (max-width: 411px) {
+        .movie-list {
+          padding: 3.6rem 0rem;
+        }
+
+        .movie-list li {
+          width: calc(100% / 2 - 0.2rem);
+          padding: 0.2rem;
+        }
+      }
+           
 			.movie-list li:hover {
         cursor: hand;
 			}
 
-			.movie-image {
-				border-radius: 0.5rem;
-        max-height: 30rem;
-			}
-			
+      .no-data-list-item {
+        width: 100%;
+        text-align: center;
+        text-decoration: bold;
+      }
+
 			.movie-title {
 				text-align: center;
 				white-space: normal;
@@ -63,6 +149,7 @@
    <script type="text/javascript">
     const PAGE_SIZE = 25;
     let totalMovies = null;
+    let moviesListInitial = null;
     let loadedMovies = 0;
     let isLoadingMore = false;
     let currentSearchTimer = null;
@@ -86,12 +173,19 @@
     function showProgressIndicator() {
       progressIndicatorRequests++;
       byId('progressIndicator').style.display = 'initial';
+      byId('progressMask').style.display = 'initial';
     }
 
     function hideProgressIndicator() {
       progressIndicatorRequests--;
+
+      if (progressIndicatorRequests < 0) {
+        progressIndicatorRequests = 0;
+      }
+      
       if (progressIndicatorRequests === 0) {
         byId('progressIndicator').style.display = 'none';
+        byId('progressMask').style.display = 'none';
       }
     }
 
@@ -115,21 +209,34 @@
 
     function loadMovies(reset) {
       const moviesList = byId('moviesList');
-      const tpl = moviesList.querySelector('template').innerHTML;
+
+      if (moviesListInitial === null) {
+        moviesListInitial = moviesList.cloneNode(true);
+      }
+
+      const tpl = moviesListInitial.querySelector('template[id="list-item-template"]').innerHTML;
       const template = Handlebars.compile(tpl);
+
+      const noDataTpl = moviesListInitial.querySelector('template[id="no-data-template"]').innerHTML;
+      const noDataTemplate = Handlebars.compile(noDataTpl);
      
+      const loadingStencils = moviesListInitial.querySelector('template[id="loading-stencils"]').innerHTML;
+      const loadingStencilsTemplate = Handlebars.compile(loadingStencils);
+
       isLoading = true;
 
       if (reset) {
         loadedMovies = 0;
         totalMovies = 0;
-        document.body.scrollTop = 0;
+        moviesList.scrollTop = 0;
       }
 
       const search = currentSearchValue ? `&search=${encodeURIComponent(currentSearchValue)}` : '';
       const categoryId = currentCategory ? `&categoryId=${currentCategory.Id}` : '';
 
-      showProgressIndicator();
+      if (reset) {
+        showProgressIndicator();
+      } 
 
       fetch(`/tv-service/movies?offset=${loadedMovies}&limit=${PAGE_SIZE}${categoryId}${search}`)
         .then(response => response.text())
@@ -138,14 +245,32 @@
 
           totalMovies = movies.count;
 
-          const html = movies.items.map(movie => template(movie)).join('\n');
+          if (movies.count === 0) {
+            loadedMovies = 0;
+            moviesList.innerHTML = noDataTemplate({});
+            return;
+          }
 
           if (reset) {
-            moviesList.innerHTML = `<template>${tpl}</template>` + html;
+            const html = movies.items.map(movie => template(movie)).join('\n');
+            moviesList.innerHTML = html;
             loadedMovies = movies.items.length;
           } else {
-            moviesList.insertAdjacentHTML('beforeend', html);
+            const html = movies.items.map(movie => template(movie)).join('\n');
+            for (const movie of movies.items) {
+              const html = template(movie);
+              const stencil = document.querySelector('.stencil-list-item');
+              stencil.outerHTML = html;
+              stencil.classList.remove('stencil-list-item'); 
+            }
+
             loadedMovies += movies.items.length;
+          }
+
+          if (loadedMovies < totalMovies) {
+            for (let i = 0; i < Math.min(PAGE_SIZE, totalMovies - loadedMovies); ++i) {
+              moviesList.insertAdjacentHTML('beforeend', loadingStencilsTemplate({}));
+            }
           }
 
           isLoading = false;
@@ -170,8 +295,9 @@
     }
 
     function onScroll() {
-      const element = document.body;
-      if (element.scrollTop > (element.scrollHeight - element.offsetHeight - 20)) {
+      const element = byId('moviesList');
+      const firstStencil = byId("moviesList").querySelector('.stencil-list-item');
+      if (firstStencil && element.scrollTop > (firstStencil.offsetTop - 600)) {
         loadMore();
       }
     }
@@ -249,20 +375,7 @@
    </script>
   </head>
 
-  <body onload="onLoad()" onscroll="onScroll()">
-		<div id="progressIndicator" role="progressbar" class="progress-indicator mdc-linear-progress mdc-linear-progress--indeterminate" aria-label="Example Progress Bar" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
-			<div class="mdc-linear-progress__buffer">
-				<div class="mdc-linear-progress__buffer-bar"></div>
-				<div class="mdc-linear-progress__buffer-dots"></div>
-			</div>
-			<div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
-				<span class="mdc-linear-progress__bar-inner"></span>
-			</div>
-			<div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
-				<span class="mdc-linear-progress__bar-inner"></span>
-			</div>
-		</div>
-
+  <body onload="onLoad()">
 		<aside id="drawer" class="mdc-drawer" style="display: none">
 			<div class="mdc-drawer__content">
 				<nav id="categories" class="mdc-list">
@@ -290,14 +403,45 @@
 					</label>
 				</section>
 			</div>
+
+      <div id="progressIndicator" role="progressbar" class="progress-indicator mdc-linear-progress mdc-linear-progress--indeterminate" aria-label="Example Progress Bar" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
+        <div class="mdc-linear-progress__buffer">
+          <div class="mdc-linear-progress__buffer-bar"></div>
+          <div class="mdc-linear-progress__buffer-dots"></div>
+        </div>
+        <div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
+          <span class="mdc-linear-progress__bar-inner"></span>
+        </div>
+        <div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
+          <span class="mdc-linear-progress__bar-inner"></span>
+        </div>
+      </div>
 		</header>
 
-		<ul id="moviesList" class="movie-list mdc-image-list mdc-image-list--masonry my-masonry-image-list">
-      <template>
+		<ul id="moviesList" class="movie-list mdc-image-list my-image-list" onscroll="onScroll()">
+      <template id="list-item-template">
         <li class="mdc-image-list__item" onclick="onPlayMovie('{{StreamUrl}}')">
-          <img class="movie-image mdc-image-list__image" src="{{LogoUrl}}" alt="{{MovieName}}"/>
+          <div class="mdc-image-list__image-aspect-container">
+            <img class="movie-image mdc-image-list__image" src="{{LogoUrl}}" alt="{{MovieName}}"/>
+          </div>
         </li>
       </template>
-		</ul>
+
+      <template id="no-data-template">
+        <li class="mdc-image-list__item no-data-list-item">
+          Aucun film ne correspond aux critères de recherche.
+        </li>
+      </template>
+
+      <template id="loading-stencils">
+        <li class="mdc-image-list__item stencil-list-item">
+          <div class="mdc-image-list__image-aspect-container stencil-container">
+          </div>
+        </li>
+      </template>
+    </ul>
+
+    <div id="progressMask" class="progress-mask">
+    </div>
   </body>
 </html>

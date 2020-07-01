@@ -1,6 +1,7 @@
 const Fuse = require('fuse.js');
 import * as Config from './config';
 import { get } from 'common/utils';
+import { Movie, SourcePayload, VodPayload } from './model';
 
 const cache = {
   movieSources: null,
@@ -18,10 +19,15 @@ export const getMovies = async (req, res) => {
   const { offset, limit, search, categoryId } = req.query;
 
   console.log('[tv-service] getMovies is waking up the transcoder...');
-  get(`${Config.TranscoderPingUrl}`);
+  get(`${Config.TranscoderPingUrl}`).catch(e => console.warn(`[tv-service] getMovies unable to wake the transcoder up`));
 
+  console.log('[tv-service] fetching sources...');
   const { movies }= await fetchSources();
+
+  console.log('[tv-service] filtering the movies...');
   const filteredMovies = filterMovies(movies, search, categoryId);
+
+  console.log('[tv-service] sorting the movies...');
 	const sortedMovies = search ? filteredMovies : filteredMovies.sort((a, b) => b.Rating - a.Rating);
 
   const off = Number(offset) || 0;
@@ -34,6 +40,10 @@ export const getMovies = async (req, res) => {
   });
 };
 
+export const getMovieDetail = async (req, res) => {
+  res.end('service is working...');
+};
+
 export const getMovieCategories = async (req, res) => {
   const { categories }= await fetchSources();
   res.json({
@@ -41,20 +51,20 @@ export const getMovieCategories = async (req, res) => {
 	});
 };
 
-const filterMovies = (movieList, searchTerm, categoryId) => {
-  const categoryMovies = !categoryId ? movieList : movieList.filter(m => m.Category && m.Category.Id == categoryId);
+const filterMovies = (movieList: Movie[], searchTerm: string, categoryId: string) => {
+  const categoryMovies = !categoryId ? movieList : movieList.filter(m => m.category && m.category.id == categoryId);
 
   if (searchTerm) {
     const options = {
-      keys: ['MovieName'],
+      keys: ['movieName'],
       threshold: 0.01,
       includeScore: true,
     };
 
     const items = new Fuse(movieList, options).search(searchTerm);
-    const searchResultSort = (a, b) => a.item.Category && a.item.Category.Id === categoryId ? - 1 : 1;
+    const searchResultSort = (a: {item: Movie}, _: {item: Movie}) => a.item && a.item.category && a.item.category.id === categoryId ? - 1 : 1;
 
-    return items.sort(searchResultSort).map(i => i.item);
+    return items.sort(searchResultSort).map((i: {item: Movie}) => i.item);
   } else {
     return categoryMovies;
   }
@@ -96,20 +106,20 @@ const fetchSources = async () => {
   return { movies, categories };
 };
 
-const mapMovieFromVodStream = (source, vod) => {
+const mapMovieFromVodStream = (source: SourcePayload, vod: VodPayload): Movie => {
   const serverUrl = source.serverUrl.replace('http://', '').replace('https://', '');
   const serverInfo = source.serverInfo;
   const userInfo = source.userInfo;
 
-  const MovieName = vod.name;
-  const LogoUrl = vod.stream_icon;
-  const Rating = Number(vod.rating) || 0;
+  const movieName = vod.name;
+  const logoUrl = vod.stream_icon;
+  const rating = Number(vod.rating) || 0;
 
   const vodCategory = source.vodCategories.find(c => c.category_id === vod.category_id);
-  const Category = !vodCategory ? null : {
-    Id: vodCategory.category_id,
-    Name: vodCategory.category_name,
-    ParentId: vodCategory.parent_id,
+  const category = !vodCategory ? null : {
+    id: vodCategory.category_id,
+    name: vodCategory.category_name,
+    parentId: vodCategory.parent_id,
   };
    
   const protocol = serverInfo.protocol || 'http';
@@ -120,12 +130,15 @@ const mapMovieFromVodStream = (source, vod) => {
   const streamId = vod.stream_id;
   const StreamUrl = `${protocol}://${serverUrl}/${streamType}/${username}/${password}/${streamId}.${ext}`;
 
+  const id = encodeURIComponent(movieName);
+
   return {
-    MovieName,
-    StreamUrl: `${Config.TranscoderUrl}/${encodeURIComponent(StreamUrl)}`,
-    LogoUrl,
-    Rating,
-    Category,
+    id,
+    movieName,
+    streamUrl: `${Config.TranscoderUrl}/${encodeURIComponent(StreamUrl)}`,
+    logoUrl,
+    rating,
+    category,
   };
 };
 

@@ -38,3 +38,47 @@ export interface ChannelPayload {
   EpgShift: string,
   EpgDisplayShift: string,
 }
+
+export interface Movie {
+  id: string;
+  movieName: string;
+  streamUrl: string;
+  logoUrl: string;
+  rating: number;
+  category: MovieCategory;
+}
+
+export interface MovieCategory {
+  id: string;
+  name: string;
+  parentId: string;
+}
+
+export interface SourcePayload {
+  serverUrl: string;
+  vodCategories: VodCategoryPayload[];
+  serverInfo: {
+    protocol: string; 
+  };
+  userInfo: {
+    username: string;
+    password: string;
+  };
+}
+
+export interface VodPayload {
+  name: string;
+  stream_icon: string;
+  rating: string;
+  category_id: string;
+  container_extension: string;
+  stream_type: string;
+  stream_id: string;
+}
+
+export interface VodCategoryPayload {
+  category_id: string;
+  category_name: string;
+  parent_id: string;
+}
+

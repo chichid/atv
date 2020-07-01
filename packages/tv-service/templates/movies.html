@@ -380,8 +380,8 @@
 			<div class="mdc-drawer__content">
 				<nav id="categories" class="mdc-list">
 					<template>
-            <a class="mdc-list-item mdc-list-item--activated" href="#" onclick="onSelectCategory('{{Id}}', '{{Name}}')" aria-current="page">
-              <span class="mdc-list-item__text">{{Name}}</span>
+            <a class="mdc-list-item mdc-list-item--activated" href="#" onclick="onSelectCategory('{{id}}', '{{name}}')" aria-current="page">
+              <span class="mdc-list-item__text">{{name}}</span>
 						</a>
 					</template>
 				</nav>
@@ -420,9 +420,9 @@
 
 		<ul id="moviesList" class="movie-list mdc-image-list my-image-list" onscroll="onScroll()">
       <template id="list-item-template">
-        <li class="mdc-image-list__item" onclick="onPlayMovie('{{StreamUrl}}')">
+        <li class="mdc-image-list__item" onclick="onPlayMovie('{{streamUrl}}')">
           <div class="mdc-image-list__image-aspect-container">
-            <img class="movie-image mdc-image-list__image" src="{{LogoUrl}}" alt="{{MovieName}}"/>
+            <img class="movie-image mdc-image-list__image" src="{{logoUrl}}" alt="{{movieName}}"/>
           </div>
         </li>
       </template>

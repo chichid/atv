@@ -1,6 +1,7 @@
 <!-- CLIENT_SIDE_TEMPLATE -->
 <html>
   <head>
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
    <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
@@ -52,9 +53,10 @@
 
 			.mdc-drawer {
 				width: 30%;
+        min-width: 17rem;
 				max-width: 20rem;
 				position: fixed;
-        transition: width 300ms ease;
+        transition: min-width 300ms ease, width 300ms ease;
 			}
 	 </style>
 
@@ -216,24 +218,33 @@
 
     function openDrawer() {
       const drawer = byId('drawer');
-      drawer.style.display = 'initial';
-      drawer.style.width = 0;
-
-      const onCloseAnimationEnd = () => {
-        drawer.style.display = 'none';
-      };
 
       const closeListener = () => {
         drawer.style.width = 0;
-        setTimeout(onCloseAnimationEnd, 300);
+        drawer.style.minWidth = 0;
+
+        setTimeout(() => {
+          drawer.style.removeProperty('width');
+          drawer.style.removeProperty('min-width');
+          drawer.style.display = 'none';
+        }, 300);
       };
 
-      const registerCloseListener = () => {
+      const startAnimation = () => {
         drawer.style.removeProperty('width');
+        drawer.style.removeProperty('min-width');
         document.addEventListener('click', closeListener, { once: true });
+
+        setTimeout(() => {
+          drawer.style.removeProperty('width');
+        }, 300);
       };
 
-      setTimeout(registerCloseListener, 200);
+      drawer.style.display = 'initial';
+      drawer.style.width = 0;
+      drawer.style.minWidth = 0;
+
+      setTimeout(startAnimation, 1);
     }
    </script>
   </head>

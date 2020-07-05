@@ -23,7 +23,7 @@
         font-size: 1rem;
       }
 
-      @media screen and (max-width: 500px) {
+      @media screen and (max-width: 600px) {
         .mdc-top-app-bar__title {
           font-size: 0.5rem;
           padding: 0;
@@ -33,6 +33,15 @@
       .progress-mask {
         background: #ababab;
         opacity: 70%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+      }
+
+      .drawer-mask {
+        background: transparent;
         position: absolute;
         top: 0;
         left: 0;
@@ -104,7 +113,7 @@
         }
       }
 
-      @media screen and (max-width: 411px) {
+      @media screen and (max-width: 600px) {
         .movie-list {
           padding: 3.6rem 0rem;
         }
@@ -334,8 +343,11 @@
 
     function openDrawer() {
       const drawer = byId('drawer');
+      const drawerMask = byId('drawerMask');
 
-      const closeListener = () => {
+      const closeListener = (event) => {
+        event.preventDefault();
+
         drawer.style.width = 0;
         drawer.style.minWidth = 0;
 
@@ -343,6 +355,7 @@
           drawer.style.removeProperty('width');
           drawer.style.removeProperty('min-width');
           drawer.style.display = 'none';
+          drawerMask.style.display = 'none';
         }, 300);
       };
 
@@ -359,6 +372,7 @@
       drawer.style.display = 'initial';
       drawer.style.width = 0;
       drawer.style.minWidth = 0;
+      drawerMask.style.display = 'initial';
 
       setTimeout(startAnimation, 1);
     }
@@ -523,8 +537,8 @@
         }
 
         .movie-detail-image {
-          width: 12rem;
-          margin-right: 0.2rem;
+          width: 10rem;
+          margin-right: 1rem;
         }
 
         .movie-detail-overview-container {
@@ -541,6 +555,7 @@
           display: flex;
           align-items: center;
           padding: 0.3rem;
+          padding-top: 1rem;
         }
 
         .movie-detail-info {
@@ -631,7 +646,10 @@
       </template>
     </div>
     
-    <div id="progressMask" class="progress-mask">
+    <div id="progressMask" style="display: none;" class="progress-mask">
+    </div>
+
+    <div id="drawerMask" style="display: none;" class="drawer-mask">
     </div>
   </body>
 </html>

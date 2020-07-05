@@ -157,8 +157,8 @@
     let currentCategory = null;
     let progressIndicatorRequests = 0;
     let allCategory = {
-      Id: -666,
-      Name: 'TOUT LES FILMS',
+      id: -666,
+      name: 'TOUT LES FILMS',
     };
 
     function byId(id) {
@@ -232,7 +232,7 @@
       }
 
       const search = currentSearchValue ? `&search=${encodeURIComponent(currentSearchValue)}` : '';
-      const categoryId = currentCategory ? `&categoryId=${currentCategory.Id}` : '';
+      const categoryId = currentCategory ? `&categoryId=${currentCategory.id}` : '';
 
       if (reset) {
         showProgressIndicator();
@@ -306,17 +306,17 @@
       openDrawer();
     }
 
-    function onSelectCategory(Id, Name) {
+    function onSelectCategory(id, name) {
       const pageTitle = byId('pageTitle');
 
       clearSearch(false);
 
-      if (Id === String(allCategory.Id)) {
+      if (id === String(allCategory.id)) {
         currentCategory = null;
         pageTitle.innerHTML = '';
       } else {
-        currentCategory = { Id, Name };
-        pageTitle.innerHTML = currentCategory.Name;
+        currentCategory = { id, name };
+        pageTitle.innerHTML = currentCategory.name;
       }
       
       loadMovies(true);
@@ -440,6 +440,75 @@
         </li>
       </template>
     </ul>
+
+    <div class="mdc-dialog mdc-dialog--open">
+      <style>
+        .movie-detail-image {
+          width: 12rem;
+        }
+
+        .movie-detail-overview-container {
+          display: flex;
+        }
+
+        .movie-detail-overview {
+          margin-left: 0.5rem;
+        }
+
+        .movie-detail-trailer {
+          margin-top: 0.5rem;
+          border: none;
+        }
+
+        .movie-detail-header {
+          display: flex;
+          align-items: center;
+          padding: 0.3rem;
+        }
+
+        .movie-detail-header-spacer {
+          flex: 1;
+        }
+
+        .movie-detail-header-title::before {
+          height: 0;
+        }
+      </style>
+      <div class="mdc-dialog__container">
+        <div class="mdc-dialog__surface" role="alertdialog" aria-modal="true" aria-labelledby="my-dialog-title" aria-describedby="my-dialog-content">
+          <div class="movie-detail-header">
+            <button class="movie-detail-close-button material-icons mdc-icon-button" aria-label="Open navigation menu" onclick="onCloseMovieDetail()">
+              close
+            </button>
+            <div class="movie-detail-header-spacer"></div>
+            <button type="button" class="mdc-button mdc-dialog__button" data-mdc-dialog-action="close">
+              <div class="mdc-button__ripple"></div>
+              <span class="mdc-button__label">Jouer</span>
+            </button>
+          </div>
+
+          <h2 class="movie-detail-header-title mdc-dialog__title" id="my-dialog-title">
+            <span class="movie-detail-title">
+              Movie Title
+            </span>
+          </h2>
+
+          <div class="mdc-dialog__content" id="my-dialog-content">
+            <div class="movie-detail-overview-container">
+              <div>
+                <img class="movie-detail-image mdc-image-list__image" src="https://image.tmdb.org/t/p/w600_and_h900_bestv2/kGGJgeY53e1JWugOkY96XiSiRJA.jpg" alt=""/>
+              </div>
+              <span class="movie-detail-overview">
+                Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem 
+              </span>
+            </div>
+            
+            <iframe class="movie-detail-trailer" width="100%" height="315" src="https://www.youtube.com/embed/tgbNymZ7vqY"></iframe>
+          </div>
+        </div>
+      </div>
+      <div class="mdc-dialog__scrim"></div>
+    </div>
 
     <div id="progressMask" class="progress-mask">
     </div>

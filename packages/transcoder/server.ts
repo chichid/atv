@@ -3,6 +3,12 @@ import { spawn } from 'child_process';
 import * as Config from './config';
 import { startDiscoveryService, getWorkerList } from './discovery';
 
+interface VideoInfo {
+  totalDuration: number;
+  videoCodecs: string[];
+  audioCodecs: string[];
+};
+
 const cache = {
   videoInfo: {},
   currentStream: null,
@@ -125,8 +131,9 @@ const loadChunk = async (url, s, d) => {
 
   const { audioCodecs, videoCodecs } = await loadVideoInfo(url);
   const isTs = url.toLowerCase().endsWith('.ts'); 
-  const transcodeAudio = !isTs || (audioCodecs && audioCodecs.some(c => c.indexOf('aac') === -1));
-  const transcodeVideo = !isTs || (videoCodecs && videoCodecs.some(c => c.indexOf('h264') === -1));
+  const videoNeedTranscode = (videoCodecs && videoCodecs.some(c => c.indexOf('h264') === -1));
+  const audioNeedTranscode = (audioCodecs && audioCodecs.some(c => c.indexOf('aac') === -1));
+  const transcode = isTs || audioNeedTranscode || videoNeedTranscode;
 
   const options = [
     '-hide_banner',
@@ -148,21 +155,22 @@ const loadChunk = async (url, s, d) => {
   options.push('-i', url);
 
   options.push('-acodec');
-  if (transcodeAudio) {
+  if (transcode) {
     options.push('aac', '-ab', '640k', '-ac', '6');
   } else {
     options.push('copy');
   }
 
   options.push('-vcodec');
-  if (transcodeVideo) {
+  if (transcode) {
     options.push('h264');
-    options.push('-crf', '28');
+    options.push('-crf', '26');
     options.push('-preset', 'ultrafast');
     options.push('-profile:v', 'baseline');
     options.push('-level', '3.0');
     options.push('-tune', 'zerolatency');
     options.push('-movflags', '+faststart');
+    options.push('-copyts');
 
     if (Config.FFMpegExtraVideoFlags) {
       options.push.apply(options, Config.FFMpegExtraVideoFlags.split(' '));
@@ -172,7 +180,6 @@ const loadChunk = async (url, s, d) => {
   }
 
   options.push('-max_muxing_queue_size', '1024');
-  options.push('-copyts');
   options.push('-pix_fmt', 'yuv420p');
 
   options.push('-f', 'mpegts');
@@ -202,12 +209,6 @@ const loadChunk = async (url, s, d) => {
     stream: child.stdout,
     cancel,
   };
-};
-
-interface VideoInfo {
-  totalDuration: number;
-  videoCodecs: string[];
-  audioCodecs: string[];
 };
 
 const loadVideoInfo = (url, noCache = false) => new Promise<VideoInfo>((resolve, reject) => {

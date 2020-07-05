@@ -8,7 +8,7 @@ export const TranscoderPingUrl = rcfg('TRANSCODER_PING_URL', '/transcoder/ping')
 export const AppleTvRedirectedApp = rcfg('TV_SERVICE_REDIRECTED_APP', 'https://kortv.com');
 export const DefaultPageSize = 25;
 export const ClientSideTemplateTag = '<!-- CLIENT_SIDE_TEMPLATE -->';
-export const YoutubeUrlPrefix = cfg('YOUTUBE_URL_PREFIX', 'https://www.youtube.com/watch?v='); 
+export const YoutubeUrlPrefix = cfg('YOUTUBE_URL_PREFIX', 'https://www.youtube.com/embed/'); 
 
 export const MimeMap = {
   default: 'text/plain',

@@ -142,13 +142,15 @@ const mapMovieFromVodStream = (source: SourcePayload, vod: VodPayload): Movie =>
 
   const id = encodeURIComponent(movieName);
   const year = Number(vod.year) || null;
+  const genre = vod.genre || '';
 
   return {
     id,
-    year,
     sourceId: source.sourceId,
     movieName,
     streamId,
+    year,
+    genre,
     streamUrl: `${Config.TranscoderUrl}/${encodeURIComponent(streamUrl)}`,
     logoUrl,
     rating,
@@ -187,11 +189,14 @@ const fetchMovieDetail = async (movieId: string): Promise<MovieDetail> => {
 
   const youtubeTrailer = tmdbYoutubeTrailer ? (Config.YoutubeUrlPrefix + tmdbYoutubeTrailer.key) : null;
 
+  const genre = tmdbMovieDetail.genres.map(g => g.name).join(' | ');
+
   return {
     ...movie,
     overview: tmdbMovieDetail.overview,
     youtubeTrailer, 
     year: movie.year || new Date(tmdbMovieDetail.release_date).getUTCFullYear(),
+    genre,
   };
 };
 

@@ -278,16 +278,6 @@
         .then(hideProgressIndicator);
     };
 
-    function onPlayMovie(streamUrl) {
-      // TODO need to solve this hardcoded IP
-      fetch('http://192.168.2.39:8080/play', {
-        method: 'POST',
-        body: JSON.stringify({
-          videoUrl: streamUrl 
-        })
-      });
-    }
-
     function loadMore() {
       if (!isLoading && loadedMovies < totalMovies) {
         loadMovies(false);
@@ -420,7 +410,7 @@
 
 		<ul id="moviesList" class="movie-list mdc-image-list my-image-list" onscroll="onScroll()">
       <template id="list-item-template">
-        <li class="mdc-image-list__item" onclick="onPlayMovie('{{streamUrl}}')">
+        <li class="mdc-image-list__item" onclick="openMovieDetail(`{{id}}`, `{{movieName}}`, `{{logoUrl}}`, `{{streamUrl}}`)">
           <div class="mdc-image-list__image-aspect-container">
             <img class="movie-image mdc-image-list__image" src="{{logoUrl}}" alt="{{movieName}}"/>
           </div>
@@ -441,14 +431,104 @@
       </template>
     </ul>
 
-    <div class="mdc-dialog mdc-dialog--open">
+    <div class="movie-detail-dialog">
+      <div id="movieDetailDialogContainer">
+        <!-- dialog content dynamically added-->
+      </div>
+      
+      <script>
+        function openMovieDetail(movieId, movieName, logoUrl, streamUrl) {
+          let movieContext = {
+            movieId,
+            movieName,
+            logoUrl,
+            streamUrl
+          };
+
+          openMovieDialog(movieContext);
+
+          fetch(`/tv-service/movies/${movieId}`)
+            .then(response => response.text())
+            .then(responseText => {
+              movieContext = JSON.parse(responseText);
+              handleMovieContextLoadCompleted(movieContext);
+            });
+        }
+
+        function openMovieDialog(movieContext) {
+          const detailDialogContainer = document.getElementById('movieDetailDialogContainer');
+          const tpl = document.getElementById('movieDetailDialogTemplate');
+          const template = Handlebars.compile(tpl.innerHTML);
+          detailDialogContainer.innerHTML = template(movieContext);
+        }
+
+        function closeMovieDetailDialog() {
+          const detailDialogContainer = document.getElementById('movieDetailDialogContainer');
+          detailDialogContainer.innerHTML = '';
+        }
+
+        function showMovieDetailProgressIndicator() {
+          byId('movieDetailProgressIndicator').style.display = 'initial';
+        }
+
+        function hideMovieDetailProgressIndicator() {
+          byId('movieDetailProgressIndicator').style.display = 'none';
+        }
+
+        function handleMovieContextLoadCompleted(movieContext) {
+          // TODO maybe this is enough to refactor to react...
+          movieDetailOverview.innerHTML = movieContext.overview || '';
+          movieDetailTrailer.src = movieContext.youtubeTrailer || undefined;
+          movieDetailGenre.innerHTML = movieContext.genre || '';
+          movieDetailRating.innerHTML = movieContext.rating || '';
+          movieDetailYear.innerHTML = movieContext.year || '';
+        }
+
+        function onCloseMovieDetail() {
+          closeMovieDetailDialog();
+        }
+
+        function onPlayMovie(streamUrl) {
+          showMovieDetailProgressIndicator();
+
+          // TODO need to solve this hardcoded IP
+          fetch('http://192.168.2.39:8080/play', {
+            method: 'POST',
+            body: JSON.stringify({
+              videoUrl: streamUrl 
+            })
+          }).then(() => {
+            setTimeout(() => {
+              closeMovieDetailDialog();
+              hideMovieDetailProgressIndicator()
+            }, 2000);
+          });
+        }
+      </script>
+      
       <style>
+        .movie-detail-progress-indicator {
+          position: absolute;
+          top: 0;
+          z-index: 10;
+        }
+
+        .movie-detail-dialog .mdc-dialog__container {
+          width: 90%;
+        }
+
+        .movie-detail-dialog .mdc-dialog__surface {
+          width: 100%;
+          max-width: 100%;
+        }
+
         .movie-detail-image {
           width: 12rem;
         }
 
         .movie-detail-overview-container {
           display: flex;
+          flex-wrap: wrap;
         }
 
         .movie-detail-overview {
@@ -466,6 +546,19 @@
           padding: 0.3rem;
         }
 
+        .movie-detail-header-info {
+          display: flex;
+          flex-direction: row;
+        }
+
+        .movie-detail-info {
+          font-weight: bold;
+        }
+
+        .movie-detail-info-container {
+          margin-left: 0.5rem;
+        }
+        
         .movie-detail-header-spacer {
           flex: 1;
         }
@@ -474,42 +567,79 @@
           height: 0;
         }
       </style>
-      <div class="mdc-dialog__container">
-        <div class="mdc-dialog__surface" role="alertdialog" aria-modal="true" aria-labelledby="my-dialog-title" aria-describedby="my-dialog-content">
-          <div class="movie-detail-header">
-            <button class="movie-detail-close-button material-icons mdc-icon-button" aria-label="Open navigation menu" onclick="onCloseMovieDetail()">
-              close
-            </button>
-            <div class="movie-detail-header-spacer"></div>
-            <button type="button" class="mdc-button mdc-dialog__button" data-mdc-dialog-action="close">
-              <div class="mdc-button__ripple"></div>
-              <span class="mdc-button__label">Jouer</span>
-            </button>
-          </div>
 
-          <h2 class="movie-detail-header-title mdc-dialog__title" id="my-dialog-title">
-            <span class="movie-detail-title">
-              Movie Title
-            </span>
-          </h2>
+      <template id="movieDetailDialogTemplate">
+        <div class="mdc-dialog mdc-dialog--open">
+          <div class="mdc-dialog__container">
+            <div class="mdc-dialog__surface" role="alertdialog" aria-modal="true" aria-labelledby="my-dialog-title" aria-describedby="my-dialog-content">
+              <div class="movie-detail-header">
+                <div id="movieDetailProgressIndicator" style="display: none" role="progressbar" class="movie-detail-progress-indicator mdc-linear-progress mdc-linear-progress--indeterminate" aria-label="Example Progress Bar" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
+                  <div class="mdc-linear-progress__buffer">
+                    <div class="mdc-linear-progress__buffer-bar"></div>
+                    <div class="mdc-linear-progress__buffer-dots"></div>
+                  </div>
+                  <div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
+                    <span class="mdc-linear-progress__bar-inner"></span>
+                  </div>
+                  <div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
+                    <span class="mdc-linear-progress__bar-inner"></span>
+                  </div>
+                </div>
 
-          <div class="mdc-dialog__content" id="my-dialog-content">
-            <div class="movie-detail-overview-container">
-              <div>
-                <img class="movie-detail-image mdc-image-list__image" src="https://image.tmdb.org/t/p/w600_and_h900_bestv2/kGGJgeY53e1JWugOkY96XiSiRJA.jpg" alt=""/>
+                <button class="movie-detail-close-button material-icons mdc-icon-button" aria-label="Open navigation menu" onclick="onCloseMovieDetail()">
+                  close
+                </button>
+                <div class="movie-detail-header-spacer"></div>
+                <button type="button" class="mdc-button mdc-dialog__button" data-mdc-dialog-action="close" onclick="onPlayMovie('{{streamUrl}}')">
+                  <div class="mdc-button__ripple"></div>
+                  <span class="mdc-button__label">Jouer</span>
+                </button>
               </div>
-              <span class="movie-detail-overview">
-                Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem Ipsum Description Lorem 
-              </span>
-            </div>
-            
-            <iframe class="movie-detail-trailer" width="100%" height="315" src="https://www.youtube.com/embed/tgbNymZ7vqY"></iframe>
-          </div>
-        </div>
-      </div>
-      <div class="mdc-dialog__scrim"></div>
-    </div>
+    
+              <h2 class="movie-detail-header-title mdc-dialog__title" id="my-dialog-title">
+                <span class="movie-detail-title">
+                  {{movieName}}
+                </span>
+              </h2>
+    
+              <div class="mdc-dialog__content" id="my-dialog-content">
+                <div class="movie-detail-overview-container">
+                  <div class="movie-detail-header-info">
+                    <img class="movie-detail-image mdc-image-list__image" align="left" src="{{logoUrl}}" alt="{{movieName}}"/>
+                    
+                    <div class="movie-detail-info-container">
+                      <div>
+                        <span class="movie-detail-info">Score:</span>
+                        <span id="movieDetailRating">{{rating}}</span>
+                      </div>
+  
+                      <div>
+                        <span class="movie-detail-info">Annee:</span>
+                        <span id="movieDetailYear">{{year}}</span>
+                      </div>
 
+                      <div>
+                        <span class="movie-detail-info">Genres:</span>
+                        <br>
+                        <span id="movieDetailGenre"></span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <p id="movieDetailOverview" class="movie-detail-overview">
+                    {{overview}}
+                  </p>
+                </div>
+                
+                <iframe id="movieDetailTrailer" class="movie-detail-trailer" width="100%" height="315"></iframe>
+              </div>
+            </div>
+          </div>
+          <div class="mdc-dialog__scrim"></div>
+        </div>  
+      </template>
+    </div>
+    
     <div id="progressMask" class="progress-mask">
     </div>
   </body>

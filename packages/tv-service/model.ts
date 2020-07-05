@@ -49,6 +49,7 @@ export interface Movie {
   rating: number;
   category: MovieCategory;
   year: number;
+  genre: string;
 }
 
 export interface MovieDetail extends Movie {
@@ -86,6 +87,7 @@ export interface VodPayload {
   container_extension: string;
   stream_type: string;
   stream_id: string;
+  genre: string;
 }
 
 export interface VodCategoryPayload {
@@ -108,6 +110,10 @@ export interface TmdbMovieDetailPayload {
   title: string;
   overview: string;
   release_date: string;
+  genres: {
+    id: string;
+    name: string;
+  }[];
   videos: {
     results: {
       id: string,

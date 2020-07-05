@@ -10,8 +10,8 @@
     "common": "file:../common"
   },
   "devDependencies": {
-    "@types/node": "^14.0.13",
     "copyfiles": "^2.3.0",
+    "@types/node": "^14.0.13",
     "nodemon": "^2.0.4",
     "ts-node": "^8.10.2",
     "typescript": "^3.9.5"

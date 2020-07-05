@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "homepage": "https://github.com/chichid/atv-test#readme",
   "scripts": {
-    "postinstall": "lerna exec npm install",
+    "postinstall": "lerna bootstrap $NPM_LERNA_SCOPE && lerna exec $NPM_LERNA_SCOPE npm install",
     "start": "lerna run $NPM_LERNA_SCOPE --parallel start",
     "build": "lerna run $NPM_LERNA_SCOPE --parallel build",
     "watch": "lerna run $NPM_LERNA_SCOPE --parallel watch"

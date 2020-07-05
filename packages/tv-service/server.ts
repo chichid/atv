@@ -5,7 +5,7 @@ import * as express from 'express';
 import * as Config from './config';
 import { getTemplate } from './templates'
 import { getChannels, getChannelDetails, reloadChannels } from './channels'
-import { getMovieCategories, getMovies } from './movies';
+import { getMovieDetail, getMovieCategories, getMovies } from './movies';
 
 export const startServer = () => {
   if (Config.IptvHttpProxy) {
@@ -24,12 +24,13 @@ const createApp = () => {
 
   app.use(express.json());
   app.use(setHeaders);
-  app.post('/tv-service/reloadChannels', handler(reloadChannels));
   app.get('/tv-service/templates/:path', handler(getTemplate));
   app.get('/tv-service/movies', handler(getMovies));
   app.get('/tv-service/movies/categories', handler(getMovieCategories));
+  app.get('/tv-service/movies/:movieId', handler(getMovieDetail));
   app.get('/tv-service/channels', handler(getChannels));
   app.get('/tv-service/channels/:channelName', handler(getChannelDetails));
+  app.post('/tv-service/reloadChannels', handler(reloadChannels));
   app.post('/tv-service/channels/reload', handler(reloadChannels));
   app.use(errorHandler);
 

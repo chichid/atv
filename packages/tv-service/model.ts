@@ -38,3 +38,96 @@ export interface ChannelPayload {
   EpgShift: string,
   EpgDisplayShift: string,
 }
+
+export interface Movie {
+  id: string;
+  movieName: string;
+  sourceId: string;
+  streamId: string;
+  streamUrl: string;
+  logoUrl: string;
+  rating: number;
+  category: MovieCategory;
+  year: number;
+  genre: string;
+}
+
+export interface MovieDetail extends Movie {
+  overview: string;
+  youtubeTrailer: string;
+}
+
+export interface MovieCategory {
+  id: string;
+  name: string;
+  parentId: string;
+}
+
+export interface SourcePayload {
+  sourceId: string;
+  serverUrl: string;
+  vodCategories: VodCategoryPayload[];
+  vodStreams: VodPayload[];
+  serverInfo: {
+    protocol: string; 
+  };
+  userInfo: {
+    username: string;
+    password: string;
+  };
+}
+
+export interface VodPayload {
+  name: string;
+  year: string;
+  language: string;
+  stream_icon: string;
+  rating: string;
+  category_id: string;
+  container_extension: string;
+  stream_type: string;
+  stream_id: string;
+  genre: string;
+}
+
+export interface VodCategoryPayload {
+  category_id: string;
+  category_name: string;
+  parent_id: string;
+}
+
+export interface VodInfoPayload {
+  info: {
+    tmdb_id: string;
+    name: string;
+    releasedate: string;
+    description: string;
+  };
+}
+
+export interface TmdbMovieDetailPayload {
+  id: string;
+  title: string;
+  overview: string;
+  release_date: string;
+  genres: {
+    id: string;
+    name: string;
+  }[];
+  videos: {
+    results: {
+      id: string,
+      key: string,
+      site: string,
+      type: string,
+    }[];
+  }
+}
+
+export interface TmdbMovieSearchPayload {
+  results: {
+    id: string;
+    title: string;
+  }[]
+}
+

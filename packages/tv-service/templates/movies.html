@@ -23,7 +23,7 @@
         font-size: 1rem;
       }
 
-      @media screen and (max-width: 500px) {
+      @media screen and (max-width: 600px) {
         .mdc-top-app-bar__title {
           font-size: 0.5rem;
           padding: 0;
@@ -33,6 +33,15 @@
       .progress-mask {
         background: #ababab;
         opacity: 70%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+      }
+
+      .drawer-mask {
+        background: transparent;
         position: absolute;
         top: 0;
         left: 0;
@@ -104,7 +113,7 @@
         }
       }
 
-      @media screen and (max-width: 411px) {
+      @media screen and (max-width: 600px) {
         .movie-list {
           padding: 3.6rem 0rem;
         }
@@ -157,8 +166,8 @@
     let currentCategory = null;
     let progressIndicatorRequests = 0;
     let allCategory = {
-      Id: -666,
-      Name: 'TOUT LES FILMS',
+      id: -666,
+      name: 'TOUT LES FILMS',
     };
 
     function byId(id) {
@@ -232,7 +241,7 @@
       }
 
       const search = currentSearchValue ? `&search=${encodeURIComponent(currentSearchValue)}` : '';
-      const categoryId = currentCategory ? `&categoryId=${currentCategory.Id}` : '';
+      const categoryId = currentCategory ? `&categoryId=${currentCategory.id}` : '';
 
       if (reset) {
         showProgressIndicator();
@@ -278,16 +287,6 @@
         .then(hideProgressIndicator);
     };
 
-    function onPlayMovie(streamUrl) {
-      // TODO need to solve this hardcoded IP
-      fetch('http://192.168.2.39:8080/play', {
-        method: 'POST',
-        body: JSON.stringify({
-          videoUrl: streamUrl 
-        })
-      });
-    }
-
     function loadMore() {
       if (!isLoading && loadedMovies < totalMovies) {
         loadMovies(false);
@@ -306,17 +305,17 @@
       openDrawer();
     }
 
-    function onSelectCategory(Id, Name) {
+    function onSelectCategory(id, name) {
       const pageTitle = byId('pageTitle');
 
       clearSearch(false);
 
-      if (Id === String(allCategory.Id)) {
+      if (id === String(allCategory.id)) {
         currentCategory = null;
         pageTitle.innerHTML = '';
       } else {
-        currentCategory = { Id, Name };
-        pageTitle.innerHTML = currentCategory.Name;
+        currentCategory = { id, name };
+        pageTitle.innerHTML = currentCategory.name;
       }
       
       loadMovies(true);
@@ -344,8 +343,11 @@
 
     function openDrawer() {
       const drawer = byId('drawer');
+      const drawerMask = byId('drawerMask');
 
-      const closeListener = () => {
+      const closeListener = (event) => {
+        event.preventDefault();
+
         drawer.style.width = 0;
         drawer.style.minWidth = 0;
 
@@ -353,6 +355,7 @@
           drawer.style.removeProperty('width');
           drawer.style.removeProperty('min-width');
           drawer.style.display = 'none';
+          drawerMask.style.display = 'none';
         }, 300);
       };
 
@@ -369,6 +372,7 @@
       drawer.style.display = 'initial';
       drawer.style.width = 0;
       drawer.style.minWidth = 0;
+      drawerMask.style.display = 'initial';
 
       setTimeout(startAnimation, 1);
     }
@@ -380,8 +384,8 @@
 			<div class="mdc-drawer__content">
 				<nav id="categories" class="mdc-list">
 					<template>
-            <a class="mdc-list-item mdc-list-item--activated" href="#" onclick="onSelectCategory('{{Id}}', '{{Name}}')" aria-current="page">
-              <span class="mdc-list-item__text">{{Name}}</span>
+            <a class="mdc-list-item mdc-list-item--activated" href="#" onclick="onSelectCategory('{{id}}', '{{name}}')" aria-current="page">
+              <span class="mdc-list-item__text">{{name}}</span>
 						</a>
 					</template>
 				</nav>
@@ -420,9 +424,9 @@
 
 		<ul id="moviesList" class="movie-list mdc-image-list my-image-list" onscroll="onScroll()">
       <template id="list-item-template">
-        <li class="mdc-image-list__item" onclick="onPlayMovie('{{StreamUrl}}')">
+        <li class="mdc-image-list__item" onclick="openMovieDetail(`{{id}}`, `{{movieName}}`, `{{logoUrl}}`, `{{streamUrl}}`)">
           <div class="mdc-image-list__image-aspect-container">
-            <img class="movie-image mdc-image-list__image" src="{{LogoUrl}}" alt="{{MovieName}}"/>
+            <img class="movie-image mdc-image-list__image" src="{{logoUrl}}" alt="{{movieName}}"/>
           </div>
         </li>
       </template>
@@ -441,7 +445,211 @@
       </template>
     </ul>
 
-    <div id="progressMask" class="progress-mask">
+    <div class="movie-detail-dialog">
+      <div id="movieDetailDialogContainer">
+        <!-- dialog content dynamically added-->
+      </div>
+      
+      <script>
+        function openMovieDetail(movieId, movieName, logoUrl, streamUrl) {
+          let movieContext = {
+            movieId,
+            movieName,
+            logoUrl,
+            streamUrl
+          };
+
+          openMovieDialog(movieContext);
+
+          fetch(`/tv-service/movies/${movieId}`)
+            .then(response => response.text())
+            .then(responseText => {
+              movieContext = JSON.parse(responseText);
+              handleMovieContextLoadCompleted(movieContext);
+            });
+        }
+
+        function openMovieDialog(movieContext) {
+          const detailDialogContainer = document.getElementById('movieDetailDialogContainer');
+          const tpl = document.getElementById('movieDetailDialogTemplate');
+          const template = Handlebars.compile(tpl.innerHTML);
+          detailDialogContainer.innerHTML = template(movieContext);
+        }
+
+        function closeMovieDetailDialog() {
+          const detailDialogContainer = document.getElementById('movieDetailDialogContainer');
+          detailDialogContainer.innerHTML = '';
+        }
+
+        function showMovieDetailProgressIndicator() {
+          byId('movieDetailProgressIndicator').style.display = 'initial';
+        }
+
+        function hideMovieDetailProgressIndicator() {
+          byId('movieDetailProgressIndicator').style.display = 'none';
+        }
+
+        function handleMovieContextLoadCompleted(movieContext) {
+          // TODO maybe this is enough to refactor to react...
+          movieDetailOverview.innerHTML = movieContext.overview || '';
+          movieDetailTrailer.src = movieContext.youtubeTrailer || undefined;
+          movieDetailGenre.innerHTML = movieContext.genre || '';
+          movieDetailRating.innerHTML = movieContext.rating || '';
+          movieDetailYear.innerHTML = movieContext.year || '';
+        }
+
+        function onCloseMovieDetail() {
+          closeMovieDetailDialog();
+        }
+
+        function onPlayMovie(streamUrl) {
+          showMovieDetailProgressIndicator();
+
+          // TODO need to solve this hardcoded IP
+          fetch('http://192.168.2.39:8080/play', {
+            method: 'POST',
+            body: JSON.stringify({
+              videoUrl: streamUrl 
+            })
+          }).then(() => {
+            setTimeout(() => {
+              closeMovieDetailDialog();
+              hideMovieDetailProgressIndicator()
+            }, 2000);
+          });
+        }
+      </script>
+      
+      <style>
+        .movie-detail-progress-indicator {
+          position: absolute;
+          top: 0;
+          z-index: 10;
+        }
+
+        .movie-detail-dialog .mdc-dialog__container {
+          width: 90%;
+        }
+
+        .movie-detail-dialog .mdc-dialog__surface {
+          width: 100%;
+          max-width: 100%;
+        }
+
+        .movie-detail-image {
+          width: 10rem;
+          margin-right: 1rem;
+        }
+
+        .movie-detail-overview-container {
+          display: flex;
+          flex-wrap: wrap;
+        }
+
+        .movie-detail-trailer {
+          margin-top: 0.5rem;
+          border: none;
+        }
+
+        .movie-detail-header {
+          display: flex;
+          align-items: center;
+          padding: 0.3rem;
+          padding-top: 1rem;
+        }
+
+        .movie-detail-info {
+          font-weight: bold;
+        }
+
+        .movie-detail-header-spacer {
+          flex: 1;
+        }
+
+        .movie-detail-header-title::before {
+          height: 0;
+        }
+      </style>
+
+      <template id="movieDetailDialogTemplate">
+        <div class="mdc-dialog mdc-dialog--open">
+          <div class="mdc-dialog__container">
+            <div class="mdc-dialog__surface" role="alertdialog" aria-modal="true" aria-labelledby="my-dialog-title" aria-describedby="my-dialog-content">
+              <div class="movie-detail-header">
+                <div id="movieDetailProgressIndicator" style="display: none" role="progressbar" class="movie-detail-progress-indicator mdc-linear-progress mdc-linear-progress--indeterminate" aria-label="Example Progress Bar" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
+                  <div class="mdc-linear-progress__buffer">
+                    <div class="mdc-linear-progress__buffer-bar"></div>
+                    <div class="mdc-linear-progress__buffer-dots"></div>
+                  </div>
+                  <div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
+                    <span class="mdc-linear-progress__bar-inner"></span>
+                  </div>
+                  <div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
+                    <span class="mdc-linear-progress__bar-inner"></span>
+                  </div>
+                </div>
+
+                <button class="movie-detail-close-button material-icons mdc-icon-button" aria-label="Open navigation menu" onclick="onCloseMovieDetail()">
+                  close
+                </button>
+                <div class="movie-detail-header-spacer"></div>
+                <button type="button" class="mdc-button mdc-dialog__button" data-mdc-dialog-action="close" onclick="onPlayMovie('{{streamUrl}}')">
+                  <div class="mdc-button__ripple"></div>
+                  <span class="mdc-button__label">Jouer</span>
+                </button>
+              </div>
+    
+              <h2 class="movie-detail-header-title mdc-dialog__title" id="my-dialog-title">
+                <span class="movie-detail-title">
+                  {{movieName}}
+                </span>
+              </h2>
+    
+              <div class="mdc-dialog__content" id="my-dialog-content">
+                <div class="movie-detail-overview-container">
+                  <div class="movie-detail-header-info">
+                    <img class="movie-detail-image mdc-image-list__image" align="left" src="{{logoUrl}}" alt="{{movieName}}"/>
+                    
+                    <div class="movie-detail-info-container">
+                      <div>
+                        <span class="movie-detail-info">Score:</span>
+                        <span id="movieDetailRating">{{rating}}</span>
+                      </div>
+  
+                      <div>
+                        <span class="movie-detail-info">Annee:</span>
+                        <span id="movieDetailYear">{{year}}</span>
+                      </div>
+
+                      <div>
+                        <span class="movie-detail-info">Genres:</span>
+                        <span id="movieDetailGenre"></span>
+                      </div>
+
+                      <p>
+                        <div class="movie-detail-info">Apercu:</div>
+                        <div id="movieDetailOverview" class="movie-detail-overview">
+                          {{overview}}
+                        </div>
+                      </p>
+                      
+                    </div>
+                  </div>
+                </div>
+                
+                <iframe id="movieDetailTrailer" class="movie-detail-trailer" width="100%" height="315"></iframe>
+              </div>
+            </div>
+          </div>
+          <div class="mdc-dialog__scrim"></div>
+        </div>  
+      </template>
+    </div>
+    
+    <div id="progressMask" style="display: none;" class="progress-mask">
+    </div>
+
+    <div id="drawerMask" style="display: none;" class="drawer-mask">
     </div>
   </body>
 </html>

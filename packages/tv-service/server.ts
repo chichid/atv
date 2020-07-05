@@ -26,8 +26,8 @@ const createApp = () => {
   app.use(setHeaders);
   app.get('/tv-service/templates/:path', handler(getTemplate));
   app.get('/tv-service/movies', handler(getMovies));
-  app.get('/tv-service/movies/:movieId', handler(getMovieDetail));
   app.get('/tv-service/movies/categories', handler(getMovieCategories));
+  app.get('/tv-service/movies/:movieId', handler(getMovieDetail));
   app.get('/tv-service/channels', handler(getChannels));
   app.get('/tv-service/channels/:channelName', handler(getChannelDetails));
   app.post('/tv-service/reloadChannels', handler(reloadChannels));

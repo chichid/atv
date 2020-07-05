@@ -95,7 +95,7 @@ const fetchSources = async () => {
 
   console.log(`[tv-service] calling GetChannelGroups...`);
   const sources = await get(Config.GoogleSheetActions.GetSources);
-  let movies = [];
+  let movies: Movie[] = [];
 
   Object.keys(sources).forEach(k => {
     const source = sources[k] as SourcePayload;
@@ -106,9 +106,9 @@ const fetchSources = async () => {
   });
 
   const categoriesMap = {};
-  movies.forEach(({ Category }) => { 
-    if (Category) {
-      categoriesMap[Category.Id] = Category; 
+  movies.forEach(({ category }) => { 
+    if (category) {
+      categoriesMap[category.id] = category; 
     }
   });
 

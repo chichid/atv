@@ -83,7 +83,7 @@ const proxyVideo = async (req, res) => {
 
     for (let i = 0; i < 3600 * 4; ++i) {
       playlist.push(`#EXTINF:${1},`);
-      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/0/0`);
+      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/${-1 * i}/0`);
     }
   } 
 
@@ -130,10 +130,10 @@ const loadChunk = async (url, s, d) => {
   const duration = Number(d);
 
   const { audioCodecs, videoCodecs } = await loadVideoInfo(url);
-  const isTs = url.toLowerCase().endsWith('.ts'); 
+  const isLive = start < 0;
   const videoNeedTranscode = (videoCodecs && videoCodecs.some(c => c.indexOf('h264') === -1));
   const audioNeedTranscode = (audioCodecs && audioCodecs.some(c => c.indexOf('aac') === -1));
-  const transcode = isTs || audioNeedTranscode || videoNeedTranscode;
+  const transcode = !isLive && (audioNeedTranscode || videoNeedTranscode);
 
   const options = [
     '-hide_banner',
@@ -170,7 +170,6 @@ const loadChunk = async (url, s, d) => {
     options.push('-level', '3.0');
     options.push('-tune', 'zerolatency');
     options.push('-movflags', '+faststart');
-    options.push('-copyts');
 
     if (Config.FFMpegExtraVideoFlags) {
       options.push.apply(options, Config.FFMpegExtraVideoFlags.split(' '));
@@ -181,6 +180,7 @@ const loadChunk = async (url, s, d) => {
 
   options.push('-max_muxing_queue_size', '1024');
   options.push('-pix_fmt', 'yuv420p');
+  options.push('-copyts');
 
   options.push('-f', 'mpegts');
   options.push('pipe:1');

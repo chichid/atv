@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node ./index.ts",
+    "start": "node ./dist/index.js",
+    "build": "copyfiles -e '{node_modules,dist}/**/*' '**/*' dist && tsc dist/*.ts --rootDir ./dist",
     "watch": "nodemon --watch templates --watch ./ --watch ../common -e json,ts,xml,js ./index.ts"
   },
   "dependencies": {
@@ -17,6 +18,7 @@
   "devDependencies": {
     "@types/express": "^4.17.6",
     "@types/node": "^14.0.13",
+    "copyfiles": "^2.3.0",
     "nodemon": "^2.0.4",
     "ts-node": "^8.10.2",
     "typescript": "^3.9.5"

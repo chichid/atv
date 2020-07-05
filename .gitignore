@@ -1,8 +1,11 @@
 node_modules
 bin
+dist
 npm-debug.log
 
 **/node_modules
+**/dist
+**/bin
 **/npm-debug.log
 
 settings.json

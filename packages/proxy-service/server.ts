@@ -1,6 +1,4 @@
-import * as fs from 'fs';
 import * as http from 'http';
-import * as https from 'https';
 import * as httpProxy from 'http-proxy';
 import * as Config from './config';
 
@@ -11,24 +9,15 @@ export const startServer = () => {
 };
 
 const createServer = () => {
-  const httpFactory = Config.SSL.Enabled ? https : http;
-  console.log(`[tv-service] creating server using ${httpFactory === https ? 'https' : 'http'}`);
-
-  const serverConfig = !Config.SSL.Enabled ? null : {
-    key: fs.readFileSync(Config.SSL.Key),
-    cert: fs.readFileSync(Config.SSL.Cert),
-  };
+  console.log(`[tv-service] creating server ...`);
 
   const proxy = httpProxy.createProxyServer({}); 
   const pathMap = parsePathMapConfig();
 
-  return httpFactory.createServer(
-    serverConfig, 
-    handleProxyRequest(proxy, pathMap),
-  );
+  return http.createServer(proxyRequestHandler(proxy, pathMap));
 };
 
-const handleProxyRequest = (proxy, pathMap) => (req, res) => {
+const proxyRequestHandler = (proxy, pathMap) => (req, res) => {
   const path: string = '/' + req.url.split('/')[1];
   const pathConfig = pathMap[path];
 

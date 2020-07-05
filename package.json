@@ -6,6 +6,7 @@
   "scripts": {
     "postinstall": "lerna exec npm install",
     "start": "lerna run $NPM_LERNA_SCOPE --parallel start",
+    "build": "lerna run $NPM_LERNA_SCOPE --parallel build",
     "watch": "lerna run $NPM_LERNA_SCOPE --parallel watch"
   },
   "dependencies": {

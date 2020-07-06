@@ -64,5 +64,6 @@ const handler = (...fns: Function[]) => {
 };
 
 const errorHandler = (err, req, res, next) => {
+  console.error(`[tv-service] error: ${req.url}, ${err.message}`);
   res.status(500).json({ message: err.message });
 };

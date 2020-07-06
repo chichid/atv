@@ -174,12 +174,15 @@ const fetchMovieDetail = async (movieId: string): Promise<MovieDetail> => {
   const tmdbMovieDetail: TmdbMovieDetailPayload = await fetchTmdbMovieDetail(movie);
 
   if (!tmdbMovieDetail) {
+    console.log(`[tv-service] movie detail not found for ${movieId}`);
     return {
       ...movie,
       overview: null,
       youtubeTrailer: null,
     };
   }
+
+  console.log(`[tv-service] got tmdb movie details, mapping...`);
 
   const tmdbYoutubeTrailer = tmdbMovieDetail.videos.results.find(rs => 
     rs.type && rs.site && 
@@ -226,6 +229,7 @@ const fetchTmdbMovieDetail = async (movie: Movie): Promise<TmdbMovieDetailPayloa
   let tmdbId: string = payload.info.tmdb_id;
 
   if (!tmdbId) {
+    console.log(`[tv-service] tmdbId not defined for ${movie.id}, using tmdb search`);
     const infoReleaseDate = payload.info.releasedate ? new Date(payload.info.releasedate).getUTCFullYear() : null;
     let movieYear: number = movie.year || infoReleaseDate || null;
     tmdbId = await searchTmdbMovie(movie.movieName, movieYear);
@@ -236,13 +240,28 @@ const fetchTmdbMovieDetail = async (movie: Movie): Promise<TmdbMovieDetailPayloa
     return null;
   }
 
+  const nonTranslatedUrl = [`${Config.Tmdb.Endpoint}/movie/${tmdbId}`,
+    `?api_key=${Config.Tmdb.ApiKey}`,
+    `&append_to_response=videos`,
+  ].join('');
+
+  const nonTranslatedDetails = await get(nonTranslatedUrl) as TmdbMovieDetailPayload;
+
   const url = [`${Config.Tmdb.Endpoint}/movie/${tmdbId}`,
     `?language=${Config.Tmdb.Language}`,
     `&api_key=${Config.Tmdb.ApiKey}`,
     `&append_to_response=videos`,
   ].join('');
 
-  return await get(url) as TmdbMovieDetailPayload;
+  const translatedDetails = await get(url) as TmdbMovieDetailPayload;
+
+  for (const prop in translatedDetails) {
+    if (!translatedDetails[prop] && nonTranslatedDetails[prop]) {
+      translatedDetails[prop] = nonTranslatedDetails[prop];
+    }
+  }
+
+  return translatedDetails;
 };
 
 const searchTmdbMovie = async (title: string, year: number): Promise<string> => {

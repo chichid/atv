@@ -128,6 +128,16 @@
         cursor: hand;
 			}
 
+      .movie-list li .mdc-image-list__image-aspect-container {
+        height: auto;
+        padding: 0;
+      }
+
+      .movie-list li .mdc-image-list__image {
+        height: auto;
+        position: relative;
+      }
+
       .no-data-list-item {
         width: 100%;
         text-align: center;
@@ -156,6 +166,8 @@
 	 </style>
 
    <script type="text/javascript">
+    const documentTemplates = {};
+
     const PAGE_SIZE = 25;
     let totalMovies = null;
     let moviesListInitial = null;
@@ -174,7 +186,27 @@
       return document.getElementById(id);
     };
 
+    function template(id) {
+      return documentTemplates[id];
+    }
+
+    function registerTemplates(n) {
+      const node = (n && n.content) || n || document;
+      const templates = node.querySelectorAll('template');
+
+      for (const tpl of templates) {
+        if (!tpl.id) {
+          throw new Error('found a template with no id');
+        }
+
+        console.log(`compiling template ${tpl.id}`);
+        documentTemplates[tpl.id] = Handlebars.compile(tpl.innerHTML);
+        registerTemplates(tpl);
+      }
+    }
+
 		function onLoad() {
+      registerTemplates();
 			loadCategories();
 			loadMovies(true);
 		}
@@ -383,7 +415,7 @@
 		<aside id="drawer" class="mdc-drawer" style="display: none">
 			<div class="mdc-drawer__content">
 				<nav id="categories" class="mdc-list">
-					<template>
+					<template id="categoriesDrawerItemTemplate">
             <a class="mdc-list-item mdc-list-item--activated" href="#" onclick="onSelectCategory('{{id}}', '{{name}}')" aria-current="page">
               <span class="mdc-list-item__text">{{name}}</span>
 						</a>
@@ -465,15 +497,13 @@
             .then(response => response.text())
             .then(responseText => {
               movieContext = JSON.parse(responseText);
-              handleMovieContextLoadCompleted(movieContext);
+              handleMovieDetailLoadCompleted(movieContext);
             });
         }
 
         function openMovieDialog(movieContext) {
           const detailDialogContainer = document.getElementById('movieDetailDialogContainer');
-          const tpl = document.getElementById('movieDetailDialogTemplate');
-          const template = Handlebars.compile(tpl.innerHTML);
-          detailDialogContainer.innerHTML = template(movieContext);
+          byId('movieDetailDialogContainer').innerHTML = template('movieDetailDialogTemplate')(movieContext);
         }
 
         function closeMovieDetailDialog() {
@@ -489,13 +519,9 @@
           byId('movieDetailProgressIndicator').style.display = 'none';
         }
 
-        function handleMovieContextLoadCompleted(movieContext) {
-          // TODO maybe this is enough to refactor to react...
-          movieDetailOverview.innerHTML = movieContext.overview || '';
-          movieDetailTrailer.src = movieContext.youtubeTrailer || undefined;
-          movieDetailGenre.innerHTML = movieContext.genre || '';
-          movieDetailRating.innerHTML = movieContext.rating || '';
-          movieDetailYear.innerHTML = movieContext.year || '';
+        function handleMovieDetailLoadCompleted(movieContext) {
+          byId('movieDetailHeaderInfo').innerHTML = template('movieDetailHeaderInfoTemplate')(movieContext);
+          byId('movieDetailTrailer').innerHTML = template('movieDetailTrailerTemplate')(movieContext);
         }
 
         function onCloseMovieDetail() {
@@ -533,6 +559,7 @@
 
         .movie-detail-dialog .mdc-dialog__surface {
           width: 100%;
+          height: 90%;
           max-width: 100%;
         }
 
@@ -610,34 +637,44 @@
                   <div class="movie-detail-header-info">
                     <img class="movie-detail-image mdc-image-list__image" align="left" src="{{logoUrl}}" alt="{{movieName}}"/>
                     
-                    <div class="movie-detail-info-container">
-                      <div>
-                        <span class="movie-detail-info">Score:</span>
-                        <span id="movieDetailRating">{{rating}}</span>
-                      </div>
-  
-                      <div>
-                        <span class="movie-detail-info">Annee:</span>
-                        <span id="movieDetailYear">{{year}}</span>
-                      </div>
-
-                      <div>
-                        <span class="movie-detail-info">Genres:</span>
-                        <span id="movieDetailGenre"></span>
-                      </div>
-
-                      <p>
-                        <div class="movie-detail-info">Apercu:</div>
-                        <div id="movieDetailOverview" class="movie-detail-overview">
-                          {{overview}}
+                    <div id="movieDetailHeaderInfo" class="movie-detail-info-container">
+                      <template id="movieDetailHeaderInfoTemplate">
+                        <div>
+                          <span class="movie-detail-info">Category:</span>
+                          <span class="movie-detail-info-value">{{category.name}}</span>
                         </div>
-                      </p>
-                      
+
+                        <div>
+                          <span class="movie-detail-info">Score:</span>
+                          <span class="movie-detail-info-value">{{rating}}</span>
+                        </div>
+
+                        <div>
+                          <span class="movie-detail-info">Annee:</span>
+                          <span class="movie-detail-info-value">{{year}}</span>
+                        </div>
+
+                        <div>
+                          <span class="movie-detail-info">Genres:</span>
+                          <span class="movie-detail-info-value">{{genre}}</span>
+                        </div>
+
+                        <p>
+                          <div class="movie-detail-info">Aperçu:</div>
+                          <div class="movie-detail-overview">
+                            {{overview}}
+                          </div>
+                        </p>
+                      </template> 
                     </div>
                   </div>
                 </div>
                 
-                <iframe id="movieDetailTrailer" class="movie-detail-trailer" width="100%" height="315"></iframe>
+                <div id="movieDetailTrailer">
+                  <template id="movieDetailTrailerTemplate">
+                    <iframe class="movie-detail-trailer" width="100%" height="315" src="{{youtubeTrailer}}"></iframe>
+                  </template>
+                </div>
               </div>
             </div>
           </div>

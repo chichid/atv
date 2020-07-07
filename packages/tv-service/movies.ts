@@ -22,7 +22,7 @@ export const getMovies = async (req, res) => {
   const { offset, limit, search, categoryId } = req.query;
 
   console.log('[tv-service] getMovies is waking up the transcoder...');
-  get(`${Config.TranscoderPingUrl}`).catch(e => console.warn(`[tv-service] getMovies unable to wake the transcoder up`));
+  get(`${Config.TranscoderUrl}/ping`).catch(e => console.warn(`[tv-service] getMovies unable to wake the transcoder up`));
 
   console.log('[tv-service] fetching sources...');
   const { movies }= await fetchSources();
@@ -151,7 +151,7 @@ const mapMovieFromVodStream = (source: SourcePayload, vod: VodPayload): Movie =>
     streamId,
     year,
     genre,
-    streamUrl: `${Config.TranscoderUrl}/${encodeURIComponent(streamUrl)}`,
+    streamUrl: `${Config.TranscoderUrl}/transcoder/vod/${encodeURIComponent(streamUrl)}`,
     logoUrl,
     rating,
     category,

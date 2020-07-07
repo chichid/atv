@@ -17,7 +17,7 @@ export const reloadChannels = async (req, res) => {
 
 export const getChannels = async (req, res) => {
   console.log('[tv-service] getChannels waking up the transcoder...');
-  get(`${Config.TranscoderPingUrl}`);
+  get(`${Config.TranscoderUrl}/ping`);
 
   console.log('[tv-service] loading all channels...');
   const { groups } = await fetchAllChannels();
@@ -83,7 +83,7 @@ const mapChannel = (payload: ChannelPayload): Channel => {
     id: encodeURIComponent(payload.Channel),
     name: payload.Channel,
     logoUrl: payload.LogoUrl,
-    streamUrl: `${Config.TranscoderUrl}/${encodeURIComponent(payload.StreamUrl)}`,
+    streamUrl: `${Config.TranscoderUrl}/transcoder/live/${encodeURIComponent(payload.StreamUrl)}`,
     timeshiftUrl: payload.TimeshiftUrl,
     epgShift: Number(payload.EpgShift),
     epgDisplayShift: Number(payload.EpgDisplayShift),
@@ -138,7 +138,7 @@ const fetchEPG = async (channel: Channel): Promise<EpgProgram[]> => {
         start,
         end,
         duration,
-        streamUrl: `${Config.TranscoderUrl}/${encodeURIComponent(streamUrl)}`,
+        streamUrl: `${Config.TranscoderUrl}/transcoder/vod/${encodeURIComponent(streamUrl)}`,
       };
     });
 

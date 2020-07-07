@@ -29,60 +29,74 @@ export const startServer = () => {
   });
 };
 
-const handleRequest = (req, res) => {
-  if (req.url.startsWith('/transcoder/ping')) {
-    ping(req, res);
-  } else if (req.url.startsWith('/transcoder/proxy')) {
-    proxyVideo(req, res);
-  } else if (req.url.startsWith('/transcoder/chunk')) {
-    serveChunk(req, res);
-  } else {
-    res.writeHead(404);
-    res.end('resource not found');
+const handleRequest = async (req, res): Promise<void> => {
+  try {
+    if (req.url.startsWith('/transcoder/ping')) {
+      await ping(req, res);
+    } else if (req.url.startsWith('/transcoder/live')) {
+      await servePlaylist(req, res, true);
+    } else if (req.url.startsWith('/transcoder/vod')) {
+      await servePlaylist(req, res, false);
+    } else if (req.url.startsWith('/transcoder/chunk')) {
+      await serveChunk(req, res);
+    } else {
+      res.writeHead(404);
+      res.end('resource not found');
+    }
+  } catch(e) {
+    console.error(`[transcoder] exception in request ${req.url}, ${e.message}`);
+    console.error(e.stack);
+    res.writeHead(500);
+    res.end(e.message);
   }
 };
 
-const ping = (req, res) => {
+const ping = async (req, res): Promise<void> => {
   console.log(`[transcoder] sending pong...`);
   res.writeHead(200);
   res.end('pong');
 };
 
-const proxyVideo = async (req, res) => {
+const servePlaylist = async (req, res, isLive) => {
   const playlist = [];
-  const matches = req.url.match('/transcoder/proxy/([^/]*)');
+  const matches = req.url.match('/transcoder/[^/]*/([^/]*)');
   const url = decodeURIComponent(matches[1]);
 
+  if (cache.currentStream) {
+    cache.currentStream.end();
+    cache.currentStream = null;
+  }
+
   console.log(`[transcoder] proxyVideo - fetching video info...`);
-  const videoInfo = await loadVideoInfo(url);
-  const isVod = videoInfo && videoInfo.totalDuration;
-  const isLive = videoInfo && isNaN(videoInfo.totalDuration);
 
   playlist.push(`#EXTM3U`);
   playlist.push(`#EXT-X-VERSION:4`);
 
-  if (isVod) {
-    const duration = 10;
-    console.log(`[transcoder] constructing VOD playlist, totalDuration: ${videoInfo.totalDuration}, url ${url}`);
+  if (!isLive) {
+    const videoInfo = await loadVideoInfo(url);
+    const hlsDuration = 5;
+    const totalDuration = videoInfo.totalDuration || Config.MaxDuration; 
+    console.log(`[transcoder] constructing VOD playlist, totalDuration: ${totalDuration}, url ${url}`);
 
-    playlist.push(`#EXT-X-MEDIA-SEQUENCE:1`);
-    playlist.push(`#EXT-X-TARGETDURATION:${duration}`);
+    playlist.push(`#EXT-X-TARGETDURATION:${hlsDuration}`);
+    playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
 
     let start = 0;
     while (start < videoInfo.totalDuration) {
-      const chunkDuration = Math.min(videoInfo.totalDuration - start, duration);
-      playlist.push(`#EXTINF:${chunkDuration},`);
-      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/${start}/${duration}`);
+      const chunkDuration = Math.min(videoInfo.totalDuration - start, hlsDuration);
+      playlist.push(`#EXTINF:${hlsDuration},`);
+      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/${start}/${hlsDuration}`);
       start += chunkDuration;
     }
   } else { 
     console.log(`[transcoder] constructing live playlist, url ${url}`);
+    const hlsDuration = 1;
 
-    playlist.push(`#EXT-X-TARGETDURATION:${1}`);
+    playlist.push(`#EXT-X-TARGETDURATION:${hlsDuration}`);
     playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
 
-    for (let i = 0; i < 3600 * 4; ++i) {
-      playlist.push(`#EXTINF:${1},`);
+    for (let i = 1; i < Config.MaxDuration; ++i) {
+      playlist.push(`#EXTINF:${hlsDuration},`);
       playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/${-1 * i}/0`);
     }
   } 
@@ -96,7 +110,7 @@ const proxyVideo = async (req, res) => {
   res.end(playlist.join('\n'));
 };
 
-const serveChunk = async (req, res) => {
+const serveChunk = async (req, res): Promise<void> => {
   const matches = req.url.match('/transcoder/chunk/([^/]*)/([^/]*)/([^/]*)');
   const url = decodeURIComponent(matches[1]);
   const start = Number(matches[2]);
@@ -124,21 +138,22 @@ const serveChunk = async (req, res) => {
   });
 };
 
-const loadChunk = async (url, s, d) => {
+const loadChunk = async (url, s, d): Promise<{stream: any, cancel: () => void}> => {
   const ffmpeg = Config.FFMpegPath || 'ffmpeg';
   const start = Number(s);
   const duration = Number(d);
 
-  const { audioCodecs, videoCodecs } = await loadVideoInfo(url);
+  //const { audioCodecs, videoCodecs } = await loadVideoInfo(url);
   const isLive = start < 0;
-  const videoNeedTranscode = (videoCodecs && videoCodecs.some(c => c.indexOf('h264') === -1));
-  const audioNeedTranscode = (audioCodecs && audioCodecs.some(c => c.indexOf('aac') === -1));
-  const transcode = !isLive && (audioNeedTranscode || videoNeedTranscode);
+  //const videoNeedTranscode = (videoCodecs && videoCodecs.some(c => c.indexOf('h264') === -1));
+  //const audioNeedTranscode = (audioCodecs && audioCodecs.some(c => c.indexOf('aac') === -1));
+  const transcode = !isLive;
 
-  const options = [
-    '-hide_banner',
-    '-loglevel', 'quiet',
-  ];
+  const options = [];
+
+  if (Config.DebugLogging !== 'true') {
+    options.push('-hide_banner', '-loglevel', 'quiet');
+  }
 
   if (process.env.http_proxy) {
     options.push('-http_proxy', process.env.http_proxy);
@@ -164,7 +179,8 @@ const loadChunk = async (url, s, d) => {
   options.push('-vcodec');
   if (transcode) {
     options.push('h264');
-    options.push('-crf', '26');
+    options.push('-crf', '18');
+    options.push('-s', '1280x720');
     options.push('-preset', 'ultrafast');
     options.push('-profile:v', 'baseline');
     options.push('-level', '3.0');
@@ -178,6 +194,8 @@ const loadChunk = async (url, s, d) => {
     options.push('copy');
   }
 
+  options.push('-analyzeduration', 500000);
+  options.push('-probesize', 500000);
   options.push('-max_muxing_queue_size', '1024');
   options.push('-pix_fmt', 'yuv420p');
   options.push('-copyts');
@@ -189,7 +207,7 @@ const loadChunk = async (url, s, d) => {
   const child = spawn(ffmpeg, options);
   const cancel = () => child.kill('SIGINT');
 
-  if (Config.DebugLogging) {
+  if (Config.DebugLogging === 'true') {
     child.stderr.on('data', data => {
       console.log('[ffmpeg] ' + data.toString())
     });

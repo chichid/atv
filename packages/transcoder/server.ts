@@ -74,7 +74,7 @@ const servePlaylist = async (req, res, isLive) => {
 
   if (!isLive) {
     const videoInfo = await loadVideoInfo(url);
-    const hlsDuration = 5;
+    const hlsDuration = 10;
     const totalDuration = videoInfo.totalDuration || Config.MaxDuration; 
     console.log(`[transcoder] constructing VOD playlist, totalDuration: ${totalDuration}, url ${url}`);
 
@@ -169,6 +169,10 @@ const loadChunk = async (url, s, d): Promise<{stream: any, cancel: () => void}> 
 
   options.push('-i', url);
 
+  options.push('-strict', 'experimental');
+  options.push('-max_muxing_queue_size', '1024');
+  options.push('-pix_fmt', 'yuv420p');
+
   options.push('-acodec');
   if (transcode) {
     options.push('aac', '-ab', '640k', '-ac', '6');
@@ -194,11 +198,9 @@ const loadChunk = async (url, s, d): Promise<{stream: any, cancel: () => void}> 
     options.push('copy');
   }
 
-  options.push('-analyzeduration', 500000);
-  options.push('-probesize', 500000);
-  options.push('-max_muxing_queue_size', '1024');
-  options.push('-pix_fmt', 'yuv420p');
-  options.push('-copyts');
+  if (!isLive) {
+    options.push('-avoid_negative_ts', 'make_zero', '-fflags', '+genpts');
+  }
 
   options.push('-f', 'mpegts');
   options.push('pipe:1');

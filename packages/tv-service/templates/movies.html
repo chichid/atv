@@ -1,22 +1,288 @@
 <!-- CLIENT_SIDE_TEMPLATE -->
 <html>
-  <head>
-   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
-   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
-   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
 
-	 <style>
-			html, head, body { 
-        margin: 0; 
-        padding: 0;
-        height: 100%;
-        overflow: hidden;
-      } 
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
+  <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+</head>
 
-      template {
-        display: none;
+<body onload="onLoad()">
+  <style>
+    html, head, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    template {
+      display: none;
+    }
+
+    .stencil-container {
+      overflow: hidden;
+      background-color: #efefef;
+    }
+
+    .stencil-container::before {
+      content: " ";
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 1;
+      animation: phAnimation 0.9s linear infinite;
+      background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 20%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0) 100%) 100% 100%;
+    }
+
+    @keyframes phAnimation {
+      0% {
+        transform: translate3d(0, -50%, 0);
+      }
+
+      70% {
+        transform: translate3d(0, 50%, 0);
+      }
+
+      100% {
+        transform: translate3d(0, -50%, 0);
+      }
+    }
+  </style>
+
+  <script>
+    const documentTemplates = {};
+    function byId(id) {
+      return document.getElementById(id);
+    };
+
+    function template(id) {
+      return documentTemplates[id];
+    }
+
+    function registerTemplates(n) {
+      const node = (n && n.content) || n || document;
+      const templates = node.querySelectorAll('template');
+
+      for (const tpl of templates) {
+        if (!tpl.id) {
+          throw new Error('found a template with no id');
+        }
+
+        console.log(`compiling template ${tpl.id}`);
+        documentTemplates[tpl.id] = Handlebars.compile(tpl.innerHTML);
+        registerTemplates(tpl);
+      }
+    }
+
+    function onLoad() {
+      registerTemplates();
+      loadCategories();
+      loadMovies(true);
+    }
+  </script>
+
+  <aside id="drawer" class="mdc-drawer" style="display: none">
+    <script>
+      let currentCategory = null;
+      let allCategory = {
+        id: -666,
+        name: 'TOUT LES FILMS',
+      };
+
+      function openDrawer() {
+        const drawer = byId('drawer');
+        const drawerMask = byId('drawerMask');
+
+        const closeListener = (event) => {
+          event.preventDefault();
+
+          drawer.style.width = 0;
+          drawer.style.minWidth = 0;
+
+          setTimeout(() => {
+            drawer.style.removeProperty('width');
+            drawer.style.removeProperty('min-width');
+            drawer.style.display = 'none';
+            drawerMask.style.display = 'none';
+          }, 300);
+        };
+
+        const startAnimation = () => {
+          drawer.style.removeProperty('width');
+          drawer.style.removeProperty('min-width');
+          document.addEventListener('click', closeListener, { once: true });
+
+          setTimeout(() => {
+            drawer.style.removeProperty('width');
+          }, 300);
+        };
+
+        drawer.style.display = 'initial';
+        drawer.style.width = 0;
+        drawer.style.minWidth = 0;
+        drawerMask.style.display = 'initial';
+
+        setTimeout(startAnimation, 1);
+      }
+
+      function loadCategories() {
+        const categoriesList = byId('categories');
+        const tpl = categoriesList.querySelector('template').innerHTML;
+        const template = Handlebars.compile(tpl);
+
+        showProgressIndicator();
+
+        fetch(`/tv-service/movies/categories`)
+          .then(response => response.text())
+          .then(responseText => {
+            const categories = JSON.parse(responseText);
+            categories.items.unshift(allCategory);
+            const html = categories.items.map(category => template(category)).join('\n');
+            categoriesList.innerHTML = `<template>${tpl}</template>` + html;
+          })
+          .then(hideProgressIndicator);
+      };
+
+      function onSelectCategory(id, name) {
+        const pageTitle = byId('pageTitle');
+
+        clearSearch(false);
+
+        if (id === String(allCategory.id)) {
+          currentCategory = null;
+          pageTitle.innerHTML = '';
+        } else {
+          currentCategory = { id, name };
+          pageTitle.innerHTML = currentCategory.name;
+        }
+
+        loadMovies(true);
+      }
+    </script>
+    <style>
+      .drawer-mask {
+        background: transparent;
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+      }
+
+      .mdc-drawer {
+        width: 30%;
+        min-width: 17rem;
+        max-width: 20rem;
+        position: fixed;
+        transition: min-width 300ms ease, width 300ms ease;
+      }
+    </style>
+    <div id="drawerMask" style="display: none;" class="drawer-mask">
+    </div>
+    <div class="mdc-drawer__content">
+      <nav id="categories" class="mdc-list">
+        <template id="categoriesDrawerItemTemplate">
+          <a class="mdc-list-item mdc-list-item--activated" href="#" onclick="onSelectCategory('{{id}}', '{{name}}')"
+            aria-current="page">
+            <span class="mdc-list-item__text">{{name}}</span>
+          </a>
+        </template>
+      </nav>
+    </div>
+  </aside>
+
+  <div id="progressIndicator" role="progressbar" class="progress-indicator mdc-linear-progress mdc-linear-progress--indeterminate">
+    <script>
+      let progressIndicatorRequests = 0;
+
+      function showProgressIndicator() {
+        progressIndicatorRequests++;
+        byId('progressIndicator').style.display = 'initial';
+        byId('progressMask').style.display = 'initial';
+      }
+
+      function hideProgressIndicator() {
+        progressIndicatorRequests--;
+
+        if (progressIndicatorRequests < 0) {
+          progressIndicatorRequests = 0;
+        }
+
+        if (progressIndicatorRequests === 0) {
+          byId('progressIndicator').style.display = 'none';
+          byId('progressMask').style.display = 'none';
+        }
+      }
+    </script>
+
+    <style>
+      .progress-mask {
+        background: #ababab;
+        opacity: 70%;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+      }
+
+      .progress-indicator {
+        position: absolute;
+        bottom: 0;
+        z-index: 10;
+      }
+    </style>
+
+    <div id="progressMask" style="display: none;" class="progress-mask">
+    </div>
+    <div class="mdc-linear-progress__buffer">
+      <div class="mdc-linear-progress__buffer-bar"></div>
+      <div class="mdc-linear-progress__buffer-dots"></div>
+    </div>
+    <div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
+      <span class="mdc-linear-progress__bar-inner"></span>
+    </div>
+    <div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
+      <span class="mdc-linear-progress__bar-inner"></span>
+    </div>
+  </div>
+
+  <header class="mdc-top-app-bar">
+    <script>
+      let currentSearchTimer = null;
+      let currentSearchValue = null;
+
+      function clearSearch(reload) {
+        byId('searchField').value = '';
+        currentSearchValue = '';
+
+        if (reload !== false) {
+          loadMovies(true);
+        }
+      }
+
+      function onSearch() {
+        if (currentSearchTimer) {
+          clearTimeout(currentSearchTimer);
+        }
+
+        currentSearchTimer = setTimeout(() => {
+          currentSearchValue = byId('searchField').value;
+          loadMovies(true);
+        }, 500);
+      }
+
+    </script>
+
+    <style>
+      .header-bar-input {
+        border-radius: 0.3rem;
+        height: 3rem;
       }
 
       .mdc-top-app-bar__title {
@@ -29,70 +295,131 @@
           padding: 0;
         }
       }
+    </style>
 
-      .progress-mask {
-        background: #ababab;
-        opacity: 70%;
-        position: absolute;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        right: 0;
-      }
+    <div class="mdc-top-app-bar__row">
+      <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
+        <button class="material-icons mdc-top-app-bar__navigation-icon mdc-icon-button"
+          aria-label="Open navigation menu" onclick="openDrawer()">menu</button>
+        <span id="pageTitle" class="mdc-top-app-bar__title"></span>
+      </section>
 
-      .drawer-mask {
-        background: transparent;
-        position: absolute;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        right: 0;
-      }
+      <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" role="toolbar">
+        <label class="header-bar-input mdc-text-field mdc-text-field--filled mdc-text-field--no-label">
+          <span class="mdc-text-field__ripple"></span>
+          <input id="searchField" class="mdc-text-field__input" type="text" placeholder="Recherche" aria-label="Label"
+            oninput="onSearch()">
+          <span class="mdc-line-ripple"></span>
+        </label>
+      </section>
+    </div>
+  </header>
 
-			.progress-indicator {
-        position: absolute;
-        bottom: 0;
-        z-index: 10;
-			}
+  <main>
+    <script>
+      const PAGE_SIZE = 25;
+      let totalMovies = null;
+      let moviesListInitial = null;
+      let loadedMovies = 0;
+      let isLoadingMore = false;
 
-      .stencil-container {
-        overflow: hidden;
-        background-color: #efefef;
-      }
-      
-      .stencil-container::before {
-        content: " ";
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        z-index: 1;
-        animation: phAnimation 0.9s linear infinite;
-        background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 20%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0) 100%) 100% 100%;
-      }
+      function loadMovies(reset) {
+        const moviesList = byId('moviesList');
 
-      @keyframes phAnimation {
-        0% {
-          transform: translate3d(0, -50%, 0); 
+        if (moviesListInitial === null) {
+          moviesListInitial = moviesList.cloneNode(true);
         }
 
-        70% {
-          transform: translate3d(0, 50%, 0); 
-        } 
+        if (reset) {
+          loadedMovies = 0;
+          totalMovies = 0;
+          moviesList.scrollTop = 0;
+        }
 
-        100% {
-          transform: translate3d(0, -50%, 0); 
-        } 
+        const search = currentSearchValue ? `&search=${encodeURIComponent(currentSearchValue)}` : '';
+        const categoryId = currentCategory ? `&categoryId=${currentCategory.id}` : '';
+
+        if (reset) {
+          showProgressIndicator();
+        }
+
+        isLoading = true;
+
+        fetch(`/tv-service/movies?offset=${loadedMovies}&limit=${PAGE_SIZE}${categoryId}${search}`)
+          .then(response => response.text())
+          .then(responseText => {
+            const movies = JSON.parse(responseText);
+            totalMovies = movies.count;
+            
+            if (reset) {
+              loadedMovies = 0
+            } else {
+              loadedMovies += movies.items.length;
+            }
+
+            updateMovieList(reset, movies);
+          })
+          .finally(() => {
+            hideProgressIndicator();
+            isLoading = false;
+          });
+      };
+
+      function loadMore() {
+        if (!isLoading && loadedMovies < totalMovies) {
+          loadMovies(false);
+        }
       }
 
-			.movie-list {
+      function onScroll() {
+        const element = byId('moviesList');
+        const firstStencil = byId("moviesList").querySelector('.stencil-list-item');
+        if (firstStencil && element.scrollTop > (firstStencil.offsetTop - 600)) {
+          loadMore();
+        }
+      }
+
+      function updateMovieList(reset, movies) {
+        const listItemTemplate = template('listItemTemplate');
+        const noDataTemplate = template('noDataTemplate');
+        const loadingStencilsTemplate = template('loadingStencilsTemplate');
+
+        if (movies.count === 0) {
+          moviesList.innerHTML = noDataTemplate({});
+          return;
+        }
+
+        if (reset) {
+          const html = movies.items.map(movie => listItemTemplate(movie)).join('\n');
+          moviesList.innerHTML = html;
+        } else {
+          for (const movie of movies.items) {
+            const html = listItemTemplate(movie);
+            const stencil = document.querySelector('.stencil-list-item');
+            stencil.outerHTML = html;
+            stencil.classList.remove('stencil-list-item');
+          }
+        }
+
+        if (loadedMovies < totalMovies) {
+          for (let i = 0; i < Math.min(PAGE_SIZE, totalMovies - loadedMovies); ++i) {
+            moviesList.insertAdjacentHTML('beforeend', loadingStencilsTemplate({}));
+          }
+        }
+      }
+    </script>
+    <style>
+      main {
+        height: 100%;
+      }
+
+      .movie-list {
         height: 100%;
         overflow-x: hidden;
         overflow-y: auto;
-				padding: 4rem 0rem;
+        padding: 4rem 0rem;
         justify-content: center;
-			}
+      }
 
       .movie-list li {
         width: calc(100% / 5 - 0.2rem);
@@ -123,10 +450,10 @@
           padding: 0.2rem;
         }
       }
-           
-			.movie-list li:hover {
+
+      .movie-list li:hover {
         cursor: hand;
-			}
+      }
 
       .movie-list li .mdc-image-list__image-aspect-container {
         height: auto;
@@ -144,549 +471,247 @@
         text-decoration: bold;
       }
 
-			.movie-title {
-				text-align: center;
-				white-space: normal;
-				width: 100%;		
-			  font-weight: bold;
-			}
-			
-			.header-bar-input {
-				border-radius: 0.3rem;
-				height: 3rem;
-			}
-
-			.mdc-drawer {
-				width: 30%;
-        min-width: 17rem;
-				max-width: 20rem;
-				position: fixed;
-        transition: min-width 300ms ease, width 300ms ease;
-			}
-	 </style>
-
-   <script type="text/javascript">
-    const documentTemplates = {};
-
-    const PAGE_SIZE = 25;
-    let totalMovies = null;
-    let moviesListInitial = null;
-    let loadedMovies = 0;
-    let isLoadingMore = false;
-    let currentSearchTimer = null;
-    let currentSearchValue = null;
-    let currentCategory = null;
-    let progressIndicatorRequests = 0;
-    let allCategory = {
-      id: -666,
-      name: 'TOUT LES FILMS',
-    };
-
-    function byId(id) {
-      return document.getElementById(id);
-    };
-
-    function template(id) {
-      return documentTemplates[id];
-    }
-
-    function registerTemplates(n) {
-      const node = (n && n.content) || n || document;
-      const templates = node.querySelectorAll('template');
-
-      for (const tpl of templates) {
-        if (!tpl.id) {
-          throw new Error('found a template with no id');
-        }
-
-        console.log(`compiling template ${tpl.id}`);
-        documentTemplates[tpl.id] = Handlebars.compile(tpl.innerHTML);
-        registerTemplates(tpl);
+      .movie-title {
+        text-align: center;
+        white-space: normal;
+        width: 100%;
+        font-weight: bold;
       }
-    }
-
-		function onLoad() {
-      registerTemplates();
-			loadCategories();
-			loadMovies(true);
-		}
-
-    function showProgressIndicator() {
-      progressIndicatorRequests++;
-      byId('progressIndicator').style.display = 'initial';
-      byId('progressMask').style.display = 'initial';
-    }
-
-    function hideProgressIndicator() {
-      progressIndicatorRequests--;
-
-      if (progressIndicatorRequests < 0) {
-        progressIndicatorRequests = 0;
-      }
-      
-      if (progressIndicatorRequests === 0) {
-        byId('progressIndicator').style.display = 'none';
-        byId('progressMask').style.display = 'none';
-      }
-    }
-
-    function loadCategories() {
-      const categoriesList = byId('categories');
-      const tpl = categoriesList.querySelector('template').innerHTML;
-      const template = Handlebars.compile(tpl);
-     
-      showProgressIndicator();
-
-      fetch(`/tv-service/movies/categories`)
-        .then(response => response.text())
-        .then(responseText => {
-          const categories = JSON.parse(responseText);
-          categories.items.unshift(allCategory);
-          const html = categories.items.map(category => template(category)).join('\n');
-          categoriesList.innerHTML = `<template>${tpl}</template>` + html;
-        })
-        .then(hideProgressIndicator);
-    };
-
-    function loadMovies(reset) {
-      const moviesList = byId('moviesList');
-
-      if (moviesListInitial === null) {
-        moviesListInitial = moviesList.cloneNode(true);
-      }
-
-      const tpl = moviesListInitial.querySelector('template[id="list-item-template"]').innerHTML;
-      const template = Handlebars.compile(tpl);
-
-      const noDataTpl = moviesListInitial.querySelector('template[id="no-data-template"]').innerHTML;
-      const noDataTemplate = Handlebars.compile(noDataTpl);
-     
-      const loadingStencils = moviesListInitial.querySelector('template[id="loading-stencils"]').innerHTML;
-      const loadingStencilsTemplate = Handlebars.compile(loadingStencils);
-
-      isLoading = true;
-
-      if (reset) {
-        loadedMovies = 0;
-        totalMovies = 0;
-        moviesList.scrollTop = 0;
-      }
-
-      const search = currentSearchValue ? `&search=${encodeURIComponent(currentSearchValue)}` : '';
-      const categoryId = currentCategory ? `&categoryId=${currentCategory.id}` : '';
-
-      if (reset) {
-        showProgressIndicator();
-      } 
-
-      fetch(`/tv-service/movies?offset=${loadedMovies}&limit=${PAGE_SIZE}${categoryId}${search}`)
-        .then(response => response.text())
-        .then(responseText => {
-          const movies = JSON.parse(responseText);
-
-          totalMovies = movies.count;
-
-          if (movies.count === 0) {
-            loadedMovies = 0;
-            moviesList.innerHTML = noDataTemplate({});
-            return;
-          }
-
-          if (reset) {
-            const html = movies.items.map(movie => template(movie)).join('\n');
-            moviesList.innerHTML = html;
-            loadedMovies = movies.items.length;
-          } else {
-            const html = movies.items.map(movie => template(movie)).join('\n');
-            for (const movie of movies.items) {
-              const html = template(movie);
-              const stencil = document.querySelector('.stencil-list-item');
-              stencil.outerHTML = html;
-              stencil.classList.remove('stencil-list-item'); 
-            }
-
-            loadedMovies += movies.items.length;
-          }
-
-          if (loadedMovies < totalMovies) {
-            for (let i = 0; i < Math.min(PAGE_SIZE, totalMovies - loadedMovies); ++i) {
-              moviesList.insertAdjacentHTML('beforeend', loadingStencilsTemplate({}));
-            }
-          }
-
-          isLoading = false;
-        })
-        .then(hideProgressIndicator);
-    };
-
-    function loadMore() {
-      if (!isLoading && loadedMovies < totalMovies) {
-        loadMovies(false);
-      }
-    }
-
-    function onScroll() {
-      const element = byId('moviesList');
-      const firstStencil = byId("moviesList").querySelector('.stencil-list-item');
-      if (firstStencil && element.scrollTop > (firstStencil.offsetTop - 600)) {
-        loadMore();
-      }
-    }
-
-    function onMenuPress() {
-      openDrawer();
-    }
-
-    function onSelectCategory(id, name) {
-      const pageTitle = byId('pageTitle');
-
-      clearSearch(false);
-
-      if (id === String(allCategory.id)) {
-        currentCategory = null;
-        pageTitle.innerHTML = '';
-      } else {
-        currentCategory = { id, name };
-        pageTitle.innerHTML = currentCategory.name;
-      }
-      
-      loadMovies(true);
-    }
-
-    function clearSearch(reload) {
-      byId('searchField').value = '';
-      currentSearchValue = '';
-
-      if (reload !== false) {
-        loadMovies(true);
-      }
-    }
-
-    function onSearch() {
-      if (currentSearchTimer) {
-        clearTimeout(currentSearchTimer);
-      }
-
-      currentSearchTimer = setTimeout(() => {
-        currentSearchValue = byId('searchField').value;
-        loadMovies(true);
-      }, 500);
-    }
-
-    function openDrawer() {
-      const drawer = byId('drawer');
-      const drawerMask = byId('drawerMask');
-
-      const closeListener = (event) => {
-        event.preventDefault();
-
-        drawer.style.width = 0;
-        drawer.style.minWidth = 0;
-
-        setTimeout(() => {
-          drawer.style.removeProperty('width');
-          drawer.style.removeProperty('min-width');
-          drawer.style.display = 'none';
-          drawerMask.style.display = 'none';
-        }, 300);
-      };
-
-      const startAnimation = () => {
-        drawer.style.removeProperty('width');
-        drawer.style.removeProperty('min-width');
-        document.addEventListener('click', closeListener, { once: true });
-
-        setTimeout(() => {
-          drawer.style.removeProperty('width');
-        }, 300);
-      };
-
-      drawer.style.display = 'initial';
-      drawer.style.width = 0;
-      drawer.style.minWidth = 0;
-      drawerMask.style.display = 'initial';
-
-      setTimeout(startAnimation, 1);
-    }
-   </script>
-  </head>
-
-  <body onload="onLoad()">
-		<aside id="drawer" class="mdc-drawer" style="display: none">
-			<div class="mdc-drawer__content">
-				<nav id="categories" class="mdc-list">
-					<template id="categoriesDrawerItemTemplate">
-            <a class="mdc-list-item mdc-list-item--activated" href="#" onclick="onSelectCategory('{{id}}', '{{name}}')" aria-current="page">
-              <span class="mdc-list-item__text">{{name}}</span>
-						</a>
-					</template>
-				</nav>
-			</div>
-		</aside>
-
-		<header class="mdc-top-app-bar">
-			<div class="mdc-top-app-bar__row">
-				<section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
-					<button class="material-icons mdc-top-app-bar__navigation-icon mdc-icon-button" aria-label="Open navigation menu" onclick="onMenuPress()">menu</button>
-					<span id="pageTitle" class="mdc-top-app-bar__title"></span>
-				</section>
-
-				<section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" role="toolbar">
-					<label class="header-bar-input mdc-text-field mdc-text-field--filled mdc-text-field--no-label">
-						<span class="mdc-text-field__ripple"></span>
-						<input id="searchField" class="mdc-text-field__input" type="text" placeholder="Recherche" aria-label="Label" oninput="onSearch()">
-						<span class="mdc-line-ripple"></span>
-					</label>
-				</section>
-			</div>
-
-      <div id="progressIndicator" role="progressbar" class="progress-indicator mdc-linear-progress mdc-linear-progress--indeterminate" aria-label="Example Progress Bar" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
-        <div class="mdc-linear-progress__buffer">
-          <div class="mdc-linear-progress__buffer-bar"></div>
-          <div class="mdc-linear-progress__buffer-dots"></div>
-        </div>
-        <div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
-          <span class="mdc-linear-progress__bar-inner"></span>
-        </div>
-        <div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
-          <span class="mdc-linear-progress__bar-inner"></span>
-        </div>
-      </div>
-		</header>
-
-		<ul id="moviesList" class="movie-list mdc-image-list my-image-list" onscroll="onScroll()">
-      <template id="list-item-template">
-        <li class="mdc-image-list__item" onclick="openMovieDetail(`{{id}}`, `{{movieName}}`, `{{logoUrl}}`, `{{streamUrl}}`)">
+    </style>
+    <ul id="moviesList" class="movie-list mdc-image-list my-image-list" onscroll="onScroll()">
+      <template id="listItemTemplate">
+        <li class="mdc-image-list__item"
+          onclick="openMovieDetail(`{{id}}`, `{{movieName}}`, `{{logoUrl}}`, `{{streamUrl}}`)">
           <div class="mdc-image-list__image-aspect-container">
-            <img class="movie-image mdc-image-list__image" src="{{logoUrl}}" alt="{{movieName}}"/>
+            <img class="movie-image mdc-image-list__image" src="{{logoUrl}}" alt="{{movieName}}" />
           </div>
         </li>
       </template>
-
-      <template id="no-data-template">
+      <template id="noDataTemplate">
         <li class="mdc-image-list__item no-data-list-item">
           Aucun film ne correspond aux critères de recherche.
         </li>
       </template>
-
-      <template id="loading-stencils">
+      <template id="loadingStencilsTemplate">
         <li class="mdc-image-list__item stencil-list-item">
           <div class="mdc-image-list__image-aspect-container stencil-container">
           </div>
         </li>
       </template>
     </ul>
+  </main>
 
-    <div class="movie-detail-dialog">
-      <div id="movieDetailDialogContainer">
-        <!-- dialog content dynamically added-->
-      </div>
-      
-      <script>
-        function openMovieDetail(movieId, movieName, logoUrl, streamUrl) {
-          let movieContext = {
-            movieId,
-            movieName,
-            logoUrl,
-            streamUrl
-          };
+  <div class="movie-detail-dialog">
+    <div id="movieDetailDialogContainer">
+      <!-- dialog content dynamically added-->
+    </div>
 
-          openMovieDialog(movieContext);
+    <script>
+      function openMovieDetail(movieId, movieName, logoUrl, streamUrl) {
+        let movieContext = {
+          movieId,
+          movieName,
+          logoUrl,
+          streamUrl
+        };
 
-          fetch(`/tv-service/movies/${movieId}`)
-            .then(response => response.text())
-            .then(responseText => {
-              movieContext = JSON.parse(responseText);
-              handleMovieDetailLoadCompleted(movieContext);
-            });
-        }
+        openMovieDialog(movieContext);
 
-        function openMovieDialog(movieContext) {
-          const detailDialogContainer = document.getElementById('movieDetailDialogContainer');
-          byId('movieDetailDialogContainer').innerHTML = template('movieDetailDialogTemplate')(movieContext);
-        }
-
-        function closeMovieDetailDialog() {
-          const detailDialogContainer = document.getElementById('movieDetailDialogContainer');
-          detailDialogContainer.innerHTML = '';
-        }
-
-        function showMovieDetailProgressIndicator() {
-          byId('movieDetailProgressIndicator').style.display = 'initial';
-        }
-
-        function hideMovieDetailProgressIndicator() {
-          byId('movieDetailProgressIndicator').style.display = 'none';
-        }
-
-        function handleMovieDetailLoadCompleted(movieContext) {
-          byId('movieDetailHeaderInfo').innerHTML = template('movieDetailHeaderInfoTemplate')(movieContext);
-          byId('movieDetailTrailer').innerHTML = template('movieDetailTrailerTemplate')(movieContext);
-        }
-
-        function onCloseMovieDetail() {
-          closeMovieDetailDialog();
-        }
-
-        function onPlayMovie(streamUrl) {
-          showMovieDetailProgressIndicator();
-
-          // TODO need to solve this hardcoded IP
-          fetch('http://192.168.2.39:8080/play', {
-            method: 'POST',
-            body: JSON.stringify({
-              videoUrl: streamUrl 
-            })
-          }).then(() => {
-            setTimeout(() => {
-              closeMovieDetailDialog();
-              hideMovieDetailProgressIndicator()
-            }, 2000);
+        fetch(`/tv-service/movies/${movieId}`)
+          .then(response => response.text())
+          .then(responseText => {
+            movieContext = JSON.parse(responseText);
+            handleMovieDetailLoadCompleted(movieContext);
           });
-        }
-      </script>
-      
-      <style>
-        .movie-detail-progress-indicator {
-          position: absolute;
-          top: 0;
-          z-index: 10;
-        }
+      }
 
-        .movie-detail-dialog .mdc-dialog__container {
-          width: 90%;
-        }
+      function openMovieDialog(movieContext) {
+        const detailDialogContainer = document.getElementById('movieDetailDialogContainer');
+        byId('movieDetailDialogContainer').innerHTML = template('movieDetailDialogTemplate')(movieContext);
+      }
 
-        .movie-detail-dialog .mdc-dialog__surface {
-          width: 100%;
-          height: 90%;
-          max-width: 100%;
-        }
+      function closeMovieDetailDialog() {
+        const detailDialogContainer = document.getElementById('movieDetailDialogContainer');
+        detailDialogContainer.innerHTML = '';
+      }
 
-        .movie-detail-image {
-          width: 10rem;
-          margin-right: 1rem;
-        }
+      function showMovieDetailProgressIndicator() {
+        byId('movieDetailProgressIndicator').style.display = 'initial';
+      }
 
-        .movie-detail-overview-container {
-          display: flex;
-          flex-wrap: wrap;
-        }
+      function hideMovieDetailProgressIndicator() {
+        byId('movieDetailProgressIndicator').style.display = 'none';
+      }
 
-        .movie-detail-trailer {
-          margin-top: 0.5rem;
-          border: none;
-        }
+      function handleMovieDetailLoadCompleted(movieContext) {
+        byId('movieDetailHeaderInfo').innerHTML = template('movieDetailHeaderInfoTemplate')(movieContext);
+        byId('movieDetailTrailer').innerHTML = template('movieDetailTrailerTemplate')(movieContext);
+      }
 
-        .movie-detail-header {
-          display: flex;
-          align-items: center;
-          padding: 0.3rem;
-          padding-top: 1rem;
-        }
+      function onCloseMovieDetail() {
+        closeMovieDetailDialog();
+      }
 
-        .movie-detail-info {
-          font-weight: bold;
-        }
+      function onPlayMovie(streamUrl) {
+        showMovieDetailProgressIndicator();
 
-        .movie-detail-header-spacer {
-          flex: 1;
-        }
+        // TODO need to solve this hardcoded IP
+        fetch('http://192.168.2.39:8080/play', {
+          method: 'POST',
+          body: JSON.stringify({
+            videoUrl: streamUrl
+          })
+        }).then(() => {
+          setTimeout(() => {
+            closeMovieDetailDialog();
+            hideMovieDetailProgressIndicator()
+          }, 2000);
+        });
+      }
+    </script>
 
-        .movie-detail-header-title::before {
-          height: 0;
-        }
-      </style>
+    <style>
+      .movie-detail-progress-indicator {
+        position: absolute;
+        top: 0;
+        z-index: 10;
+      }
 
-      <template id="movieDetailDialogTemplate">
-        <div class="mdc-dialog mdc-dialog--open">
-          <div class="mdc-dialog__container">
-            <div class="mdc-dialog__surface" role="alertdialog" aria-modal="true" aria-labelledby="my-dialog-title" aria-describedby="my-dialog-content">
-              <div class="movie-detail-header">
-                <div id="movieDetailProgressIndicator" style="display: none" role="progressbar" class="movie-detail-progress-indicator mdc-linear-progress mdc-linear-progress--indeterminate" aria-label="Example Progress Bar" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
-                  <div class="mdc-linear-progress__buffer">
-                    <div class="mdc-linear-progress__buffer-bar"></div>
-                    <div class="mdc-linear-progress__buffer-dots"></div>
-                  </div>
-                  <div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
-                    <span class="mdc-linear-progress__bar-inner"></span>
-                  </div>
-                  <div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
-                    <span class="mdc-linear-progress__bar-inner"></span>
-                  </div>
+      .movie-detail-dialog .mdc-dialog__container {
+        width: 90%;
+      }
+
+      .movie-detail-dialog .mdc-dialog__surface {
+        width: 100%;
+        height: 90%;
+        max-width: 100%;
+      }
+
+      .movie-detail-image {
+        width: 10rem;
+        margin-right: 1rem;
+      }
+
+      .movie-detail-overview-container {
+        display: flex;
+        flex-wrap: wrap;
+      }
+
+      .movie-detail-trailer {
+        margin-top: 0.5rem;
+        border: none;
+      }
+
+      .movie-detail-header {
+        display: flex;
+        align-items: center;
+        padding: 0.3rem;
+        padding-top: 1rem;
+      }
+
+      .movie-detail-info {
+        font-weight: bold;
+      }
+
+      .movie-detail-header-spacer {
+        flex: 1;
+      }
+
+      .movie-detail-header-title::before {
+        height: 0;
+      }
+    </style>
+
+    <template id="movieDetailDialogTemplate">
+      <div class="mdc-dialog mdc-dialog--open">
+        <div class="mdc-dialog__container">
+          <div class="mdc-dialog__surface" role="alertdialog" aria-modal="true" aria-labelledby="my-dialog-title"
+            aria-describedby="my-dialog-content">
+            <div class="movie-detail-header">
+              <div id="movieDetailProgressIndicator" style="display: none" role="progressbar"
+                class="movie-detail-progress-indicator mdc-linear-progress mdc-linear-progress--indeterminate"
+                aria-label="Example Progress Bar" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
+                <div class="mdc-linear-progress__buffer">
+                  <div class="mdc-linear-progress__buffer-bar"></div>
+                  <div class="mdc-linear-progress__buffer-dots"></div>
                 </div>
-
-                <button class="movie-detail-close-button material-icons mdc-icon-button" aria-label="Open navigation menu" onclick="onCloseMovieDetail()">
-                  close
-                </button>
-                <div class="movie-detail-header-spacer"></div>
-                <button type="button" class="mdc-button mdc-dialog__button" data-mdc-dialog-action="close" onclick="onPlayMovie('{{streamUrl}}')">
-                  <div class="mdc-button__ripple"></div>
-                  <span class="mdc-button__label">Jouer</span>
-                </button>
+                <div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
+                  <span class="mdc-linear-progress__bar-inner"></span>
+                </div>
+                <div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
+                  <span class="mdc-linear-progress__bar-inner"></span>
+                </div>
               </div>
-    
-              <h2 class="movie-detail-header-title mdc-dialog__title" id="my-dialog-title">
-                <span class="movie-detail-title">
-                  {{movieName}}
-                </span>
-              </h2>
-    
-              <div class="mdc-dialog__content" id="my-dialog-content">
-                <div class="movie-detail-overview-container">
-                  <div class="movie-detail-header-info">
-                    <img class="movie-detail-image mdc-image-list__image" align="left" src="{{logoUrl}}" alt="{{movieName}}"/>
-                    
-                    <div id="movieDetailHeaderInfo" class="movie-detail-info-container">
-                      <template id="movieDetailHeaderInfoTemplate">
-                        <div>
-                          <span class="movie-detail-info">Category:</span>
-                          <span class="movie-detail-info-value">{{category.name}}</span>
-                        </div>
 
-                        <div>
-                          <span class="movie-detail-info">Score:</span>
-                          <span class="movie-detail-info-value">{{rating}}</span>
-                        </div>
+              <button class="movie-detail-close-button material-icons mdc-icon-button" aria-label="Open navigation menu"
+                onclick="onCloseMovieDetail()">
+                close
+              </button>
+              <div class="movie-detail-header-spacer"></div>
+              <button type="button" class="mdc-button mdc-dialog__button" data-mdc-dialog-action="close"
+                onclick="onPlayMovie('{{streamUrl}}')">
+                <div class="mdc-button__ripple"></div>
+                <span class="mdc-button__label">Jouer</span>
+              </button>
+            </div>
 
-                        <div>
-                          <span class="movie-detail-info">Annee:</span>
-                          <span class="movie-detail-info-value">{{year}}</span>
-                        </div>
+            <h2 class="movie-detail-header-title mdc-dialog__title" id="my-dialog-title">
+              <span class="movie-detail-title">
+                {{movieName}}
+              </span>
+            </h2>
 
-                        <div>
-                          <span class="movie-detail-info">Genres:</span>
-                          <span class="movie-detail-info-value">{{genre}}</span>
-                        </div>
+            <div class="mdc-dialog__content" id="my-dialog-content">
+              <div class="movie-detail-overview-container">
+                <div class="movie-detail-header-info">
+                  <img class="movie-detail-image mdc-image-list__image" align="left" src="{{logoUrl}}"
+                    alt="{{movieName}}" />
 
-                        <p>
-                          <div class="movie-detail-info">Aperçu:</div>
-                          <div class="movie-detail-overview">
-                            {{overview}}
-                          </div>
-                        </p>
-                      </template> 
-                    </div>
+                  <div id="movieDetailHeaderInfo" class="movie-detail-info-container">
+                    <template id="movieDetailHeaderInfoTemplate">
+                      <div>
+                        <span class="movie-detail-info">Category:</span>
+                        <span class="movie-detail-info-value">{{category.name}}</span>
+                      </div>
+
+                      <div>
+                        <span class="movie-detail-info">Score:</span>
+                        <span class="movie-detail-info-value">{{rating}}</span>
+                      </div>
+
+                      <div>
+                        <span class="movie-detail-info">Annee:</span>
+                        <span class="movie-detail-info-value">{{year}}</span>
+                      </div>
+
+                      <div>
+                        <span class="movie-detail-info">Genres:</span>
+                        <span class="movie-detail-info-value">{{genre}}</span>
+                      </div>
+
+                      <p>
+                      <div class="movie-detail-info">Aperçu:</div>
+                      <div class="movie-detail-overview">
+                        {{overview}}
+                      </div>
+                      </p>
+                    </template>
                   </div>
                 </div>
-                
-                <div id="movieDetailTrailer">
-                  <template id="movieDetailTrailerTemplate">
-                    <iframe class="movie-detail-trailer" width="100%" height="315" src="{{youtubeTrailer}}"></iframe>
-                  </template>
-                </div>
+              </div>
+
+              <div id="movieDetailTrailer">
+                <template id="movieDetailTrailerTemplate">
+                  <iframe class="movie-detail-trailer" width="100%" height="315" src="{{youtubeTrailer}}"></iframe>
+                </template>
               </div>
             </div>
           </div>
-          <div class="mdc-dialog__scrim"></div>
-        </div>  
-      </template>
-    </div>
-    
-    <div id="progressMask" style="display: none;" class="progress-mask">
-    </div>
+        </div>
+        <div class="mdc-dialog__scrim"></div>
+      </div>
+    </template>
+  </div>
+</body>
 
-    <div id="drawerMask" style="display: none;" class="drawer-mask">
-    </div>
-  </body>
 </html>

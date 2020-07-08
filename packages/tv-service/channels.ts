@@ -92,7 +92,7 @@ const mapChannel = (payload: ChannelPayload): Channel => {
 
 const fetchEPG = async (channel: Channel): Promise<EpgProgram[]> => {
   if (!process.env.http_proxy) { 
-    throw new Error(`[tv-service] http_proxy not provided, this service needs the proxy set`);
+    console.warn(`[tv-service] http_proxy not provided, this service needs the proxy set`);
   }
 
   if (!channel.timeshiftUrl) {

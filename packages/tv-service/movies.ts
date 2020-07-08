@@ -160,7 +160,7 @@ const mapMovieFromVodStream = (source: SourcePayload, vod: VodPayload): Movie =>
 
 const fetchMovieDetail = async (movieId: string): Promise<MovieDetail> => {
   if (!process.env.http_proxy) { 
-    throw new Error(`[tv-service] fetchMovieDetail - http_proxy not provided, this service needs the proxy set`);
+    console.warn(`[tv-service] fetchMovieDetail - http_proxy not provided, this service needs the proxy set`);
   }
 
   await fetchSources();

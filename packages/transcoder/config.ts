@@ -1,6 +1,6 @@
 const { rcfg, cfg } = require('common/config');
 
-export const IptvHttpProxy = rcfg('IPTV_HTTP_PROXY', process.env.IPTV_HTTP_PROXY);
+export const IptvHttpProxy = cfg('IPTV_HTTP_PROXY', process.env.IPTV_HTTP_PROXY);
 export const Port = cfg('TRANSCODER_PORT', 8666);
 export const DebugLogging = cfg('TRANSCODER_DEBUG_LOGGING', false);
 export const EnableDiscovery = cfg('TRANSCODER_ENABLE_DISCOVERY', false);

@@ -97,7 +97,7 @@ const servePlaylist = async (req, res, isLive) => {
 
     for (let i = 1; i < Config.MaxDuration; ++i) {
       playlist.push(`#EXTINF:${hlsDuration},`);
-      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/${-1 * i}/0`);
+      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/${-1}/0`);
     }
   } 
 
@@ -169,10 +169,6 @@ const loadChunk = async (url, s, d): Promise<{stream: any, cancel: () => void}> 
 
   options.push('-i', url);
 
-  options.push('-strict', 'experimental');
-  options.push('-max_muxing_queue_size', '1024');
-  options.push('-pix_fmt', 'yuv420p');
-
   options.push('-acodec');
   if (transcode) {
     options.push('aac', '-ab', '640k', '-ac', '6');
@@ -200,8 +196,13 @@ const loadChunk = async (url, s, d): Promise<{stream: any, cancel: () => void}> 
 
   if (!isLive) {
     options.push('-avoid_negative_ts', 'make_zero', '-fflags', '+genpts');
+  } else {
+    options.push('-copyts');
   }
 
+  options.push('-strict', 'experimental');
+  options.push('-max_muxing_queue_size', '1024');
+  options.push('-pix_fmt', 'yuv420p');
   options.push('-f', 'mpegts');
   options.push('pipe:1');
 

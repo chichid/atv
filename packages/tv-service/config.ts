@@ -1,6 +1,6 @@
 import { rcfg, cfg } from 'common/config';
 
-export const IptvHttpProxy = rcfg('IPTV_HTTP_PROXY', process.env.IPTV_HTTP_PROXY);
+export const IptvHttpProxy = cfg('IPTV_HTTP_PROXY', process.env.IPTV_HTTP_PROXY);
 export const Port = cfg('TV_SERVICE_PORT', 8888);
 export const Addr = cfg('TV_SERVICE_ADDR', null);
 export const TranscoderUrl = rcfg('TRANSCODER_URL');

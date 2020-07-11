@@ -1,5 +1,8 @@
 import * as http from 'http';
+import * as followRedirects from 'follow-redirects';
 import { spawn } from 'child_process';
+import { Readable, Writable } from 'stream';
+import { wait, get } from 'common/utils';
 import * as Config from './config';
 import { startDiscoveryService, getWorkerList } from './discovery';
 
@@ -7,6 +10,11 @@ interface VideoInfo {
   totalDuration: number;
   videoCodecs: string[];
   audioCodecs: string[];
+};
+
+enum RequestMethod {
+  Get = 'GET',
+  Post = 'POST',
 };
 
 const cache = {
@@ -39,6 +47,8 @@ const handleRequest = async (req, res): Promise<void> => {
       await servePlaylist(req, res, false);
     } else if (req.url.startsWith('/transcoder/chunk')) {
       await serveChunk(req, res);
+    } else if (req.url.startsWith('/transcoder/remote-transcode')) {
+      await remoteTranscode(req, res);
     } else {
       res.writeHead(404);
       res.end('resource not found');
@@ -67,12 +77,11 @@ const servePlaylist = async (req, res, isLive) => {
     cache.currentStream = null;
   }
 
-  console.log(`[transcoder] proxyVideo - fetching video info...`);
-
   playlist.push(`#EXTM3U`);
   playlist.push(`#EXT-X-VERSION:4`);
 
   if (!isLive) {
+    console.log(`[transcoder] proxyVideo - VOD detected, fetching video info...`);
     const videoInfo = await loadVideoInfo(url);
     const hlsDuration = 10;
     const totalDuration = videoInfo.totalDuration || Config.MaxDuration; 
@@ -85,7 +94,7 @@ const servePlaylist = async (req, res, isLive) => {
     while (start < videoInfo.totalDuration) {
       const chunkDuration = Math.min(videoInfo.totalDuration - start, hlsDuration);
       playlist.push(`#EXTINF:${hlsDuration},`);
-      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/${start}/${hlsDuration}`);
+      playlist.push(getPlaylistUrl(url, start, hlsDuration, isLive));
       start += chunkDuration;
     }
   } else { 
@@ -97,7 +106,7 @@ const servePlaylist = async (req, res, isLive) => {
 
     for (let i = 1; i < Config.MaxDuration; ++i) {
       playlist.push(`#EXTINF:${hlsDuration},`);
-      playlist.push(`/transcoder/chunk/${encodeURIComponent(url)}/${-1}/0`);
+      playlist.push(getPlaylistUrl(url, null, null, isLive));
     }
   } 
 
@@ -110,44 +119,162 @@ const servePlaylist = async (req, res, isLive) => {
   res.end(playlist.join('\n'));
 };
 
-const serveChunk = async (req, res): Promise<void> => {
-  const matches = req.url.match('/transcoder/chunk/([^/]*)/([^/]*)/([^/]*)');
+const getPlaylistUrl = (url: string, start: number, duration: number, isLive: boolean): string => {
+  if (Config.RemoteTranscoder) {
+    const s: string = isLive ? '-1' : String(start);
+    const d: string = duration ? String(duration) : '0';
+    return `${Config.RemoteTranscoder}/transcoder/remote-transcode/${encodeURIComponent(url)}/${s}/${d}`;
+  } else {
+    return `/transcoder/chunk/${encodeURIComponent(url)}/${start}/${duration}`;
+  }
+};
+
+const remoteTranscode = async (req, res): Promise<void> => {
+  if (!Config.RemoteTranscoder) {
+    throw new Error(`[transcoder] remoteTranscode needs Config.RemoteTranscoder`);
+  }
+
+  console.log(`[transcoder] waking up the remote transcoder`);
+  await get(`${Config.RemoteTranscoder}/transcoder/ping`);
+
+  const matches = req.url.match(`/transcoder/remote-transcode/([^/]*)/([^/]*)/([^/]*)`);
   const url = decodeURIComponent(matches[1]);
   const start = Number(matches[2]);
   const duration = Number(matches[3]);
+
+
+  if (url.startsWith('https')) {
+    throw new Error('[transcoder] https is not supported yet for remote transcoder');
+  }
+
+  console.log(`[transcoder] using remote transcoder for ${url}, ${start}, ${duration}`);
+
+  const postURL =new URL(Config.RemoteTranscoder);
+  const postRequest = http.request({
+    method: 'POST',
+    hostname: postURL.hostname,
+    port: postURL.port,
+    path: `/transcoder/chunk/${encodeURIComponent(url)}/${start}/${duration}`,
+  }, (postResponse) => {
+    console.log(`[remote-trasncoder] got post response ${postResponse.statusCode}, now piping...`);
+
+    if (postResponse.statusCode === 200) {
+      res.writeHead(200, {
+        'Content-Type': 'video/MP2T',
+      });
+
+      postResponse.on('data', chunk => {
+        res.write(chunk);
+      })
+    }
+  });
+
+  console.log(`[transcoder] getting URL ${url}`);
+
+  const getRequest = followRedirects.http.get(url, getResponse => {
+    console.log(`[transcoder] get url response ${url}, ${getResponse.statusCode}`);
+
+    getResponse.on('data', chunk => {
+      postRequest.write(chunk);
+    });
+
+    getResponse.on('end', () => {
+      console.log(`[transcoder] remote-transcode - finished remote transcoding ${url}`);
+      postRequest.end();
+    });
+  });
+
+  req.on('close', () => {
+    console.log(`[transcoder] remote-transcoder - client hangout ${url}`);
+    postRequest.abort();
+    getRequest.abort();
+  });
+};
+
+const serveChunk = async (req, res): Promise<void> => {
+  const isGet = req.method.toUpperCase() === RequestMethod.Get;
+  const isPost = req.method.toUpperCase() === RequestMethod.Post;
+
+  if (!isGet && !isPost) {
+    throw new Error(`[transcoder] serveChunk unkown method: ${req.method}`);
+  }
+
+  const matches = req.url.match(`/transcoder/chunk/([^/]*)/([^/]*)/([^/]*)`);
+  const url = decodeURIComponent(matches[1]);
+  const start = Number(matches[2]);
+  const duration = Number(matches[3]);
+
+  console.log(`[transcoder] serveChunk - ${req.method} - ${req.url}`);
 
   if (cache.currentStream) {
     cache.currentStream.end();
     cache.currentStream = null;
   }
 
-  const { stream, cancel } = await loadChunk(url, start, duration);
+  const { stdin, stdout, cancel } = await loadChunk(url, start, duration, isPost);
+
+  if (isPost) {
+    let buffer = [];
+    let done = false;
+    let closed = false;
+
+    stdin.on('close', () => {
+      closed = true;
+    });
+
+    req.on('data', (chunk: any) => {
+      buffer.push(chunk);
+    });
+
+    req.on('end', () => {
+      done = true;
+    });
+
+    const pollData = async () =>  {
+      const data = buffer.shift();
+
+      if (data && !closed) {
+        stdin.write(data);
+      }
+
+      if (done && buffer.length === 0) {
+        stdin.end();
+      } else {
+        await wait(5);
+        pollData();
+      }
+    };
+
+    pollData();
+  }
+
+  console.log(`[transcoder] serveChunk - streaming content of chunk ${start} - ${duration}`);
+  stdout.pipe(res, { end: true });
+
+  cache.currentStream = res;
 
   res.writeHead(200, {
     'Content-Type': 'video/MP2T',
   });
 
-  console.log(`[transcoder] serve - streaming content of chunk ${start} - ${duration}`);
-  stream.pipe(res, { end: true });
-
-  cache.currentStream = stream;
-
   req.on('close', () => {
-    console.log(`[transcoder] serve - client dropped`);
+    console.log(`[transcoder] serveChunk - client dropped`);
     cancel();
   });
 };
 
-const loadChunk = async (url, s, d): Promise<{stream: any, cancel: () => void}> => {
+const loadChunk = async (input: string, start: number, duration: number, useStdin: boolean): Promise<{stdout: Readable, stdin: Writable, cancel: () => void}> => {
   const ffmpeg = Config.FFMpegPath || 'ffmpeg';
-  const start = Number(s);
-  const duration = Number(d);
 
-  //const { audioCodecs, videoCodecs } = await loadVideoInfo(url);
-  const isLive = start < 0;
-  //const videoNeedTranscode = (videoCodecs && videoCodecs.some(c => c.indexOf('h264') === -1));
-  //const audioNeedTranscode = (audioCodecs && audioCodecs.some(c => c.indexOf('aac') === -1));
-  const transcode = !isLive;
+  const isLive = !isNaN(start) && start < 0;
+  let transcode = !isLive;
+
+  //if (!isLive) {
+  //  const { audioCodecs, videoCodecs } = await loadVideoInfo(url);
+  //  const videoNeedTranscode = (videoCodecs && videoCodecs.some(c => c.indexOf('h264') === -1));
+  //  const audioNeedTranscode = (audioCodecs && audioCodecs.some(c => c.indexOf('aac') === -1));
+  //  transcoder = videoNeedTranscode || audioNeedTranscode;
+  //}
 
   const options = [];
 
@@ -167,7 +294,7 @@ const loadChunk = async (url, s, d): Promise<{stream: any, cancel: () => void}> 
     options.push('-t', String(duration));
   }
 
-  options.push('-i', url);
+  options.push('-i', useStdin ? 'pipe:0' : input);
 
   options.push('-acodec');
   if (transcode) {
@@ -196,12 +323,13 @@ const loadChunk = async (url, s, d): Promise<{stream: any, cancel: () => void}> 
 
   if (!isLive) {
     options.push('-avoid_negative_ts', 'make_zero', '-fflags', '+genpts');
+    options.push('-max_muxing_queue_size', '1024');
   } else {
     options.push('-copyts');
   }
 
   options.push('-strict', 'experimental');
-  options.push('-max_muxing_queue_size', '1024');
+  options.push('-r', '24');
   options.push('-pix_fmt', 'yuv420p');
   options.push('-f', 'mpegts');
   options.push('pipe:1');
@@ -212,22 +340,26 @@ const loadChunk = async (url, s, d): Promise<{stream: any, cancel: () => void}> 
 
   if (Config.DebugLogging === 'true') {
     child.stderr.on('data', data => {
-      console.log('[ffmpeg] ' + data.toString())
+      console.log('[transcoder-ffmpeg] ' + data.toString())
     });
   }
 
   child.on('error', error => {
-    console.error(`[ffmpeg] error transcoding  ${url} / ${start} / ${duration}`);
+    console.error(`[transcoder-ffmpeg] error transcoding  ${typeof input === 'string' ? input : 'pipe:0'} / ${start} / ${duration}`);
+    console.log('error ---> ');
     console.error(error);
+    console.log(`------`);
+
     cancel();
   });
 
-  child.on('exit', error => {
-    console.log(`[ffmpeg] exiting transcoding process ${url} / ${start} / ${duration}`);
+  child.on('exit', code => {
+    console.log(`[transcoder-ffmpeg] exiting transcoding process with code ${code} / ${input} / ${start} / ${duration}`);
   });
 
   return { 
-    stream: child.stdout,
+    stdout: child.stdout,
+    stdin: child.stdin,
     cancel,
   };
 };

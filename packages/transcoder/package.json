@@ -7,7 +7,8 @@
     "watch": "nodemon --watch templates --watch ./ --watch ../common -e json,ts,xml,js ./index.ts"
   },
   "dependencies": {
-    "common": "file:../common"
+    "common": "file:../common",
+    "follow-redirects": "^1.12.1"
   },
   "devDependencies": {
     "copyfiles": "^2.3.0",

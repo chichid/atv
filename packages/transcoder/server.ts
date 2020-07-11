@@ -2,7 +2,7 @@ import * as http from 'http';
 import * as followRedirects from 'follow-redirects';
 import { spawn } from 'child_process';
 import { Readable, Writable } from 'stream';
-import { wait, get } from 'common/utils';
+import { wait, post, get } from 'common/utils';
 import * as Config from './config';
 import { startDiscoveryService, getWorkerList } from './discovery';
 
@@ -35,6 +35,8 @@ export const startServer = () => {
       startDiscoveryService();
     }
   });
+
+  startFFMpegServer();
 };
 
 const handleRequest = async (req, res): Promise<void> => {
@@ -49,6 +51,8 @@ const handleRequest = async (req, res): Promise<void> => {
       await serveChunk(req, res);
     } else if (req.url.startsWith('/transcoder/remote-transcode')) {
       await remoteTranscode(req, res);
+    } else if (req.url.startsWith('/transcoder/ffmpeg-proxy')) {
+      ffmpegProxy(req, res);
     } else {
       res.writeHead(404);
       res.end('resource not found');
@@ -123,72 +127,10 @@ const getPlaylistUrl = (url: string, start: number, duration: number, isLive: bo
   if (Config.RemoteTranscoder) {
     const s: string = isLive ? '-1' : String(start);
     const d: string = duration ? String(duration) : '0';
-    return `${Config.RemoteTranscoder}/transcoder/remote-transcode/${encodeURIComponent(url)}/${s}/${d}`;
+    return `/transcoder/remote-transcode/${encodeURIComponent(url)}/${s}/${d}`;
   } else {
     return `/transcoder/chunk/${encodeURIComponent(url)}/${start}/${duration}`;
   }
-};
-
-const remoteTranscode = async (req, res): Promise<void> => {
-  if (!Config.RemoteTranscoder) {
-    throw new Error(`[transcoder] remoteTranscode needs Config.RemoteTranscoder`);
-  }
-
-  console.log(`[transcoder] waking up the remote transcoder`);
-  await get(`${Config.RemoteTranscoder}/transcoder/ping`);
-
-  const matches = req.url.match(`/transcoder/remote-transcode/([^/]*)/([^/]*)/([^/]*)`);
-  const url = decodeURIComponent(matches[1]);
-  const start = Number(matches[2]);
-  const duration = Number(matches[3]);
-
-
-  if (url.startsWith('https')) {
-    throw new Error('[transcoder] https is not supported yet for remote transcoder');
-  }
-
-  console.log(`[transcoder] using remote transcoder for ${url}, ${start}, ${duration}`);
-
-  const postURL =new URL(Config.RemoteTranscoder);
-  const postRequest = http.request({
-    method: 'POST',
-    hostname: postURL.hostname,
-    port: postURL.port,
-    path: `/transcoder/chunk/${encodeURIComponent(url)}/${start}/${duration}`,
-  }, (postResponse) => {
-    console.log(`[remote-trasncoder] got post response ${postResponse.statusCode}, now piping...`);
-
-    if (postResponse.statusCode === 200) {
-      res.writeHead(200, {
-        'Content-Type': 'video/MP2T',
-      });
-
-      postResponse.on('data', chunk => {
-        res.write(chunk);
-      })
-    }
-  });
-
-  console.log(`[transcoder] getting URL ${url}`);
-
-  const getRequest = followRedirects.http.get(url, getResponse => {
-    console.log(`[transcoder] get url response ${url}, ${getResponse.statusCode}`);
-
-    getResponse.on('data', chunk => {
-      postRequest.write(chunk);
-    });
-
-    getResponse.on('end', () => {
-      console.log(`[transcoder] remote-transcode - finished remote transcoding ${url}`);
-      postRequest.end();
-    });
-  });
-
-  req.on('close', () => {
-    console.log(`[transcoder] remote-transcoder - client hangout ${url}`);
-    postRequest.abort();
-    getRequest.abort();
-  });
 };
 
 const serveChunk = async (req, res): Promise<void> => {
@@ -211,41 +153,10 @@ const serveChunk = async (req, res): Promise<void> => {
     cache.currentStream = null;
   }
 
-  const { stdin, stdout, cancel } = await loadChunk(url, start, duration, isPost);
+  const { stdin, stdout, cancel } = await loadChunk(url, start, duration);
 
   if (isPost) {
-    let buffer = [];
-    let done = false;
-    let closed = false;
-
-    stdin.on('close', () => {
-      closed = true;
-    });
-
-    req.on('data', (chunk: any) => {
-      buffer.push(chunk);
-    });
-
-    req.on('end', () => {
-      done = true;
-    });
-
-    const pollData = async () =>  {
-      const data = buffer.shift();
-
-      if (data && !closed) {
-        stdin.write(data);
-      }
-
-      if (done && buffer.length === 0) {
-        stdin.end();
-      } else {
-        await wait(5);
-        pollData();
-      }
-    };
-
-    pollData();
+    req.pipe(stdin, { end: true });
   }
 
   console.log(`[transcoder] serveChunk - streaming content of chunk ${start} - ${duration}`);
@@ -263,7 +174,153 @@ const serveChunk = async (req, res): Promise<void> => {
   });
 };
 
-const loadChunk = async (input: string, start: number, duration: number, useStdin: boolean): Promise<{stdout: Readable, stdin: Writable, cancel: () => void}> => {
+const remoteTranscode = async (req, res): Promise<void> => {
+  if (!Config.RemoteTranscoder) {
+    throw new Error(`[transcoder] remoteTranscode needs Config.RemoteTranscoder`);
+  }
+
+  console.log(`[transcoder] waking up the remote transcoder`);
+  await get(`${Config.RemoteTranscoder}/transcoder/ping`);
+
+  const matches = req.url.match(`/transcoder/remote-transcode/([^/]*)/([^/]*)/([^/]*)`);
+  const url = decodeURIComponent(matches[1]);
+  const start = Number(matches[2]);
+  const duration = Number(matches[3]);
+
+  if (url.startsWith('https')) {
+    throw new Error('[transcoder] https is not supported yet for remote transcoder');
+  }
+
+  await pushStream(url, start, duration);
+
+  console.log('resolved');
+
+  res.writeHead(302, {
+    'location': Config.RemoteTranscoder + '/transcoder/ffmpeg-proxy',
+  });
+
+  res.end();
+};
+
+const ffmpegProxy = async (req, res) => {
+  if (req.method === 'GET') {
+    http.get('http://localhost:9002', response => {
+      res.writeHead(response.statusCode, response.headers);
+      response.pipe(res, { end: true });
+
+      response.on('error', err => {
+        console.log('ffmpegProxy - error ' + err);
+      });
+
+      req.on('close', () => {
+        console.log('ffserver client hangout');
+
+        if (currentFFServer) {
+          currentFFServer.kill('SIGINT');
+          currentFFServer = null;
+        }
+      });
+    }).on('error', err => {
+      console.log('proxy ffmpeg get error ' + err);
+    });
+  }
+
+  if (req.method === 'POST') {
+    console.log('ffmpeg proxy post');
+
+    const postOptions = {
+      method: 'POST',
+      hostname: 'localhost',
+      port: 9001,
+      path: req.url,
+      headers: req.headers,
+    };
+
+    const postRequest = http.request(postOptions, response => {
+      console.log('ffmpeg proxy post response');
+      res.writeHead(response.statusCode, response.headers);
+      response.pipe(res, { end: true });
+    });
+
+    postRequest.on('error', err => {
+      console.log('proxy ffmpeg get error ' + err);
+    });
+
+    req.pipe(postRequest, {end: true});
+  }
+};
+
+let currentFFServer = null;
+
+const startFFMpegServer = () => {
+  if (currentFFServer) {
+    currentFFServer.kill('SIGINT');
+    currentFFServer = null;
+  }
+
+  const options = [];
+  options.push(
+    '-listen', '1', 
+    '-i', 'http://localhost:9001', 
+    '-c', 'copy', 
+    '-f', 'mpegts', 
+    '-listen', '1', 
+    'http://localhost:9002'
+  );
+
+  console.log(`[transcoder] starting ffmpeg server with command: ${options.join(' ')}`);
+
+  const child = spawn('ffmpeg', options);
+  currentFFServer = child;
+
+  child.stderr.on('data', data => {
+    console.log('[transcoder] startFFMpegServer | ' + data.toString())
+  });
+
+  child.on('error', err => {
+    console.log(`[transcoder] startFFMpegServer | error ${err}`);
+    currentFFServer = null;
+    startFFMpegServer();
+  });
+
+  child.on('close', code => {
+    console.log(`[transcoder] startFFMpegServer | code ${code}`);
+    currentFFServer = null;
+    startFFMpegServer();
+  });
+};
+
+const pushStream = (url: string, start: number, duration: number) => new Promise(resolve => {
+  const postURL = new URL(Config.RemoteTranscoder);
+  console.log('pushing stream...');
+
+  const postOptions = {
+    method: 'POST',
+    hostname: postURL.hostname,
+    port: postURL.port,
+    path: '/transcoder/ffmpeg-proxy',
+  };
+
+  const postRequest = http.request(postOptions, response => {
+    console.log('got post response');
+  });
+
+  postRequest.on('error', err => {
+    startFFMpegServer();
+    console.log('proxy ffmpeg post error ' + err);
+  });
+
+  followRedirects.http.get(url, getResp => {
+    getResp.pipe(postRequest, {end: true});
+    setTimeout(resolve, 1000);
+  }).on('error', err => {
+    startFFMpegServer();
+    console.log('proxy ffmpeg get error' + err);
+  });
+});
+
+
+const loadChunk = async (input: string, start: number, duration: number): Promise<{stdout: Readable, stdin: Writable, cancel: () => void}> => {
   const ffmpeg = Config.FFMpegPath || 'ffmpeg';
 
   const isLive = !isNaN(start) && start < 0;
@@ -294,7 +351,7 @@ const loadChunk = async (input: string, start: number, duration: number, useStdi
     options.push('-t', String(duration));
   }
 
-  options.push('-i', useStdin ? 'pipe:0' : input);
+  options.push('-i', input);
 
   options.push('-acodec');
   if (transcode) {

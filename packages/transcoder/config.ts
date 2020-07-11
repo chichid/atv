@@ -10,6 +10,7 @@ export const FFMpegPath = cfg('TRANSCODER_FFMPEG_PATH');
 export const FFProbePath = cfg('TRANSCODER_FFPROBE_PATH');
 export const FFMpegExtraVideoFlags = cfg('TRANSCODER_FFMPEG_EXTRA_VIDEO_FLAGS', '');
 export const RemoteTranscoder = cfg('TRANSCODER_REMOTE_TRANSCODER');
+export const RemoteTranscoderPollInterval = cfg('TRANSCODER_REMOTE_TRANSCODER_POLL_INTERVAL', 100);
 
 export const Discovery = {
   Port: cfg('TRANSCODER_DISCOVERY_PORT', 23456),

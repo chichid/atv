@@ -47,8 +47,8 @@ const handleRequest = async (req, res): Promise<void> => {
       await servePlaylist(req, res, true);
     } else if (req.url.startsWith('/transcoder/vod')) {
       await servePlaylist(req, res, false);
-    } else if (req.url.startsWith('/transcoder/chunk')) {
-      await serveChunk(req, res);
+    } else if (req.url.startsWith('/transcoder/transcode')) {
+      await transcode(req, res);
     } else if (req.url.startsWith('/transcoder/remote-transcode')) {
       await remoteTranscode(req, res);
     } else if (req.url.startsWith('/transcoder/ffmpeg-proxy')) {
@@ -87,7 +87,7 @@ const servePlaylist = async (req, res, isLive) => {
   if (!isLive) {
     console.log(`[transcoder] proxyVideo - VOD detected, fetching video info...`);
     const videoInfo = await loadVideoInfo(url);
-    const hlsDuration = 10;
+    const hlsDuration = Config.HlsChunkDuration;
     const totalDuration = videoInfo.totalDuration || Config.MaxDuration; 
     console.log(`[transcoder] constructing VOD playlist, totalDuration: ${totalDuration}, url ${url}`);
 
@@ -108,9 +108,11 @@ const servePlaylist = async (req, res, isLive) => {
     playlist.push(`#EXT-X-TARGETDURATION:${hlsDuration}`);
     playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
 
+    const liveUrl = getPlaylistUrl(url, null, null, isLive);
+
     for (let i = 1; i < Config.MaxDuration; ++i) {
       playlist.push(`#EXTINF:${hlsDuration},`);
-      playlist.push(getPlaylistUrl(url, null, null, isLive));
+      playlist.push(liveUrl);
     }
   } 
 
@@ -124,42 +126,50 @@ const servePlaylist = async (req, res, isLive) => {
 };
 
 const getPlaylistUrl = (url: string, start: number, duration: number, isLive: boolean): string => {
+  if (isLive) {
+    const availableVideoInfo = getVideoInfo(url);
+    let needTranscoding = false;
+    
+    if (availableVideoInfo) {
+      const { audioCodecs, videoCodecs } = availableVideoInfo;
+      const videoNeedTranscode = (videoCodecs && videoCodecs.some(c => c.indexOf('h264') === -1));
+      const audioNeedTranscode = (audioCodecs && audioCodecs.some(c => c.indexOf('aac') === -1));
+      needTranscoding = videoNeedTranscode || audioNeedTranscode;
+    } else {
+      loadVideoInfo(url);
+    }
+
+    if (!needTranscoding) {
+      return url;
+    }
+  } 
+
   if (Config.RemoteTranscoder) {
     const s: string = isLive ? '-1' : String(start);
     const d: string = duration ? String(duration) : '0';
     return `/transcoder/remote-transcode/${encodeURIComponent(url)}/${s}/${d}`;
   } else {
-    return `/transcoder/chunk/${encodeURIComponent(url)}/${start}/${duration}`;
+    return `/transcoder/transcode/${encodeURIComponent(url)}/${start}/${duration}`;
   }
 };
 
-const serveChunk = async (req, res): Promise<void> => {
-  const isGet = req.method.toUpperCase() === RequestMethod.Get;
-  const isPost = req.method.toUpperCase() === RequestMethod.Post;
-
-  if (!isGet && !isPost) {
-    throw new Error(`[transcoder] serveChunk unkown method: ${req.method}`);
-  }
-
-  const matches = req.url.match(`/transcoder/chunk/([^/]*)/([^/]*)/([^/]*)`);
+const transcode = async (req, res): Promise<void> => {
+  const matches = req.url.match(`/transcoder/transcode/([^/]*)/([^/]*)/([^/]*)`);
   const url = decodeURIComponent(matches[1]);
   const start = Number(matches[2]);
   const duration = Number(matches[3]);
 
-  console.log(`[transcoder] serveChunk - ${req.method} - ${req.url}`);
+  console.log(`[transcoder] transcode - ${req.method} - ${req.url}`);
 
   if (cache.currentStream) {
+    console.log(`[transcoder] stopping previous transcoding stream`);
     cache.currentStream.end();
     cache.currentStream = null;
   }
 
-  const { stdin, stdout, cancel } = await loadChunk(url, start, duration);
+  const { stdout, cancel } = await loadChunk(url, start, duration);
 
-  if (isPost) {
-    req.pipe(stdin, { end: true });
-  }
-
-  console.log(`[transcoder] serveChunk - streaming content of chunk ${start} - ${duration}`);
+  console.log(`[transcoder] transcode - streaming content of chunk ${start} - ${duration}`);
   stdout.pipe(res, { end: true });
 
   cache.currentStream = res;
@@ -169,7 +179,7 @@ const serveChunk = async (req, res): Promise<void> => {
   });
 
   req.on('close', () => {
-    console.log(`[transcoder] serveChunk - client dropped`);
+    console.log(`[transcoder] transcode - client dropped ${url}`);
     cancel();
   });
 };
@@ -179,7 +189,7 @@ const remoteTranscode = async (req, res): Promise<void> => {
     throw new Error(`[transcoder] remoteTranscode needs Config.RemoteTranscoder`);
   }
 
-  console.log(`[transcoder] waking up the remote transcoder`);
+  console.log(`[transcoder] waking up the remote transcoder ${Config.RemoteTranscoder}`);
   await get(`${Config.RemoteTranscoder}/transcoder/ping`);
 
   const matches = req.url.match(`/transcoder/remote-transcode/([^/]*)/([^/]*)/([^/]*)`);
@@ -192,8 +202,6 @@ const remoteTranscode = async (req, res): Promise<void> => {
   }
 
   await pushStream(url, start, duration);
-
-  console.log('resolved');
 
   res.writeHead(302, {
     'location': Config.RemoteTranscoder + '/transcoder/ffmpeg-proxy',
@@ -251,22 +259,51 @@ const ffmpegProxy = async (req, res) => {
 };
 
 let currentFFServer = null;
+let skipRestart = false;
 
 const startFFMpegServer = () => {
   if (currentFFServer) {
+    skipRestart = true;
     currentFFServer.kill('SIGINT');
     currentFFServer = null;
+    skipRestart = false;
   }
 
   const options = [];
-  options.push(
-    '-listen', '1', 
-    '-i', 'http://localhost:9001', 
-    '-c', 'copy', 
-    '-f', 'mpegts', 
-    '-listen', '1', 
-    'http://localhost:9002'
-  );
+
+  if (Config.DebugLogging !== 'true') {
+    options.push('-hide_banner', '-loglevel', 'quiet');
+  }
+
+  options.push('-listen', '1');
+  options.push('-i', 'http://localhost:9001');
+
+  options.push('-acodec');
+  options.push('aac', '-ab', '640k', '-ac', '6');
+
+  options.push('-vcodec');
+  options.push('h264');
+  options.push('-crf', '18');
+  options.push('-s', '1280x720');
+  options.push('-preset', 'ultrafast');
+  options.push('-profile:v', 'baseline');
+  options.push('-level', '3.0');
+  options.push('-tune', 'zerolatency');
+  options.push('-movflags', '+faststart');
+
+  if (Config.FFMpegExtraVideoFlags) {
+    options.push.apply(options, Config.FFMpegExtraVideoFlags.split(' '));
+  }
+
+  options.push('-avoid_negative_ts', 'make_zero', '-fflags', '+genpts');
+  options.push('-max_muxing_queue_size', '1024');
+
+  options.push('-strict', 'experimental');
+  options.push('-r', '24');
+  options.push('-pix_fmt', 'yuv420p');
+  options.push('-f', 'mpegts');
+
+  options.push('http://localhost:9002');
 
   console.log(`[transcoder] starting ffmpeg server with command: ${options.join(' ')}`);
 
@@ -286,13 +323,15 @@ const startFFMpegServer = () => {
   child.on('close', code => {
     console.log(`[transcoder] startFFMpegServer | code ${code}`);
     currentFFServer = null;
-    startFFMpegServer();
+    if (!skipRestart) {
+      startFFMpegServer();
+    }
   });
 };
 
-const pushStream = (url: string, start: number, duration: number) => new Promise(resolve => {
+const pushStream = (url: string, start: number, duration: number) => new Promise((resolve, reject) => {
   const postURL = new URL(Config.RemoteTranscoder);
-  console.log('pushing stream...');
+  console.log('[trasnscoder] pushing stream ' + url + '...');
 
   const postOptions = {
     method: 'POST',
@@ -306,16 +345,16 @@ const pushStream = (url: string, start: number, duration: number) => new Promise
   });
 
   postRequest.on('error', err => {
-    startFFMpegServer();
     console.log('proxy ffmpeg post error ' + err);
+    reject();
   });
 
   followRedirects.http.get(url, getResp => {
     getResp.pipe(postRequest, {end: true});
     setTimeout(resolve, 1000);
   }).on('error', err => {
-    startFFMpegServer();
     console.log('proxy ffmpeg get error' + err);
+    reject();
   });
 });
 
@@ -419,6 +458,10 @@ const loadChunk = async (input: string, start: number, duration: number): Promis
     stdin: child.stdin,
     cancel,
   };
+};
+
+const getVideoInfo = (url): VideoInfo => {
+  return cache.videoInfo[url];
 };
 
 const loadVideoInfo = (url, noCache = false) => new Promise<VideoInfo>((resolve, reject) => {

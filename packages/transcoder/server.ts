@@ -1,6 +1,7 @@
 import * as http from 'http';
 import { spawn } from 'child_process';
 import { Readable, Writable } from 'stream';
+import { get } from 'common/utils';
 import * as Config from './config';
 
 interface VideoInfo {
@@ -59,7 +60,13 @@ const handleRequest = async (req, res): Promise<void> => {
 };
 
 const ping = async (req, res): Promise<void> => {
-  console.log(`[transcoder] sending pong...`);
+  if (Config.RemoteTranscoder) {
+    console.log(`[transcoder] sending ping to the remote transcoder ${Config.RemoteTranscoder}`);
+    const response = await get(`${Config.RemoteTranscoder}/transcoder/ping`);
+    console.log(`[transcoder] remote transcoder replied ${response}`);
+  }
+
+  console.log(`[transcoder] transcoder is now awake, sending pong...`);
   res.writeHead(200);
   res.end('pong');
 };
@@ -199,16 +206,6 @@ const transcode = async (req, res): Promise<void> => {
 const loadChunk = async (input: string, start: number, duration: number, proxy: string): Promise<{stdout: Readable, stdin: Writable, cancel: () => void}> => {
   const ffmpeg = Config.FFMpegPath || 'ffmpeg';
 
-  const isLive = !isNaN(start) && start < 0;
-  let transcode = !isLive;
-
-  //if (!isLive) {
-  //  const { audioCodecs, videoCodecs } = await loadVideoInfo(url);
-  //  const videoNeedTranscode = (videoCodecs && videoCodecs.some(c => c.indexOf('h264') === -1));
-  //  const audioNeedTranscode = (audioCodecs && audioCodecs.some(c => c.indexOf('aac') === -1));
-  //  transcoder = videoNeedTranscode || audioNeedTranscode;
-  //}
-
   const options = [];
 
   if (Config.DebugLogging !== 'true') {
@@ -230,36 +227,24 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
   options.push('-i', input);
 
   options.push('-acodec');
-  if (transcode) {
-    options.push('aac', '-ab', '640k', '-ac', '6');
-  } else {
-    options.push('copy');
-  }
+  options.push('aac', '-ab', '640k', '-ac', '6');
 
   options.push('-vcodec');
-  if (transcode) {
-    options.push('h264');
-    options.push('-crf', '18');
-    options.push('-s', '1280x720');
-    options.push('-preset', 'ultrafast');
-    options.push('-profile:v', 'baseline');
-    options.push('-level', '3.0');
-    options.push('-tune', 'zerolatency');
-    options.push('-movflags', '+faststart');
+  options.push('h264');
+  options.push('-crf', '18');
+  options.push('-s', '1280x720');
+  options.push('-preset', 'ultrafast');
+  options.push('-profile:v', 'baseline');
+  options.push('-level', '3.0');
+  options.push('-tune', 'zerolatency');
+  options.push('-movflags', '+faststart');
 
-    if (Config.FFMpegExtraVideoFlags) {
-      options.push.apply(options, Config.FFMpegExtraVideoFlags.split(' '));
-    }
-  } else {
-    options.push('copy');
+  if (Config.FFMpegExtraVideoFlags) {
+    options.push.apply(options, Config.FFMpegExtraVideoFlags.split(' '));
   }
 
-  if (!isLive) {
-    options.push('-avoid_negative_ts', 'make_zero', '-fflags', '+genpts');
-    options.push('-max_muxing_queue_size', '1024');
-  } else {
-    options.push('-copyts');
-  }
+  options.push('-avoid_negative_ts', 'make_zero', '-fflags', '+genpts');
+  options.push('-max_muxing_queue_size', '1024');
 
   options.push('-strict', 'experimental');
   options.push('-r', '24');

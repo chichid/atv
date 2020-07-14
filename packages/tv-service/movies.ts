@@ -22,7 +22,7 @@ export const getMovies = async (req, res) => {
   const { offset, limit, search, categoryId } = req.query;
 
   console.log('[tv-service] getMovies is waking up the transcoder...');
-  get(`${Config.TranscoderUrl}/ping`).catch(e => console.warn(`[tv-service] getMovies unable to wake the transcoder up`));
+  get(`${Config.TranscoderUrl}/transcoder/ping`).catch(e => console.warn(`[tv-service] getMovies unable to wake the transcoder up`));
 
   console.log('[tv-service] fetching sources...');
   const { movies }= await fetchSources();

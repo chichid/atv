@@ -8,11 +8,6 @@ import { getChannels, getChannelDetails, reloadChannels } from './channels'
 import { getMovieDetail, getMovieCategories, getMovies } from './movies';
 
 export const startServer = () => {
-  if (Config.IptvHttpProxy) {
-    console.log(`[tv-service] setting the http proxy from the settings to ${Config.IptvHttpProxy}`);
-    process.env.http_proxy = Config.IptvHttpProxy;
-  }
-
   const app = createApp();
   http.createServer(app).listen(Config.Port, Config.Addr, () =>
     console.log(`[tv-service] server started on port ${Config.Port}`)

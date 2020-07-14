@@ -151,7 +151,7 @@ const mapMovieFromVodStream = (source: SourcePayload, vod: VodPayload): Movie =>
     streamId,
     year,
     genre,
-    streamUrl: `${Config.TranscoderUrl}/transcoder/vod/${encodeURIComponent(streamUrl)}`,
+    streamUrl: `${Config.TranscoderUrl}/transcoder/vod/${encodeURIComponent(streamUrl)}/${Config.ProxyServicePort}`,
     logoUrl,
     rating,
     category,

@@ -83,7 +83,7 @@ const mapChannel = (payload: ChannelPayload): Channel => {
     id: encodeURIComponent(payload.Channel),
     name: payload.Channel,
     logoUrl: payload.LogoUrl,
-    streamUrl: `${Config.TranscoderUrl}/transcoder/live/${encodeURIComponent(payload.StreamUrl)}`,
+    streamUrl: `${Config.TranscoderUrl}/transcoder/live/${encodeURIComponent(payload.StreamUrl)}/${Config.ProxyServicePort}`,
     timeshiftUrl: payload.TimeshiftUrl,
     epgShift: Number(payload.EpgShift),
     epgDisplayShift: Number(payload.EpgDisplayShift),
@@ -138,7 +138,7 @@ const fetchEPG = async (channel: Channel): Promise<EpgProgram[]> => {
         start,
         end,
         duration,
-        streamUrl: `${Config.TranscoderUrl}/transcoder/vod/${encodeURIComponent(streamUrl)}`,
+        streamUrl: `${Config.TranscoderUrl}/transcoder/vod/${encodeURIComponent(streamUrl)}/${Config.ProxyServicePort}`,
       };
     });
 

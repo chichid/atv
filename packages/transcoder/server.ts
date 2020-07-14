@@ -10,6 +10,13 @@ interface VideoInfo {
   audioCodecs: string[];
 };
 
+interface LoadChunkResult {
+  stdout: Readable;
+  stdin: Writable;
+  cancel: () => void;
+  contentType: string;
+}
+
 const cache = {
   videoInfo: {},
   currentStream: null,
@@ -73,22 +80,31 @@ const ping = async (req, res): Promise<void> => {
 
 const servePlaylist = async (req, res, isLive) => {
   const playlist = [];
-  const matches = req.url.match('/transcoder/[^/]*/([^/]*)');
+  const matches = req.url.match('/transcoder/[^/]*/([^/]*)/([^/]*)');
   const url = decodeURIComponent(matches[1]);
+  const proxyPort = decodeURIComponent(matches[2]);
 
   if (cache.currentStream) {
     cache.currentStream.end();
     cache.currentStream = null;
   }
 
-  loadVideoInfo(url);
+  let proxyURL: string = '';
+
+  if (proxyPort) {
+    proxyURL = `http://${getRemoteIp(req)}:${proxyPort}`;
+    console.log(`[transcoder] transcode - using proxy ${proxyURL}`);
+  }
+
+  loadVideoInfo(url, proxyURL);
 
   playlist.push(`#EXTM3U`);
   playlist.push(`#EXT-X-VERSION:4`);
 
   if (!isLive) {
     console.log(`[transcoder] proxyVideo - VOD detected, fetching video info...`);
-    const videoInfo = await loadVideoInfo(url);
+
+    const videoInfo = await loadVideoInfo(url, proxyURL);
     const hlsDuration = Config.HlsChunkDuration;
     const totalDuration = videoInfo.totalDuration || Config.MaxDuration; 
     console.log(`[transcoder] constructing VOD playlist, totalDuration: ${totalDuration}, url ${url}`);
@@ -161,7 +177,7 @@ const getRemoteIp = (req): string => {
  if (ip === '::1') {
    return '127.0.0.1';
  } else {
-   return ip;
+   return ip.replace('::ffff:', '');
  } 
 };
 
@@ -171,6 +187,7 @@ const transcode = async (req, res): Promise<void> => {
   const start = Number(matches[2]);
   const duration = Number(matches[3]);
   const proxyPort = matches[4] ? decodeURIComponent(matches[4]) : null;
+  const isLive = start === -1;
 
   console.log(`[transcoder] transcode - ${req.method} - ${req.url}`);
 
@@ -180,13 +197,13 @@ const transcode = async (req, res): Promise<void> => {
     console.log(`[transcoder] transcode - using proxy ${proxyURL}`);
   }
 
-  if (cache.currentStream) {
+  if (isLive && cache.currentStream) {
     console.log(`[transcoder] stopping previous transcoding stream`);
     cache.currentStream.end();
     cache.currentStream = null;
   }
 
-  const { stdout, cancel } = await loadChunk(url, start, duration, proxyURL);
+  const { stdout, cancel, contentType } = await loadChunk(url, start, duration, proxyURL);
 
   console.log(`[transcoder] transcode - streaming content of chunk ${start} - ${duration}`);
   stdout.pipe(res, { end: true });
@@ -194,7 +211,7 @@ const transcode = async (req, res): Promise<void> => {
   cache.currentStream = res;
 
   res.writeHead(200, {
-    'Content-Type': 'video/MP2T',
+    'Content-Type': contentType,
   });
 
   req.on('close', () => {
@@ -203,7 +220,8 @@ const transcode = async (req, res): Promise<void> => {
   });
 };
 
-const loadChunk = async (input: string, start: number, duration: number, proxy: string): Promise<{stdout: Readable, stdin: Writable, cancel: () => void}> => {
+const loadChunk = async (input: string, start: number, duration: number, proxy: string): Promise<LoadChunkResult> => {
+  let contentType: string;
   const ffmpeg = Config.FFMpegPath || 'ffmpeg';
 
   const options = [];
@@ -226,30 +244,33 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
 
   options.push('-i', input);
 
-  options.push('-acodec');
-  options.push('aac', '-ab', '640k', '-ac', '6');
+  if (Number(duration) > 0) {
+    options.push('-t', String(duration));
+  }
 
-  options.push('-vcodec');
-  options.push('h264');
+  options.push('-strict', 'experimental');
+
+  options.push('-acodec', 'aac');
+  options.push('-ab', '640k', '-ac', '6');
+
+  options.push('-vcodec', 'libx264');
   options.push('-crf', '18');
   options.push('-s', '1280x720');
   options.push('-preset', 'ultrafast');
   options.push('-profile:v', 'baseline');
   options.push('-level', '3.0');
-  options.push('-tune', 'zerolatency');
-  options.push('-movflags', '+faststart');
+
+  contentType = 'video/MP2T';
+  options.push('-avoid_negative_ts', 'make_zero', '-fflags', '+genpts');
+  options.push('-f', 'mpegts');
+
+  options.push('-max_muxing_queue_size', '1024');
+  options.push('-pix_fmt', 'yuv420p');
 
   if (Config.FFMpegExtraVideoFlags) {
     options.push.apply(options, Config.FFMpegExtraVideoFlags.split(' '));
   }
 
-  options.push('-avoid_negative_ts', 'make_zero', '-fflags', '+genpts');
-  options.push('-max_muxing_queue_size', '1024');
-
-  options.push('-strict', 'experimental');
-  options.push('-r', '24');
-  options.push('-pix_fmt', 'yuv420p');
-  options.push('-f', 'mpegts');
   options.push('pipe:1');
 
   console.log('[ffmpeg] ffmpeg ' + options.join(' '));
@@ -279,23 +300,23 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
     stdout: child.stdout,
     stdin: child.stdin,
     cancel,
+    contentType,
   };
 };
 
-const getVideoInfo = (url): VideoInfo => {
+const getVideoInfo = (url: string): VideoInfo => {
   return cache.videoInfo[url];
 };
 
-const loadVideoInfo = (url, noCache = false) => new Promise<VideoInfo>((resolve, reject) => {
+const loadVideoInfo = (url: string, proxy: string, noCache = false) => new Promise<VideoInfo>((resolve, reject) => {
   if (!noCache && cache.videoInfo[url]) {
     resolve(cache.videoInfo[url]);
     return;
   }
 
-  const proxy = process.env.http_proxy || null;
   const ffprobe = Config.FFProbePath || 'ffprobe';
   const options = [
-    proxy ? '-http_proxy' : null, proxy || null,
+    proxy ? '-http_proxy' : null, proxy,
     '-i', url, 
     '-hide_banner', '-loglevel', 'fatal', '-show_error', '-show_format', 
     '-show_streams', '-show_programs', '-show_chapters', '-show_private_data', 

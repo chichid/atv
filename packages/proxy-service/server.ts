@@ -1,46 +1,64 @@
 import * as http from 'http';
+import * as URL from 'url';
 import * as httpProxy from 'http-proxy';
 import * as Config from './config';
 
 export const startServer = () => {
-  createServer().listen(Config.ServicePort, () => {
-    console.log(`[proxy-service] proxy started at ${Config.ServicePort}`);
+  createReverseProxyServer().listen(Config.ProxyPort, () => {
+    console.log(`[proxy-service] reverse proxy started at ${Config.ProxyPort}`);
   });
 };
 
-const createServer = () => {
-  console.log(`[tv-service] creating server ...`);
+const createReverseProxyServer = () => {
+  console.log(`[proxy-service] creating reverse proxy server ...`);
 
   const proxy = httpProxy.createProxyServer({}); 
   const pathMap = parsePathMapConfig();
 
-  return http.createServer(proxyRequestHandler(proxy, pathMap));
+  return http.createServer(reverseProxyRequestHandler(proxy, pathMap));
 };
 
-const proxyRequestHandler = (proxy, pathMap) => (req, res) => {
-  const path: string = '/' + req.url.split('/')[1];
-  const pathConfig = pathMap[path];
+const reverseProxyRequestHandler = (proxy, pathMap) => (req, res) => {
+  try {
+    const path: string = '/' + req.url.split('/')[1];
+    const pathConfig = pathMap[path];
+    const isHttpUrl = req.url.toLowerCase().startsWith('http://');
+    const isHttpsUrl = req.url.toLowerCase().startsWith('https://');
 
-  if (pathConfig) {
-    console.log(`[proxy-service] proxy request ${req.url} to ${pathConfig.target}${req.url}`);
-    try {
+    if (isHttpUrl || isHttpsUrl) {
+      console.log(`[proxy-service] forward proxy url ${req.url}`);
+
+      const url = URL.parse(req.url);
+
+      proxy.web(req, res, {
+        target: url,
+        prependPath: false,
+      });
+    } else if (pathConfig) {
+      console.log(`[proxy-service] reverse proxy request ${req.url} to ${pathConfig.target}`);
+
       proxy.web(req, res, {
         target: pathConfig.target,
         xfwd: true,
       });
-    } catch(e) {
-      console.error(`[proxy-service] unable to proxy request ${req.url}, error: ${e.message}`);
-      res.writeHead(500);
-      res.end(`[proxy-service] Unable to proxy request`);
+    } else {
+      console.log(`[proxy-service] ${req.url} not found`);
+      res.writeHead(404);
+      res.end(`${path} not found`);
+      return;
     }
-  } else {
-    res.writeHead(404);
-    res.end(`${path} not found`);
+
+  } catch(e) {
+    console.error(`[proxy-service] proxy handler error ${e.message}, ${req.url}`);
+    console.error(e);
+    res.writeHead(500);
+    res.end(e.message);
   }
 };
 
 const parsePathMapConfig = () => {
-  const lines = Config.PortMapping instanceof Array ? Config.PortMapping : Config.PortMapping.split('\n');
+  const pathMapping = Config.ProxyPathMapping;
+  const lines = pathMapping instanceof Array ? pathMapping : pathMapping.split('\n');
   const map = {};
 
   const filteredLines = lines.filter(l => l && !(l.startsWith('#')));
@@ -69,5 +87,3 @@ const parsePathMapConfig = () => {
   return map;
 };
 
-const errorHandler = (err, req, res) => {
-};

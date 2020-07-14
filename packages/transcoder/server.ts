@@ -1,10 +1,7 @@
 import * as http from 'http';
-import * as followRedirects from 'follow-redirects';
 import { spawn } from 'child_process';
 import { Readable, Writable } from 'stream';
-import { wait, post, get } from 'common/utils';
 import * as Config from './config';
-import { startDiscoveryService, getWorkerList } from './discovery';
 
 interface VideoInfo {
   totalDuration: number;
@@ -12,31 +9,31 @@ interface VideoInfo {
   audioCodecs: string[];
 };
 
-enum RequestMethod {
-  Get = 'GET',
-  Post = 'POST',
-};
-
 const cache = {
   videoInfo: {},
   currentStream: null,
 };
 
-export const startServer = () => {
-  if (Config.IptvHttpProxy) {
-    console.log(`[transcoder] setting the http proxy from the settings to ${Config.IptvHttpProxy}`);
-    process.env.http_proxy = Config.IptvHttpProxy;
-  }
+export const startServer = async () => {
+  await checkConfig();
 
-  http.createServer((req, res) => handleRequest(req, res)).listen(Config.Port, () => {
+  createServer().listen(Config.Port, () => {
     console.log(`[transcoder] transcoding worker started at ${Config.Port}`);
 
     if (Config.EnableDiscovery) {
-      startDiscoveryService();
+      throw new Error(`[transcoder] discovery is not yet supported`);
     }
   });
+};
 
-  startFFMpegServer();
+const checkConfig = async () => {
+  if (Config.RemoteTranscoder && !Config.ProxyServicePort) {
+    throw new Error(`[transcoder] bad config, when RemoteTranscoder is provided, please provide ProxyServicePort as well`);
+  }
+};
+
+const createServer = () => {
+  return http.createServer((req, res) => handleRequest(req, res));
 };
 
 const handleRequest = async (req, res): Promise<void> => {
@@ -49,10 +46,6 @@ const handleRequest = async (req, res): Promise<void> => {
       await servePlaylist(req, res, false);
     } else if (req.url.startsWith('/transcoder/transcode')) {
       await transcode(req, res);
-    } else if (req.url.startsWith('/transcoder/remote-transcode')) {
-      await remoteTranscode(req, res);
-    } else if (req.url.startsWith('/transcoder/ffmpeg-proxy')) {
-      ffmpegProxy(req, res);
     } else {
       res.writeHead(404);
       res.end('resource not found');
@@ -80,6 +73,8 @@ const servePlaylist = async (req, res, isLive) => {
     cache.currentStream.end();
     cache.currentStream = null;
   }
+
+  loadVideoInfo(url);
 
   playlist.push(`#EXTM3U`);
   playlist.push(`#EXT-X-VERSION:4`);
@@ -135,8 +130,6 @@ const getPlaylistUrl = (url: string, start: number, duration: number, isLive: bo
       const videoNeedTranscode = (videoCodecs && videoCodecs.some(c => c.indexOf('h264') === -1));
       const audioNeedTranscode = (audioCodecs && audioCodecs.some(c => c.indexOf('aac') === -1));
       needTranscoding = videoNeedTranscode || audioNeedTranscode;
-    } else {
-      loadVideoInfo(url);
     }
 
     if (!needTranscoding) {
@@ -144,22 +137,41 @@ const getPlaylistUrl = (url: string, start: number, duration: number, isLive: bo
     }
   } 
 
-  if (Config.RemoteTranscoder) {
-    const s: string = isLive ? '-1' : String(start);
-    const d: string = duration ? String(duration) : '0';
-    return `/transcoder/remote-transcode/${encodeURIComponent(url)}/${s}/${d}`;
-  } else {
-    return `/transcoder/transcode/${encodeURIComponent(url)}/${start}/${duration}`;
-  }
+  const s: string = isLive ? '-1' : String(start);
+  const d: string = duration ? String(duration) : '0';
+  const remoteTranscoderURL: string = Config.RemoteTranscoder || '';
+  const proxyPort: string = remoteTranscoderURL ? Config.ProxyServicePort : '';
+
+  return `${remoteTranscoderURL}/transcoder/transcode/${encodeURIComponent(url)}/${s}/${d}/${proxyPort}`;
+};
+
+const getRemoteIp = (req): string => {
+ const ip = req.headers['x-forwarded-for'] || 
+	 req.connection.remoteAddress || 
+	 req.socket.remoteAddress ||
+	 req.connection.socket.remoteAddress;
+
+ if (ip === '::1') {
+   return '127.0.0.1';
+ } else {
+   return ip;
+ } 
 };
 
 const transcode = async (req, res): Promise<void> => {
-  const matches = req.url.match(`/transcoder/transcode/([^/]*)/([^/]*)/([^/]*)`);
+  const matches = req.url.match(`/transcoder/transcode/([^/]*)/([^/]*)/([^/]*)/([^/]*)`);
   const url = decodeURIComponent(matches[1]);
   const start = Number(matches[2]);
   const duration = Number(matches[3]);
+  const proxyPort = matches[4] ? decodeURIComponent(matches[4]) : null;
 
   console.log(`[transcoder] transcode - ${req.method} - ${req.url}`);
+
+  let proxyURL: string = '';
+  if (proxyPort) {
+    proxyURL = `http://${getRemoteIp(req)}:${proxyPort}`;
+    console.log(`[transcoder] transcode - using proxy ${proxyURL}`);
+  }
 
   if (cache.currentStream) {
     console.log(`[transcoder] stopping previous transcoding stream`);
@@ -167,7 +179,7 @@ const transcode = async (req, res): Promise<void> => {
     cache.currentStream = null;
   }
 
-  const { stdout, cancel } = await loadChunk(url, start, duration);
+  const { stdout, cancel } = await loadChunk(url, start, duration, proxyURL);
 
   console.log(`[transcoder] transcode - streaming content of chunk ${start} - ${duration}`);
   stdout.pipe(res, { end: true });
@@ -184,182 +196,7 @@ const transcode = async (req, res): Promise<void> => {
   });
 };
 
-const remoteTranscode = async (req, res): Promise<void> => {
-  if (!Config.RemoteTranscoder) {
-    throw new Error(`[transcoder] remoteTranscode needs Config.RemoteTranscoder`);
-  }
-
-  console.log(`[transcoder] waking up the remote transcoder ${Config.RemoteTranscoder}`);
-  await get(`${Config.RemoteTranscoder}/transcoder/ping`);
-
-  const matches = req.url.match(`/transcoder/remote-transcode/([^/]*)/([^/]*)/([^/]*)`);
-  const url = decodeURIComponent(matches[1]);
-  const start = Number(matches[2]);
-  const duration = Number(matches[3]);
-
-  if (url.startsWith('https')) {
-    throw new Error('[transcoder] https is not supported yet for remote transcoder');
-  }
-
-  await pushStream(url, start, duration);
-
-  res.writeHead(302, {
-    'location': Config.RemoteTranscoder + '/transcoder/ffmpeg-proxy',
-  });
-
-  res.end();
-};
-
-const ffmpegProxy = async (req, res) => {
-  if (req.method === 'GET') {
-    http.get('http://localhost:9002', response => {
-      res.writeHead(response.statusCode, response.headers);
-      response.pipe(res, { end: true });
-
-      response.on('error', err => {
-        console.log('ffmpegProxy - error ' + err);
-      });
-
-      req.on('close', () => {
-        console.log('ffserver client hangout');
-
-        if (currentFFServer) {
-          currentFFServer.kill('SIGINT');
-          currentFFServer = null;
-        }
-      });
-    }).on('error', err => {
-      console.log('proxy ffmpeg get error ' + err);
-    });
-  }
-
-  if (req.method === 'POST') {
-    console.log('ffmpeg proxy post');
-
-    const postOptions = {
-      method: 'POST',
-      hostname: 'localhost',
-      port: 9001,
-      path: req.url,
-      headers: req.headers,
-    };
-
-    const postRequest = http.request(postOptions, response => {
-      console.log('ffmpeg proxy post response');
-      res.writeHead(response.statusCode, response.headers);
-      response.pipe(res, { end: true });
-    });
-
-    postRequest.on('error', err => {
-      console.log('proxy ffmpeg get error ' + err);
-    });
-
-    req.pipe(postRequest, {end: true});
-  }
-};
-
-let currentFFServer = null;
-let skipRestart = false;
-
-const startFFMpegServer = () => {
-  if (currentFFServer) {
-    skipRestart = true;
-    currentFFServer.kill('SIGINT');
-    currentFFServer = null;
-    skipRestart = false;
-  }
-
-  const options = [];
-
-  if (Config.DebugLogging !== 'true') {
-    options.push('-hide_banner', '-loglevel', 'quiet');
-  }
-
-  options.push('-listen', '1');
-  options.push('-i', 'http://localhost:9001');
-
-  options.push('-acodec');
-  options.push('aac', '-ab', '640k', '-ac', '6');
-
-  options.push('-vcodec');
-  options.push('h264');
-  options.push('-crf', '18');
-  options.push('-s', '1280x720');
-  options.push('-preset', 'ultrafast');
-  options.push('-profile:v', 'baseline');
-  options.push('-level', '3.0');
-  options.push('-tune', 'zerolatency');
-  options.push('-movflags', '+faststart');
-
-  if (Config.FFMpegExtraVideoFlags) {
-    options.push.apply(options, Config.FFMpegExtraVideoFlags.split(' '));
-  }
-
-  options.push('-avoid_negative_ts', 'make_zero', '-fflags', '+genpts');
-  options.push('-max_muxing_queue_size', '1024');
-
-  options.push('-strict', 'experimental');
-  options.push('-r', '24');
-  options.push('-pix_fmt', 'yuv420p');
-  options.push('-f', 'mpegts');
-
-  options.push('http://localhost:9002');
-
-  console.log(`[transcoder] starting ffmpeg server with command: ${options.join(' ')}`);
-
-  const child = spawn('ffmpeg', options);
-  currentFFServer = child;
-
-  child.stderr.on('data', data => {
-    console.log('[transcoder] startFFMpegServer | ' + data.toString())
-  });
-
-  child.on('error', err => {
-    console.log(`[transcoder] startFFMpegServer | error ${err}`);
-    currentFFServer = null;
-    startFFMpegServer();
-  });
-
-  child.on('close', code => {
-    console.log(`[transcoder] startFFMpegServer | code ${code}`);
-    currentFFServer = null;
-    if (!skipRestart) {
-      startFFMpegServer();
-    }
-  });
-};
-
-const pushStream = (url: string, start: number, duration: number) => new Promise((resolve, reject) => {
-  const postURL = new URL(Config.RemoteTranscoder);
-  console.log('[trasnscoder] pushing stream ' + url + '...');
-
-  const postOptions = {
-    method: 'POST',
-    hostname: postURL.hostname,
-    port: postURL.port,
-    path: '/transcoder/ffmpeg-proxy',
-  };
-
-  const postRequest = http.request(postOptions, response => {
-    console.log('got post response');
-  });
-
-  postRequest.on('error', err => {
-    console.log('proxy ffmpeg post error ' + err);
-    reject();
-  });
-
-  followRedirects.http.get(url, getResp => {
-    getResp.pipe(postRequest, {end: true});
-    setTimeout(resolve, 1000);
-  }).on('error', err => {
-    console.log('proxy ffmpeg get error' + err);
-    reject();
-  });
-});
-
-
-const loadChunk = async (input: string, start: number, duration: number): Promise<{stdout: Readable, stdin: Writable, cancel: () => void}> => {
+const loadChunk = async (input: string, start: number, duration: number, proxy: string): Promise<{stdout: Readable, stdin: Writable, cancel: () => void}> => {
   const ffmpeg = Config.FFMpegPath || 'ffmpeg';
 
   const isLive = !isNaN(start) && start < 0;
@@ -378,8 +215,8 @@ const loadChunk = async (input: string, start: number, duration: number): Promis
     options.push('-hide_banner', '-loglevel', 'quiet');
   }
 
-  if (process.env.http_proxy) {
-    options.push('-http_proxy', process.env.http_proxy);
+  if (proxy) {
+    options.push('-http_proxy', proxy);
   }
 
   if (Number(start) > 0) {

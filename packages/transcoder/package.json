@@ -4,15 +4,15 @@
   "scripts": {
     "start": "node ./dist/index.js",
     "build": "copyfiles -e '{node_modules,dist}/**/*' '**/*' dist && tsc dist/*.ts --rootDir ./dist",
-    "watch": "nodemon --watch templates --watch ./ --watch ../common -e json,ts,xml,js ./index.ts"
+    "watch": "nodemon --ignore 'tmp/**' --watch templates --watch ./ --watch ../common -e json,ts,xml,js ./index.ts"
   },
   "dependencies": {
     "common": "file:../common",
     "follow-redirects": "^1.12.1"
   },
   "devDependencies": {
-    "copyfiles": "^2.3.0",
     "@types/node": "^14.0.13",
+    "copyfiles": "^2.3.0",
     "nodemon": "^2.0.4",
     "ts-node": "^8.10.2",
     "typescript": "^3.9.5"

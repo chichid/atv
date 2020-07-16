@@ -1,8 +1,8 @@
 import * as http from 'http';
 import { spawn } from 'child_process';
 import { Readable, Writable } from 'stream';
-import { get } from 'common/utils';
 import * as Config from './config';
+import { wait, readFile, fileStat, fileStream, fileExists, mkdir, rmdir, get } from 'common/utils';
 
 interface VideoInfo {
   totalDuration: number;
@@ -14,6 +14,7 @@ interface LoadChunkResult {
   stdout: Readable;
   stdin: Writable;
   cancel: () => void;
+  isComplete: () => boolean;
   contentType: string;
 }
 
@@ -91,7 +92,7 @@ const servePlaylist = async (req, res, isLive) => {
 
   let proxyURL: string = '';
 
-  if (proxyPort) {
+  if (proxyPort && Config.UseProxy) {
     proxyURL = `http://${getRemoteIp(req)}:${proxyPort}`;
     console.log(`[transcoder] transcode - using proxy ${proxyURL}`);
   }
@@ -101,8 +102,23 @@ const servePlaylist = async (req, res, isLive) => {
   playlist.push(`#EXTM3U`);
   playlist.push(`#EXT-X-VERSION:4`);
 
-  if (!isLive) {
+  if (isLive) {
+    console.log(`[transcoder] constructing live playlist, url ${url}`);
+    const hlsDuration = 1;
+
+    playlist.push(`#EXT-X-TARGETDURATION:${hlsDuration}`);
+    playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
+
+    const liveUrl = getPlaylistUrl(url, null, null, isLive);
+
+    for (let i = 1; i < Config.MaxDuration; ++i) {
+      playlist.push(`#EXTINF:${hlsDuration},`);
+      playlist.push(liveUrl);
+    }
+  } else { 
     console.log(`[transcoder] proxyVideo - VOD detected, fetching video info...`);
+
+    createTmpFolder();
 
     const videoInfo = await loadVideoInfo(url, proxyURL);
     const hlsDuration = Config.HlsChunkDuration;
@@ -118,19 +134,6 @@ const servePlaylist = async (req, res, isLive) => {
       playlist.push(`#EXTINF:${hlsDuration},`);
       playlist.push(getPlaylistUrl(url, start, hlsDuration, isLive));
       start += chunkDuration;
-    }
-  } else { 
-    console.log(`[transcoder] constructing live playlist, url ${url}`);
-    const hlsDuration = 1;
-
-    playlist.push(`#EXT-X-TARGETDURATION:${hlsDuration}`);
-    playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
-
-    const liveUrl = getPlaylistUrl(url, null, null, isLive);
-
-    for (let i = 1; i < Config.MaxDuration; ++i) {
-      playlist.push(`#EXTINF:${hlsDuration},`);
-      playlist.push(liveUrl);
     }
   } 
 
@@ -162,10 +165,10 @@ const getPlaylistUrl = (url: string, start: number, duration: number, isLive: bo
 
   const s: string = isLive ? '-1' : String(start);
   const d: string = duration ? String(duration) : '0';
-  const remoteTranscoderURL: string = Config.RemoteTranscoder || '';
+  const remoteTranscoderURL: string = Config.RemoteTranscoder;
   const proxyPort: string = remoteTranscoderURL ? Config.ProxyServicePort : '';
 
-  return `${remoteTranscoderURL}/transcoder/transcode/${encodeURIComponent(url)}/${s}/${d}/${proxyPort}`;
+  return `${remoteTranscoderURL || ''}/transcoder/transcode/${encodeURIComponent(url)}/${s}/${d}/${proxyPort}`;
 };
 
 const getRemoteIp = (req): string => {
@@ -192,45 +195,88 @@ const transcode = async (req, res): Promise<void> => {
   console.log(`[transcoder] transcode - ${req.method} - ${req.url}`);
 
   let proxyURL: string = '';
-  if (proxyPort) {
+
+  if (proxyPort && Config.UseProxy) {
     proxyURL = `http://${getRemoteIp(req)}:${proxyPort}`;
     console.log(`[transcoder] transcode - using proxy ${proxyURL}`);
   }
 
-  if (isLive && cache.currentStream) {
-    console.log(`[transcoder] stopping previous transcoding stream`);
-    cache.currentStream.end();
-    cache.currentStream = null;
+  if (isLive) {
+    const { stdout, isComplete, cancel, contentType } = await loadChunk(url, start, duration, proxyURL);
+
+    if (cache.currentStream) {
+      console.log(`[transcoder] stopping previous transcoding stream`);
+      cache.currentStream.end();
+      cache.currentStream = null;
+    }
+
+    console.log(`[transcoder] transcode - streaming content of chunk ${start} - ${duration}`);
+    res.writeHead(200, {
+      'Content-Type': 'video/MP2T',
+    });
+
+    stdout.pipe(res, { end: true });
+
+    cache.currentStream = res;
+
+    req.on('close', () => {
+      console.log(`[transcoder] transcode - client dropped live stream ${url}`);
+      cancel();
+    });
+  } else {
+    const chunkFile = getChunkOutputFile(start, duration, '');
+
+    if (!await fileExists(getChunkOutputFile(start+duration, duration, ''))) {
+      loadChunk(url, start+duration, duration, proxyURL);
+    }
+
+    if (!await fileExists(chunkFile)) {
+      const { isComplete } = await loadChunk(url, start, duration, proxyURL);
+
+      console.log(`[transcoder] waiting for the chunk file to be generated ${chunkFile}`);
+      do { await wait(500); } while(!isComplete())
+    }
+
+    console.log(`[transcoder] ${chunkFile} is now available streaming it`);
+    const { size } = await fileStat(chunkFile);
+
+    res.writeHead(200, {
+      'Content-Type': 'video/MP2T',
+      'Content-Length': size,
+    });
+
+    fileStream(chunkFile).pipe(res, {end: true});
+  }
+};
+
+const getChunkOutputFile = (start: number, end: number, suffix: string): string => {
+  return Config.TmpFolder + '/' + start + '-' + end + '-' + suffix + '.ts';
+};
+
+const createTmpFolder = async () => {
+  if (await fileExists(Config.TmpFolder)) {
+    console.log(`[transcoder] deleting previous tmp folder...`);
+    await rmdir(Config.TmpFolder);
   }
 
-  const { stdout, cancel, contentType } = await loadChunk(url, start, duration, proxyURL);
-
-  console.log(`[transcoder] transcode - streaming content of chunk ${start} - ${duration}`);
-  stdout.pipe(res, { end: true });
-
-  cache.currentStream = res;
-
-  res.writeHead(200, {
-    'Content-Type': contentType,
-  });
-
-  req.on('close', () => {
-    console.log(`[transcoder] transcode - client dropped ${url}`);
-    cancel();
-  });
+  console.log(`[transcoder] creating tmp folder...`);
+  await mkdir(Config.TmpFolder);
 };
 
 const loadChunk = async (input: string, start: number, duration: number, proxy: string): Promise<LoadChunkResult> => {
-  let contentType: string;
   const ffmpeg = Config.FFMpegPath || 'ffmpeg';
+  const isLive = start === -1;
 
+  let contentType: string;
   const options = [];
 
-  if (Config.DebugLogging !== 'true') {
-    options.push('-hide_banner', '-loglevel', 'quiet');
-  }
+  options.push('-y');
 
-  if (proxy) {
+  if (!Config.DebugLogging) {
+    options.push('-hide_banner', '-loglevel', 'quiet');
+  } 
+
+  if (proxy && Config.UseProxy) {
     options.push('-http_proxy', proxy);
   }
 
@@ -254,30 +300,42 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
   options.push('-ab', '640k', '-ac', '6');
 
   options.push('-vcodec', 'libx264');
-  options.push('-crf', '18');
+  //options.push('-crf', '18');
   options.push('-s', '1280x720');
   options.push('-preset', 'ultrafast');
-  options.push('-profile:v', 'baseline');
-  options.push('-level', '3.0');
+  //options.push('-profile:v', 'baseline');
+  //options.push('-level', '3.0');
 
   contentType = 'video/MP2T';
-  options.push('-avoid_negative_ts', 'make_zero', '-fflags', '+genpts');
-  options.push('-f', 'mpegts');
 
-  options.push('-max_muxing_queue_size', '1024');
+  //options.push('-max_muxing_queue_size', '1024');
   options.push('-pix_fmt', 'yuv420p');
 
   if (Config.FFMpegExtraVideoFlags) {
     options.push.apply(options, Config.FFMpegExtraVideoFlags.split(' '));
   }
 
-  options.push('pipe:1');
+  if (isLive) {
+    options.push('-f', 'mpegts');
+    options.push('pipe:1');
+  } else {
+    options.push('-avoid_negative_ts', 'make_zero');
+    options.push('-fflags', '+genpts');
+    //options.push('-map', '0');
+    //options.push('-copyts');
+    //options.push('-copyinkf');
+    options.push('-f', 'mpegts');
+    options.push(getChunkOutputFile(start, duration, ''));
+  }
 
   console.log('[ffmpeg] ffmpeg ' + options.join(' '));
   const child = spawn(ffmpeg, options);
   const cancel = () => child.kill('SIGINT');
 
-  if (Config.DebugLogging === 'true') {
+  let complete = false;
+  const isComplete = (): boolean => complete;
+
+  if (Config.DebugLogging) {
     child.stderr.on('data', data => {
       console.log('[transcoder-ffmpeg] ' + data.toString())
     });
@@ -289,17 +347,20 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
     console.error(error);
     console.log(`------`);
 
+    complete = true;
     cancel();
   });
 
   child.on('exit', code => {
     console.log(`[transcoder-ffmpeg] exiting transcoding process with code ${code} / ${input} / ${start} / ${duration}`);
+    complete = true;
   });
 
   return { 
     stdout: child.stdout,
     stdin: child.stdin,
     cancel,
+    isComplete,
     contentType,
   };
 };
@@ -315,13 +376,18 @@ const loadVideoInfo = (url: string, proxy: string, noCache = false) => new Promi
   }
 
   const ffprobe = Config.FFProbePath || 'ffprobe';
-  const options = [
-    proxy ? '-http_proxy' : null, proxy,
+  const options = [];
+
+  if (proxy && Config.UseProxy) {
+    options.push('-http_proxy', proxy);
+  }
+
+  options.push(
     '-i', url, 
     '-hide_banner', '-loglevel', 'fatal', '-show_error', '-show_format', 
     '-show_streams', '-show_programs', '-show_chapters', '-show_private_data', 
     '-print_format', 'json'
-  ].filter(op => op !== null ? true : false);
+  );
 
   console.log(`[transcoder] ffprobe ${options.join(' ')}`);
   const child = spawn(ffprobe, options);

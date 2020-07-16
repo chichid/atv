@@ -1,9 +1,9 @@
 const fs = require('fs');
-const path = require('path');
 const url = require('url');
 const axios = require('axios');
 const https = require('https');
 const querystring = require('querystring');
+const rimraf = require('rimraf');
 
 module.exports.wait = (duration) => new Promise((resolve, reject) => {
   setTimeout(resolve, duration);
@@ -23,8 +23,42 @@ module.exports.readFile = (file) => new Promise((resolve, reject) => {
   });
 });
 
+module.exports.fileStat = (file) => new Promise((resolve, reject) => {
+  fs.stat(file, (err, stats) => {
+    if (err) {
+      reject(err);
+    } else {
+      resolve(stats)
+    }
+  });
+});
+
+module.exports.fileStream = (file) => {
+  return fs.createReadStream(file);
+};
+
 module.exports.writeFile = async (file, content) => new Promise((resolve, reject) => {
   fs.writeFile(file, content, (err) => {
+    if (err) {
+      reject(err);
+    } else {
+      resolve();
+    }
+  });
+});
+
+module.exports.mkdir = async (dir) => new Promise((resolve, reject) => {
+  fs.mkdir(dir, err => {
+    if (err) {
+      reject(err);
+    } else {
+      resolve();
+    }
+  });
+});
+
+module.exports.rmdir = async (dir) => new Promise((resolve, reject) => {
+  rimraf(dir, err => {
     if (err) {
       reject(err);
     } else {

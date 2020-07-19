@@ -55,6 +55,8 @@ const handleRequest = async (req, res): Promise<void> => {
       await servePlaylist(req, res, false);
     } else if (req.url.startsWith('/transcoder/transcode')) {
       await transcode(req, res);
+    } else if (req.url.startsWith('/transcoder/' + Config.TmpFolder)) {
+      await serveTsFile(req, res);
     } else {
       res.writeHead(404);
       res.end('resource not found');
@@ -97,12 +99,12 @@ const servePlaylist = async (req, res, isLive) => {
     console.log(`[transcoder] transcode - using proxy ${proxyURL}`);
   }
 
-  loadVideoInfo(url, proxyURL);
-
   playlist.push(`#EXTM3U`);
   playlist.push(`#EXT-X-VERSION:4`);
 
   if (isLive) {
+    await loadVideoInfo(url, proxyURL);
+
     console.log(`[transcoder] constructing live playlist, url ${url}`);
     const hlsDuration = 1;
 
@@ -116,24 +118,33 @@ const servePlaylist = async (req, res, isLive) => {
       playlist.push(liveUrl);
     }
   } else { 
-    console.log(`[transcoder] proxyVideo - VOD detected, fetching video info...`);
+    console.log(`[transcoder] proxyVideo - Serving VOD Playlist - ${url}...`);
 
-    createTmpFolder();
+    console.log(`[transcoder] starting ffmpeg...`);
+    await createTmpFolder();
+    loadChunk(url, 0, 0, proxyURL);
 
+    console.log(`[transcoder] pending first chunk creation...`);
+    do { await wait(500) } while(!fileExists(Config.TmpFolder + '/' + '0.ts'))
+
+    // TODO can be optimized if loadChunk can return the video duration by parsing the video info
     const videoInfo = await loadVideoInfo(url, proxyURL);
     const hlsDuration = Config.HlsChunkDuration;
     const totalDuration = videoInfo.totalDuration || Config.MaxDuration; 
-    console.log(`[transcoder] constructing VOD playlist, totalDuration: ${totalDuration}, url ${url}`);
+    console.log(`[transcoder] got vod info - totalDuration: ${totalDuration}, url ${url}`);
 
     playlist.push(`#EXT-X-TARGETDURATION:${hlsDuration}`);
     playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
+    playlist.push(`#EXT-X-PLAYLIST-TYPE:EVENT`);
 
     let start = 0;
+    let i = 0;
     while (start < videoInfo.totalDuration) {
       const chunkDuration = Math.min(videoInfo.totalDuration - start, hlsDuration);
       playlist.push(`#EXTINF:${hlsDuration},`);
-      playlist.push(getPlaylistUrl(url, start, hlsDuration, isLive));
+      playlist.push('/transcoder/' + Config.TmpFolder + '/' + i + '.ts');
       start += chunkDuration;
+      i++;
     }
   } 
 
@@ -190,7 +201,6 @@ const transcode = async (req, res): Promise<void> => {
   const start = Number(matches[2]);
   const duration = Number(matches[3]);
   const proxyPort = matches[4] ? decodeURIComponent(matches[4]) : null;
-  const isLive = start === -1;
 
   console.log(`[transcoder] transcode - ${req.method} - ${req.url}`);
 
@@ -201,52 +211,60 @@ const transcode = async (req, res): Promise<void> => {
     console.log(`[transcoder] transcode - using proxy ${proxyURL}`);
   }
 
-  if (isLive) {
-    const { stdout, isComplete, cancel, contentType } = await loadChunk(url, start, duration, proxyURL);
+  const { stdout, isComplete, cancel, contentType } = await loadChunk(url, start, duration, proxyURL);
 
-    if (cache.currentStream) {
-      console.log(`[transcoder] stopping previous transcoding stream`);
-      cache.currentStream.end();
-      cache.currentStream = null;
-    }
-
-    console.log(`[transcoder] transcode - streaming content of chunk ${start} - ${duration}`);
-    res.writeHead(200, {
-      'Content-Type': 'video/MP2T',
-    });
-
-    stdout.pipe(res, { end: true });
-
-    cache.currentStream = res;
-
-    req.on('close', () => {
-      console.log(`[transcoder] transcode - client dropped live stream ${url}`);
-      cancel();
-    });
-  } else {
-    const chunkFile = getChunkOutputFile(start, duration, '');
-
-    if (!await fileExists(getChunkOutputFile(start+duration, duration, ''))) {
-      loadChunk(url, start+duration, duration, proxyURL);
-    }
-
-    if (!await fileExists(chunkFile)) {
-      const { isComplete } = await loadChunk(url, start, duration, proxyURL);
-
-      console.log(`[transcoder] waiting for the chunk file to be generated ${chunkFile}`);
-      do { await wait(500); } while(!isComplete())
-    }
-
-    console.log(`[transcoder] ${chunkFile} is now available streaming it`);
-    const { size } = await fileStat(chunkFile);
-
-    res.writeHead(200, {
-      'Content-Type': 'video/MP2T',
-      'Content-Length': size,
-    });
-
-    fileStream(chunkFile).pipe(res, {end: true});
+  if (cache.currentStream) {
+    console.log(`[transcoder] stopping previous transcoding stream`);
+    cache.currentStream.end();
+    cache.currentStream = null;
   }
+
+  console.log(`[transcoder] transcode - streaming content of chunk ${start} - ${duration}`);
+  res.writeHead(200, {
+    'Content-Type': 'video/MP2T',
+  });
+
+  stdout.pipe(res, { end: true });
+
+  cache.currentStream = res;
+
+  req.on('close', () => {
+    console.log(`[transcoder] transcode - client dropped live stream ${url}`);
+    cancel();
+  });
+};
+
+const serveTsFile = async (req, res) => {
+  const matches = req.url.match(`/transcoder/${Config.TmpFolder}/([^/]*)`);
+  const fileName = matches[1];
+  const file = Config.TmpFolder + '/' + fileName;
+  const segmentListFile = Config.TmpFolder + '/segment_list.m3u8';
+
+  console.log(`[trasnscoder] serveTsFile - waiting for ${file}`);
+
+  do { 
+    await wait(500) 
+
+    if (!await fileExists(segmentListFile)) {
+      continue;
+    }
+    
+    const segmentFile = await readFile(segmentListFile);
+
+    if (segmentFile.indexOf(fileName) !== -1) {
+      break;
+    }
+  } while(1);
+
+  console.log(`[transcoder] serving ${file}`);
+  const { size } = await fileStat(file);
+
+  res.writeHead(200, {
+    'Content-Type': 'video/MP2T',
+    'Content-Length': size,
+  });
+
+  fileStream(file).pipe(res);
 };
 
 const getChunkOutputFile = (start: number, end: number, suffix: string): string => {
@@ -324,8 +342,9 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
     //options.push('-map', '0');
     //options.push('-copyts');
     //options.push('-copyinkf');
-    options.push('-f', 'mpegts');
-    options.push(getChunkOutputFile(start, duration, ''));
+    options.push('-f', 'segment');
+    options.push('-segment_list', Config.TmpFolder + '/segment_list.m3u8');
+    options.push(Config.TmpFolder + '/%1d.ts');
   }
 
   console.log('[ffmpeg] ffmpeg ' + options.join(' '));

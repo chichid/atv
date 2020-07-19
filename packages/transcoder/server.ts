@@ -20,7 +20,7 @@ interface LoadChunkResult {
 
 const cache = {
   videoInfo: {},
-  currentStream: null,
+  currentFFMpegProcessCancel: null,
 };
 
 export const startServer = async () => {
@@ -87,17 +87,24 @@ const servePlaylist = async (req, res, isLive) => {
   const url = decodeURIComponent(matches[1]);
   const proxyPort = decodeURIComponent(matches[2]);
 
-  if (cache.currentStream) {
-    cache.currentStream.end();
-    cache.currentStream = null;
-  }
-
   let proxyURL: string = '';
 
   if (proxyPort && Config.UseProxy) {
     proxyURL = `http://${getRemoteIp(req)}:${proxyPort}`;
     console.log(`[transcoder] transcode - using proxy ${proxyURL}`);
   }
+
+  if (!isLive && Config.RemoteTranscoder) {
+    const location: string = Config.RemoteTranscoder + req.url;
+    console.log(`[transcoder] forwarding VOD to remote transcoder ${location}`);
+
+    res.writeHead(302, {
+      location,
+    });
+
+    res.end();
+    return;
+  } 
 
   playlist.push(`#EXTM3U`);
   playlist.push(`#EXT-X-VERSION:4`);
@@ -142,7 +149,7 @@ const servePlaylist = async (req, res, isLive) => {
     while (start < videoInfo.totalDuration) {
       const chunkDuration = Math.min(videoInfo.totalDuration - start, hlsDuration);
       playlist.push(`#EXTINF:${hlsDuration},`);
-      playlist.push('/transcoder/' + Config.TmpFolder + '/' + i + '.ts');
+      playlist.push(`/transcoder/${Config.TmpFolder}/${i}.ts`);
       start += chunkDuration;
       i++;
     }
@@ -211,22 +218,16 @@ const transcode = async (req, res): Promise<void> => {
     console.log(`[transcoder] transcode - using proxy ${proxyURL}`);
   }
 
-  const { stdout, isComplete, cancel, contentType } = await loadChunk(url, start, duration, proxyURL);
-
-  if (cache.currentStream) {
-    console.log(`[transcoder] stopping previous transcoding stream`);
-    cache.currentStream.end();
-    cache.currentStream = null;
-  }
+  const { stdout, cancel } = await loadChunk(url, start, duration, proxyURL);
 
   console.log(`[transcoder] transcode - streaming content of chunk ${start} - ${duration}`);
   res.writeHead(200, {
     'Content-Type': 'video/MP2T',
   });
 
-  stdout.pipe(res, { end: true });
-
-  cache.currentStream = res;
+  stdout.pipe(res, { end: true }).on('error', err => {
+    console.log(`[transcoder] transcoder - stdout.pipe stream error ${err}`);
+  });
 
   req.on('close', () => {
     console.log(`[transcoder] transcode - client dropped live stream ${url}`);
@@ -264,11 +265,9 @@ const serveTsFile = async (req, res) => {
     'Content-Length': size,
   });
 
-  fileStream(file).pipe(res);
-};
-
-const getChunkOutputFile = (start: number, end: number, suffix: string): string => {
-  return Config.TmpFolder + '/' + start + '-' + end + '-' + suffix + '.ts';
+  fileStream(file).pipe(res).on('error', err => {
+    console.log(`[transcoder] serveTsFile - fileStream.pipe error ${err}`);
+  });
 };
 
 const createTmpFolder = async () => {
@@ -282,6 +281,11 @@ const createTmpFolder = async () => {
 };
 
 const loadChunk = async (input: string, start: number, duration: number, proxy: string): Promise<LoadChunkResult> => {
+  if (cache.currentFFMpegProcessCancel) {
+    cache.currentFFMpegProcessCancel();
+    cache.currentFFMpegProcessCancel = false;
+  }
+
   const ffmpeg = Config.FFMpegPath || 'ffmpeg';
   const isLive = start === -1;
 
@@ -350,6 +354,7 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
   console.log('[ffmpeg] ffmpeg ' + options.join(' '));
   const child = spawn(ffmpeg, options);
   const cancel = () => child.kill('SIGINT');
+  cache.currentFFMpegProcessCancel = cancel;
 
   let complete = false;
   const isComplete = (): boolean => complete;

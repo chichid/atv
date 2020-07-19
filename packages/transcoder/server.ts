@@ -2,7 +2,7 @@ import * as http from 'http';
 import { spawn } from 'child_process';
 import { Readable, Writable } from 'stream';
 import * as Config from './config';
-import { wait, readFile, fileStat, fileStream, fileExists, mkdir, rmdir, get } from 'common/utils';
+import { wait, readFile, removeFile, fileStat, fileStream, fileExists, mkdir, rmdir, get } from 'common/utils';
 
 interface VideoInfo {
   totalDuration: number;
@@ -15,12 +15,12 @@ interface LoadChunkResult {
   stdin: Writable;
   cancel: () => void;
   isComplete: () => boolean;
-  contentType: string;
 }
 
 const cache = {
   videoInfo: {},
   currentFFMpegProcessCancel: null,
+  sessions: {},
 };
 
 export const startServer = async () => {
@@ -124,44 +124,96 @@ const servePlaylist = async (req, res, isLive) => {
       playlist.push(`#EXTINF:${hlsDuration},`);
       playlist.push(liveUrl);
     }
+
+    const headers = {};
+    headers['content-type'] = 'application/x-mpegURL';
+    res.writeHead(200, headers);
   } else { 
     console.log(`[transcoder] proxyVideo - Serving VOD Playlist - ${url}...`);
 
-    console.log(`[transcoder] starting ffmpeg...`);
-    await createTmpFolder();
-    loadChunk(url, 0, 0, proxyURL);
-
-    console.log(`[transcoder] pending first chunk creation...`);
-    do { await wait(500) } while(!fileExists(Config.TmpFolder + '/' + '0.ts'))
-
     // TODO can be optimized if loadChunk can return the video duration by parsing the video info
     const videoInfo = await loadVideoInfo(url, proxyURL);
-    const hlsDuration = Config.HlsChunkDuration;
     const totalDuration = videoInfo.totalDuration || Config.MaxDuration; 
     console.log(`[transcoder] got vod info - totalDuration: ${totalDuration}, url ${url}`);
 
-    playlist.push(`#EXT-X-TARGETDURATION:${hlsDuration}`);
+    const { sessionId, isNewSession } = getSessionInfo(req);
+
+    if (isNewSession) {
+      await createNewSession(url, proxyURL, sessionId);
+    }
+
+    console.log(`[transcoder] serving playlist...`);
+
+    playlist.push(`#EXT-X-TARGETDURATION:${Config.HlsChunkDuration}`);
     playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
-    playlist.push(`#EXT-X-PLAYLIST-TYPE:EVENT`);
+    playlist.push(`#EXT-X-PLAYLIST-TYPE:VOD`);
 
     let start = 0;
     let i = 0;
+
     while (start < videoInfo.totalDuration) {
-      const chunkDuration = Math.min(videoInfo.totalDuration - start, hlsDuration);
-      playlist.push(`#EXTINF:${hlsDuration},`);
+      const chunkDuration = Math.min(videoInfo.totalDuration - start, Config.HlsChunkDuration);
+      playlist.push(`#EXTINF:${Config.HlsChunkDuration},`);
       playlist.push(`/transcoder/${Config.TmpFolder}/${i}.ts`);
       start += chunkDuration;
       i++;
     }
+
+    const headers = {};
+
+    if (isNewSession) {
+      headers['set-cookie'] = 'session-id=' + encodeURI(sessionId);
+    }
+
+    headers['content-type'] = 'application/x-mpegURL';
+    res.writeHead(200, headers);
   } 
 
   playlist.push(`#EXT-X-ENDLIST`);
+  res.end(playlist.join('\n'))
+};
 
-  res.writeHead(200, {
-    'Content-Type': 'application/x-mpegURL',
+const getSessionInfo = (req): {sessionId: string, isNewSession: boolean } => {
+  const cookies = parseCookies(req);
+  const sessionId = req.headers['x-playback-session-id'] || cookies['session-id'];
+
+  return {
+    sessionId,
+    isNewSession: cache[sessionId] ? false : true,
+  };
+};
+
+const createNewSession = async (url: string, proxyURL: string, sessionId: string = null): Promise<string> => {
+  const sid = sessionId || String(Math.floor(Math.random()*1000000000));
+  cache.sessions[sid] = {
+    sessionId,
+    proxyURL,
+    url,
+  };
+
+  const m3u8File: string =  Config.TmpFolder + '/segment_list.m3u8';
+
+  console.log(`[transcoder] new session, ${sessionId}...`);
+  await createTmpFolder();
+
+  console.log(`[transcoder] starting ffmpeg...`);
+  await loadChunk(url, 0, 0, proxyURL);
+
+  console.log(`[transcoder] waiting for the m3u8 playlist to be created`);
+  do { await wait(500) } while(!await fileExists(m3u8File));
+
+  return sid;
+};
+
+const parseCookies = (req) => {
+  const cookies = {};
+
+  req.headers.cookie && req.headers.cookie.split(';').forEach(ck => {
+    const cParts = ck.split('=');
+    cookies[cParts[0].trim()] = decodeURI(cParts[1]);
   });
-
-  res.end(playlist.join('\n'));
+  
+  return cookies;
 };
 
 const getPlaylistUrl = (url: string, start: number, duration: number, isLive: boolean): string => {
@@ -214,6 +266,7 @@ const transcode = async (req, res): Promise<void> => {
   let proxyURL: string = '';
 
   if (proxyPort && Config.UseProxy) {
+    // TODO dirty, ideally the client should send what proxy to use
     proxyURL = `http://${getRemoteIp(req)}:${proxyPort}`;
     console.log(`[transcoder] transcode - using proxy ${proxyURL}`);
   }
@@ -241,21 +294,33 @@ const serveTsFile = async (req, res) => {
   const file = Config.TmpFolder + '/' + fileName;
   const segmentListFile = Config.TmpFolder + '/segment_list.m3u8';
 
-  console.log(`[trasnscoder] serveTsFile - waiting for ${file}`);
+  const { sessionId } = getSessionInfo(req);
+  const session = cache.sessions[sessionId];
+  const requestedSegmentNumber = fileName.replace('.ts', '');
+  const lastServedSegmentNumber = session.lastServedSegmentNumber;
+  const delta = requestedSegmentNumber - lastServedSegmentNumber;
 
-  do { 
-    await wait(500) 
+  console.log(`[transcoder] serveTsFile - requestedSegmentNumber: ${requestedSegmentNumber}, lastServedSegmentNumber: ${lastServedSegmentNumber}`);
 
-    if (!await fileExists(segmentListFile)) {
-      continue;
-    }
-    
-    const segmentFile = await readFile(segmentListFile);
+  if (typeof lastServedSegmentNumber !== 'undefined' && delta !== 1) {
+    console.log(`[transcoder] serveTsFile - detected playback action`);
+    const start = Number(requestedSegmentNumber * Config.HlsChunkDuration);
+    await loadChunk(session.url, start, 0, session.proxyURL, requestedSegmentNumber);
+  } 
 
-    if (segmentFile.indexOf(fileName) !== -1) {
-      break;
-    }
-  } while(1);
+  console.log(`[transcoder] serveTsFile - waiting for ${file}`);
+
+  let currentFileContent: string = null;
+  do {
+   await wait(500); 
+   currentFileContent = await readFile(segmentListFile);
+  } while(currentFileContent.indexOf(fileName) === -1);
+
+  do {
+   await wait(500);
+  } while(!(await fileExists(file)));
+
+  session.lastServedSegmentNumber = requestedSegmentNumber;
 
   console.log(`[transcoder] serving ${file}`);
   const { size } = await fileStat(file);
@@ -265,8 +330,15 @@ const serveTsFile = async (req, res) => {
     'Content-Length': size,
   });
 
-  fileStream(file).pipe(res).on('error', err => {
-    console.log(`[transcoder] serveTsFile - fileStream.pipe error ${err}`);
+  fileStream(file).pipe(res, { end: true });
+
+  res.on('error', err => {
+   console.log(`[transcoder] serveTsFile - fileStream.pipe error ${err}`);
+  }); 
+
+  res.on('close', () => {
+    console.log(`[transcoder] serveTsFile - cleaning up ${file}`);
+    removeFile(file);
   });
 };
 
@@ -280,7 +352,7 @@ const createTmpFolder = async () => {
   await mkdir(Config.TmpFolder);
 };
 
-const loadChunk = async (input: string, start: number, duration: number, proxy: string): Promise<LoadChunkResult> => {
+const loadChunk = async (input: string, start: number, duration: number, proxy: string, segmentStartNumber: number = 0): Promise<LoadChunkResult> => {
   if (cache.currentFFMpegProcessCancel) {
     cache.currentFFMpegProcessCancel();
     cache.currentFFMpegProcessCancel = false;
@@ -322,15 +394,9 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
   options.push('-ab', '640k', '-ac', '6');
 
   options.push('-vcodec', 'libx264');
-  //options.push('-crf', '18');
+  options.push('-crf', '18');
   options.push('-s', '1280x720');
   options.push('-preset', 'ultrafast');
-  //options.push('-profile:v', 'baseline');
-  //options.push('-level', '3.0');
-
-  contentType = 'video/MP2T';
-
-  //options.push('-max_muxing_queue_size', '1024');
   options.push('-pix_fmt', 'yuv420p');
 
   if (Config.FFMpegExtraVideoFlags) {
@@ -341,17 +407,14 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
     options.push('-f', 'mpegts');
     options.push('pipe:1');
   } else {
-    options.push('-avoid_negative_ts', 'make_zero');
-    options.push('-fflags', '+genpts');
-    //options.push('-map', '0');
-    //options.push('-copyts');
-    //options.push('-copyinkf');
     options.push('-f', 'segment');
+    options.push('-segment_time', Config.HlsChunkDuration);
+    options.push('-segment_start_number', String(segmentStartNumber));
     options.push('-segment_list', Config.TmpFolder + '/segment_list.m3u8');
     options.push(Config.TmpFolder + '/%1d.ts');
   }
 
-  console.log('[ffmpeg] ffmpeg ' + options.join(' '));
+  console.log('[transcoder] ffmpeg ' + options.join(' '));
   const child = spawn(ffmpeg, options);
   const cancel = () => child.kill('SIGINT');
   cache.currentFFMpegProcessCancel = cancel;
@@ -361,12 +424,12 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
 
   if (Config.DebugLogging) {
     child.stderr.on('data', data => {
-      console.log('[transcoder-ffmpeg] ' + data.toString())
+      console.log('[transcoder] ffmpeg info - ' + data.toString())
     });
   }
 
   child.on('error', error => {
-    console.error(`[transcoder-ffmpeg] error transcoding  ${typeof input === 'string' ? input : 'pipe:0'} / ${start} / ${duration}`);
+    console.error(`[transcoder] ffmpeg error - error transcoding  ${typeof input === 'string' ? input : 'pipe:0'} / ${start} / ${duration}`);
     console.log('error ---> ');
     console.error(error);
     console.log(`------`);
@@ -385,7 +448,6 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
     stdin: child.stdin,
     cancel,
     isComplete,
-    contentType,
   };
 };
 

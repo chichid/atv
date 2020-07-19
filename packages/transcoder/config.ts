@@ -3,7 +3,7 @@ const { rcfg, cfg } = require('common/config');
 export const Port = cfg('TRANSCODER_PORT', 8666);
 export const DebugLogging = cfg('TRANSCODER_DEBUG_LOGGING', 'false') === 'true';
 export const EnableDiscovery = cfg('TRANSCODER_ENABLE_DISCOVERY', 'false') === 'true';
-export const HlsChunkDuration = cfg('TRANSCODER_HLS_CHUNK_DURATION', 5);
+export const HlsChunkDuration = Number(cfg('TRANSCODER_HLS_CHUNK_DURATION', 5));
 export const MaxDuration = cfg('TRANSCODER_MAX_DURATION', 3600 * 4);
 export const FFMpegPath = cfg('TRANSCODER_FFMPEG_PATH');
 export const FFProbePath = cfg('TRANSCODER_FFPROBE_PATH');

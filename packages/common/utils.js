@@ -23,6 +23,16 @@ module.exports.readFile = (file) => new Promise((resolve, reject) => {
   });
 });
 
+module.exports.removeFile = (file) => new Promise((resolve, reject) => {
+  fs.unlink(file, (err) => {
+    if (err) {
+      reject(err);
+    } else {
+      resolve();
+    }
+  });
+});
+
 module.exports.fileStat = (file) => new Promise((resolve, reject) => {
   fs.stat(file, (err, stats) => {
     if (err) {

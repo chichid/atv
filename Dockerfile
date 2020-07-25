@@ -1,5 +1,5 @@
 FROM jrottenberg/ffmpeg:3.3-alpine
-FROM node:12
+FROM node:12-slim
 
 COPY --from=0 / /
 

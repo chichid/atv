@@ -339,12 +339,11 @@ const serveTsFile = async (req, res) => {
  }); 
 
  res.on('close', async () => {
-  await wait(Config.HlsChunkDuration * 10);
+  await wait(Config.HlsChunkDuration * 10 * 1000);
 
   if (await fileExists(file)) {
    console.log(`[transcoder] serveTsFile - cleaning up ${file}`);
-   console.log(`skipped for now... needs to be enabled`);
-   //removeFile(file)
+   removeFile(file);
   }
  });
 };

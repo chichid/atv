@@ -343,7 +343,8 @@ const serveTsFile = async (req, res) => {
 
   if (await fileExists(file)) {
    console.log(`[transcoder] serveTsFile - cleaning up ${file}`);
-   removeFile(file)
+   console.log(`skipped for now... needs to be enabled`);
+   //removeFile(file)
   }
  });
 };

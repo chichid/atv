@@ -12,6 +12,7 @@ export const RemoteTranscoder = cfg('TRANSCODER_REMOTE_TRANSCODER');
 export const ProxyServicePort = cfg('PROXY_SERVICE_PORT');
 export const UseProxy = cfg('TRANSCODER_USE_PROXY', 'true') === 'true';
 export const TmpFolder = cfg('TRANSCODER_TMP_FOLDER', 'tmp');
+export const TorrentVideoFiles = cfg('TRANSCODER_TORRENT_VIDEO_FILES', 'mp4, mkv, avi').split(',').map(cfg => cfg.trim());
 
 export const Discovery = {
   Port: cfg('TRANSCODER_DISCOVERY_PORT', 23456),

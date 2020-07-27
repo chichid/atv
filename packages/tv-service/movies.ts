@@ -1,21 +1,20 @@
-const Fuse = require('fuse.js');
 import * as Config from './config';
-import { get, postForm } from 'common/utils';
+import { get } from 'common/utils';
 import { 
-  Movie, SourcePayload, VodPayload, VodInfoPayload, 
-  MovieDetail, TmdbMovieDetailPayload, TmdbMovieSearchPayload 
+  MovieHeader, SourcePayload, VodPayload, 
+  MovieDetail, MovieCategory, TmdbMovieDetailPayload, 
+  TmdbDisoverMoviePayload, TmdbMovieGenreListPayload,
+  TmdbMovieHeaderPayload 
 } from './model';
 
 const cache = {
   movieSources: null,
-  movies: null, 
-  categories: null,
 };
 
 export const reloadMovies = async (req, res) => {
-  delete cache.movies;
-  await fetchSources();
-  res.json(cache.movies);
+  delete cache.movieSources;
+  res.writeHead(200);
+  res.end();
 };
 
 export const getMovies = async (req, res) => {
@@ -24,22 +23,14 @@ export const getMovies = async (req, res) => {
   console.log('[tv-service] getMovies is waking up the transcoder...');
   get(`${Config.TranscoderUrl}/transcoder/ping`).catch(e => console.warn(`[tv-service] getMovies unable to wake the transcoder up`));
 
-  console.log('[tv-service] fetching sources...');
-  const { movies }= await fetchSources();
-
-  console.log('[tv-service] filtering the movies...');
-  const filteredMovies = filterMovies(movies, search, categoryId);
-
-  console.log('[tv-service] sorting the movies...');
-	const sortedMovies = search ? filteredMovies : filteredMovies.sort((a, b) => b.Rating - a.Rating);
-
-  const off = Number(offset) || 0;
-  const lim = Number(limit) || Config.DefaultPageSize;
-  const moviesPage = sortedMovies.slice(off, off + lim);
+  const off: number = offset || 0;
+  const page: number = Math.floor(offset / Config.Tmdb.PageSize) + 1;
+  // TODO support for offset and limit (fetch two pages at a time)
+  const { count, movies } = await fetchTmdbMovieList(categoryId, search, page);
 
   res.json({
-    count: filteredMovies.length,
-    items: moviesPage,
+    count,
+    items: movies,
   });
 };
 
@@ -58,131 +49,48 @@ export const getMovieDetail = async (req, res) => {
 };
 
 export const getMovieCategories = async (req, res) => {
-  const { categories }= await fetchSources();
+  const categories = await fetchTmdbMovieCategories();
   res.json({
-		items: categories
+		items: categories,
 	});
 };
 
-const filterMovies = (movieList: Movie[], searchTerm: string, categoryId: string) => {
-  const categoryMovies = !categoryId ? movieList : movieList.filter(m => m.category && m.category.id == categoryId);
+export const getMovieStreamUrl = async (req, res) => {
+  const { movieId } = req.params;
+  const streamUrl = await fetchStreamUrl(movieId);
 
-  if (searchTerm) {
-    const options = {
-      keys: ['movieName'],
-      threshold: 0.01,
-      includeScore: true,
-    };
-
-    const items = new Fuse(movieList, options).search(searchTerm);
-    const searchResultSort = (a: {item: Movie}, _: {item: Movie}) => a.item && a.item.category && a.item.category.id === categoryId ? - 1 : 1;
-
-    return items.sort(searchResultSort).map((i: {item: Movie}) => i.item);
-  } else {
-    return categoryMovies;
-  }
+  res.json({
+    id: movieId,
+    streamUrl,
+  });
 };
 
-const fetchSources = async () => {
-  if (cache.movies) {
-    console.log(`[tv-service] returning movies and categories from cache`);
+const fetchStreamUrl = async (movieId: string) => {
+  console.log(`[tv-service] fetching streamUrl for ${movieId}`);
+  const tmdbMovieDetail = await fetchTmdbMovieDetail(movieId) as TmdbMovieDetailPayload;
+  const year = tmdbMovieDetail.release_date ? new Date(tmdbMovieDetail.release_date).getUTCFullYear() : null;
+  
+  console.log(`[tv-service] attempting to find streamUrl for ${movieId} in the vod sources`);
+  let streamUrl = await findMovieStreamUrl(tmdbMovieDetail.title, year);
 
-    return {
-      movies: cache.movies,
-      categories: cache.categories
-    };
+  if (!streamUrl) {
+    console.log(`[tv-service] movie ${tmdbMovieDetail.title} isn't available in the vod sources, attempt to get a magnet`)
+    streamUrl = await findMovieMagnetUrl(tmdbMovieDetail.title, year);
+  } 
+
+  if (!streamUrl) {
+    console.log(`[tv-service] unable to find a stream url for the movie ${tmdbMovieDetail.title}`);
+    streamUrl = null;
   }
 
-  console.log(`[tv-service] calling GetChannelGroups...`);
-  const sources = await get(Config.GoogleSheetActions.GetSources);
-  let movies: Movie[] = [];
-
-  Object.keys(sources).forEach(k => {
-    const source = sources[k] as SourcePayload;
-    source.sourceId = k;
-
-    const sourceMovies = source.vodStreams.map(vod => mapMovieFromVodStream(source,  vod));
-    movies = [...movies, ...sourceMovies]
-  });
-
-  const categoriesMap = {};
-  movies.forEach(({ category }) => { 
-    if (category) {
-      categoriesMap[category.id] = category; 
-    }
-  });
-
-  const categories = Object.keys(categoriesMap).map(k => categoriesMap[k]);
-
-  cache.movieSources = sources;
-  cache.movies = movies;
-  cache.categories = categories; 
-
-  return { movies, categories };
-};
-
-const mapMovieFromVodStream = (source: SourcePayload, vod: VodPayload): Movie => {
-  const movieName = vod.name;
-  const logoUrl = vod.stream_icon;
-  const rating = Number(vod.rating) || 0;
-
-  const vodCategory = source.vodCategories.find(c => c.category_id === vod.category_id);
-  const category = !vodCategory ? null : {
-    id: vodCategory.category_id,
-    name: vodCategory.category_name,
-    parentId: vodCategory.parent_id,
-  };
-   
-  const { username, password } = source.userInfo;
-  const ext = vod.container_extension;
-  const newLocal = vod.stream_type || Config.XstreamCodes.DefaultVodType;
-  const streamType = newLocal;
-  const streamId = vod.stream_id;
-  const streamUrl = `${getSourceBaseUrl(source)}/${streamType}/${username}/${password}/${streamId}.${ext}`;
-
-  const id = encodeURIComponent(movieName);
-  const year = Number(vod.year) || null;
-  const genre = vod.genre || '';
-
-  return {
-    id,
-    sourceId: source.sourceId,
-    movieName,
-    streamId,
-    year,
-    genre,
-    streamUrl: `${Config.TranscoderUrl}/transcoder/vod/${encodeURIComponent(streamUrl)}/${Config.ProxyServicePort}`,
-    logoUrl,
-    rating,
-    category,
-  };
+  return streamUrl;
 };
 
 const fetchMovieDetail = async (movieId: string): Promise<MovieDetail> => {
-  if (!process.env.http_proxy) { 
-    console.warn(`[tv-service] fetchMovieDetail - http_proxy not provided, this service needs the proxy set`);
-  }
+  const tmdbMovieDetail = await fetchTmdbMovieDetail(movieId) as TmdbMovieDetailPayload;
 
-  await fetchSources();
-  const movie: Movie = cache.movies.find(m => m.id === movieId);
- 
-  if (!movie) { 
-    console.log(`[tv-service] movie ${movieId} not found`);
-    return null;
-  }
-
-  const tmdbMovieDetail: TmdbMovieDetailPayload = await fetchTmdbMovieDetail(movie);
-
-  if (!tmdbMovieDetail) {
-    console.log(`[tv-service] movie detail not found for ${movieId}`);
-    return {
-      ...movie,
-      overview: null,
-      youtubeTrailer: null,
-    };
-  }
-
-  console.log(`[tv-service] got tmdb movie details, mapping...`);
+  const movieHeader = mapTmdbMovieHeader(tmdbMovieDetail);
+  const genres = tmdbMovieDetail.genres.map(g => g.name).join(' | ');
 
   const tmdbYoutubeTrailer = tmdbMovieDetail.videos.results.find(rs => 
     rs.type && rs.site && 
@@ -192,60 +100,130 @@ const fetchMovieDetail = async (movieId: string): Promise<MovieDetail> => {
 
   const youtubeTrailer = tmdbYoutubeTrailer ? (Config.YoutubeUrlPrefix + tmdbYoutubeTrailer.key) : null;
 
-  const genre = tmdbMovieDetail.genres.map(g => g.name).join(' | ');
-
   return {
-    ...movie,
+    ...movieHeader,
+    genres,
     overview: tmdbMovieDetail.overview,
     youtubeTrailer, 
-    year: movie.year || new Date(tmdbMovieDetail.release_date).getUTCFullYear(),
-    genre,
   };
 };
 
-const fetchVodInfo = async (movie: Movie): Promise<VodInfoPayload> => {
-  const source = getSourceById(movie.sourceId);
-
-  const postData = {
-    username: source.userInfo.username,
-    password: source.userInfo.password,
-    action: Config.XstreamCodes.GetVodInfo,
-    vod_id: movie.streamId,
+const mapTmdbMovieHeader = (payload: TmdbMovieHeaderPayload): MovieHeader => {
+  return {
+    id: payload.id,
+    movieName: payload.title,
+    logoUrl: `${Config.Tmdb.ImageEndpoint}/w185/${payload.poster_path}`,
+    rating: Number(payload.vote_average),
+    year: new Date(payload.release_date).getUTCFullYear(),
   };
+}
 
-  return await postForm(getSourceBaseUrl(source) + '/player_api.php', postData, {
-    'User-Agent': Config.XstreamCodes.UserAgent,
-  }) as VodInfoPayload;
+const findMovieStreamUrl = async (movieTitle: string, year: number): Promise<string> => {
+  if (!cache.movieSources) {
+    console.log(`[tv-service] refreshing cached movies sources`);
+    cache.movieSources = await get(Config.GoogleSheetActions.GetSources);
+  }
+
+  console.log(`[tv-service] calling GetChannelGroups...`);
+   
+  let vodStream: VodPayload = null;
+  let source: SourcePayload = null;
+
+  for (const sourceId of Object.keys(cache.movieSources)) {
+    source = cache.movieSources[sourceId] as SourcePayload;
+
+    vodStream = source.vodStreams.find(vs => {
+      if (Number(vs.year) === year && (movieTitle.indexOf(vs.name) !== -1 || vs.name.indexOf(movieTitle) !== -1)) {
+        return true;
+      } else if (vs.name.toLowerCase() === movieTitle.toLowerCase()){
+        return true;
+      } else {
+        return false;
+      }
+    });
+
+    if (vodStream) {
+      break;
+    }
+  }
+
+  if (!vodStream) {
+    return null;
+  }
+
+  const streamUrl: string[] = [
+    `${source.serverUrl}`,
+    `/movie`,
+    `/${source.userInfo.username}`,
+    `/${source.userInfo.password}`,
+    `/${vodStream.stream_id}.${vodStream.container_extension}`,
+  ];
+
+  const streamUrlParts: string[] = [
+    Config.TranscoderUrl,
+    `/transcoder/vod/`,
+    encodeURIComponent(streamUrl.join('')),
+    `/${Config.ProxyServicePort}`,
+  ];
+
+  return streamUrlParts.join('');
 };
 
-const fetchTmdbMovieDetail = async (movie: Movie): Promise<TmdbMovieDetailPayload> => {
-  const payload = await fetchVodInfo(movie);
+const findMovieMagnetUrl = async (movieTitle: string, year: number): Promise<string> => {
+  return '';
+}
 
-  if (!payload.info) {
-    console.error(`[tv-service] unable to fetch tmdb info for movie ${movie.id}, info is null`);
-    return null;
+const fetchTmdbMovieCategories = async (): Promise<MovieCategory[]> => {
+  const uri = [
+    `${Config.Tmdb.Endpoint}/genre/movie/list?`,
+    `api_key=${Config.Tmdb.ApiKey}`,
+  ].join('');
+
+  console.log(`[tv-service] calling tmdb ${uri}`);
+  const { genres } = await get(uri) as TmdbMovieGenreListPayload;
+
+  return genres.map(g => ({
+    id: g.id,
+    name: g.name,
+    parentId: null,
+  } as MovieCategory));
+};
+
+const fetchTmdbMovieList = async (categoryId: string, query: string, page: number): Promise<{count: number, movies: MovieHeader[]}> => {
+  const api: string = query ? 'search' : 'discover';
+
+  const uri = [
+    `${Config.Tmdb.Endpoint}/${api}/movie?api_key=${Config.Tmdb.ApiKey}`,
+    `&page=${page}`
+  ];
+
+  if (categoryId) {
+    uri.push(`&with_genres=${categoryId}`);
   }
 
-  let tmdbId: string = payload.info.tmdb_id;
-
-  if (!tmdbId) {
-    console.log(`[tv-service] tmdbId not defined for ${movie.id}, using tmdb search`);
-    const infoReleaseDate = payload.info.releasedate ? new Date(payload.info.releasedate).getUTCFullYear() : null;
-    let movieYear: number = movie.year || infoReleaseDate || null;
-    tmdbId = await searchTmdbMovie(movie.movieName, movieYear);
+  if (query) {
+    uri.push(`&query=${encodeURIComponent(query)}`);
   }
 
-  if (!tmdbId) {
-    console.error(`[tv-service] unable to fetch tmdb info for movie ${movie.id}, unable to get tmdb movie id`);
-    return null;
-  }
+  console.log(`[tv-service] calling tmdb ${uri.join('')}`);
+  const { results, total_results } = (await get(uri.join(''))) as TmdbDisoverMoviePayload;
 
+  const movies = results.map(r => mapTmdbMovieHeader(r));
+
+  return {
+    count: total_results,
+    movies,
+  };
+};
+
+const fetchTmdbMovieDetail = async (tmdbId: string): Promise<TmdbMovieDetailPayload> => {
   const nonTranslatedUrl = [`${Config.Tmdb.Endpoint}/movie/${tmdbId}`,
     `?api_key=${Config.Tmdb.ApiKey}`,
     `&append_to_response=videos`,
   ].join('');
 
-  const nonTranslatedDetails = await get(nonTranslatedUrl) as TmdbMovieDetailPayload;
+  console.log(`[tv-service] fetching nonTranslatedDetails movie detail for ${tmdbId}: ${nonTranslatedUrl}`);
+  const nonTranslatedDetails = (await get(nonTranslatedUrl)) as TmdbMovieDetailPayload;
 
   const url = [`${Config.Tmdb.Endpoint}/movie/${tmdbId}`,
     `?language=${Config.Tmdb.Language}`,
@@ -253,7 +231,8 @@ const fetchTmdbMovieDetail = async (movie: Movie): Promise<TmdbMovieDetailPayloa
     `&append_to_response=videos`,
   ].join('');
 
-  const translatedDetails = await get(url) as TmdbMovieDetailPayload;
+  console.log(`[tv-service] fetching tmdb movie detail ${url}`);
+  const translatedDetails = (await get(url)) as TmdbMovieDetailPayload;
 
   for (const prop in translatedDetails) {
     if (!translatedDetails[prop] && nonTranslatedDetails[prop]) {
@@ -261,35 +240,11 @@ const fetchTmdbMovieDetail = async (movie: Movie): Promise<TmdbMovieDetailPayloa
     }
   }
 
-  return translatedDetails;
-};
-
-const searchTmdbMovie = async (title: string, year: number): Promise<string> => {
-  let url = `${Config.Tmdb.Endpoint}/search/movie?language=${Config.Tmdb.Language}&api_key=${Config.Tmdb.ApiKey}`;
-  url += `&query=${encodeURIComponent(title)}`;
-
-  if (year) {
-    url += '&year=' + year;
+  if (translatedDetails.videos.results.length === 0) {
+    console.log(`[tv-service] unable to find videos for ${tmdbId} ${translatedDetails.title}, falling back to the nonTranslatedDetails`);
+    translatedDetails.videos = nonTranslatedDetails.videos;
   }
 
-  const tmdbResponse = await get(url) as TmdbMovieSearchPayload;
-
-  const firstMatchingResult = tmdbResponse.results.find(res => res.title.toLowerCase() === title.toLowerCase());
-  if (!firstMatchingResult) {
-    return null;
-  } 
-
-  return firstMatchingResult.id;
-}
-
-const getSourceById = (sourceId: string): SourcePayload => {
-  return cache.movieSources[sourceId] || null;
-};
-
-const getSourceBaseUrl = (source: SourcePayload): string => {
-  const protocol = source.serverInfo.protocol || 'http';
-  const serverUrl = source.serverUrl.replace('http://', '').replace('https://', '');
-
-  return `${protocol}://${serverUrl}`;
+  return translatedDetails;
 };
 

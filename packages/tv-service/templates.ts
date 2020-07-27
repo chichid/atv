@@ -14,6 +14,7 @@ export const getTemplate = async (req, res) => {
 
   if (!await fileExists(filePath)) {
     res.writeHead(404);
+    res.end();
     return;
   }
 

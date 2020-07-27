@@ -1,3 +1,4 @@
+import { createWriteStream } from 'fs';
 import * as http from 'http';
 import { spawn } from 'child_process';
 import { Readable, Writable } from 'stream';
@@ -5,7 +6,7 @@ import * as Config from './config';
 import { wait, readFile, removeFile, fileStat, fileStream, fileExists, mkdir, rmdir, get } from 'common/utils';
 
 interface VideoInfo {
-  TotalDuration: number;
+  totalDuration: number;
   videoCodecs: string[];
   audioCodecs: string[];
 };
@@ -17,9 +18,16 @@ interface LoadChunkResult {
   isComplete: () => boolean;
 }
 
+enum PlaylistType {
+  Live = 'live',
+  Vod = 'vod',
+  Torrent = 'torrent',
+}
+
 const cache = {
   videoInfo: {},
   currentFFMpegProcessCancel: null,
+  currentTorrent: null,
   sessions: {},
 };
 
@@ -50,12 +58,12 @@ const handleRequest = async (req, res): Promise<void> => {
     if (req.url.startsWith('/transcoder/ping')) {
       await ping(req, res);
     } else if (req.url.startsWith('/transcoder/live')) {
-      await servePlaylist(req, res, true);
+      await servePlaylist(req, res, PlaylistType.Live);
     } else if (req.url.startsWith('/transcoder/vod')) {
-      await servePlaylist(req, res, false);
-    } else if (req.url.startsWith('/transcoder/vod')) {
-      await serveTorrent(req, res, false);
-    } eelse if (req.url.startsWith('/transcoder/transcode')) {
+      await servePlaylist(req, res, PlaylistType.Vod);
+    } else if (req.url.startsWith('/transcoder/torrent')) {
+      await servePlaylist(req, res, PlaylistType.Torrent);
+    } else if (req.url.startsWith('/transcoder/transcode')) {
       await transcode(req, res);
     } else if (req.url.startsWith('/transcoder/' + Config.TmpFolder)) {
       await serveTsFile(req, res);
@@ -83,96 +91,96 @@ const ping = async (req, res): Promise<void> => {
   res.end('pong');
 };
 
-const servePlaylist = async (req, res, isLive) => {
+const servePlaylist = async (req, res, playlistType: PlaylistType) => {
   const playlist = [];
   const matches = req.url.match('/transcoder/[^/]*/([^/]*)/([^/]*)');
-const url = decodeURIComponent(matches[1]);
-const proxyPort = decodeURIComponent(matches[2]);
+  const url = decodeURIComponent(matches[1]);
+  const proxyPort = decodeURIComponent(matches[2]);
 
-let proxyURL: string = '';
+  let proxyURL: string = '';
 
-if (proxyPort && Config.UseProxy) {
-  proxyURL = `http://${getRemoteIp(req)}:${proxyPort}`;
+  if (proxyPort && Config.UseProxy) {
+    proxyURL = `http://${getRemoteIp(req)}:${proxyPort}`;
     console.log(`[transcoder] transcode - using proxy ${proxyURL}`);
-}
-
-if (!isLive && Config.RemoteTranscoder) {
-  const location: string = Config.RemoteTranscoder + req.url;
-  console.log(`[transcoder] forwarding VOD to remote transcoder ${location}`);
-
-  res.writeHead(302, {
-    location,
-  });
-
-  res.end();
-  return;
-} 
-
-playlist.push(`#EXTM3U`);
-playlist.push(`#EXT-X-VERSION:4`);
-
-if (isLive) {
-  await loadVideoInfo(url, proxyURL);
-
-  console.log(`[transcoder] constructing live playlist, url ${url}`);
-  const hlsDuration = 1;
-
-  playlist.push(`#EXT-X-TARGETDURATION:${hlsDuration}`);
-  playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
-
-  const liveUrl = getPlaylistUrl(url, null, null, isLive);
-
-  for (let i = 1; i < Config.MaxDuration; ++i) {
-    playlist.push(`#EXTINF:${hlsDuration},`);
-    playlist.push(liveUrl);
   }
 
-  const headers = {};
-  headers['content-type'] = 'application/x-mpegURL';
-  res.writeHead(200, headers);
-} else { 
-  console.log(`[transcoder] proxyVideo - Serving VOD Playlist - ${url}...`);
+  if (playlistType === PlaylistType.Vod && Config.RemoteTranscoder) {
+    const location: string = Config.RemoteTranscoder + req.url;
+    console.log(`[transcoder] forwarding VOD to remote transcoder ${location}`);
 
-  // TODO can be optimized if loadChunk can return the video duration by parsing the video info
-  const videoInfo = await loadVideoInfo(url, proxyURL);
-  const totalDuration = videoInfo.totalDuration || Config.MaxDuration; 
-  console.log(`[transcoder] got vod info - totalDuration: ${totalDuration}, url ${url}`);
+    res.writeHead(302, {
+      location,
+    });
 
-  const { sessionId, isNewSession } = getSessionInfo(req);
+    res.end();
+    return;
+  } 
 
-  if (isNewSession) {
-    await createNewSession(url, proxyURL, sessionId);
-  }
+  playlist.push(`#EXTM3U`);
+  playlist.push(`#EXT-X-VERSION:4`);
 
-  console.log(`[transcoder] serving playlist...`);
+  if (playlistType === PlaylistType.Live) {
+    await loadVideoInfo(url, proxyURL);
 
-  playlist.push(`#EXT-X-TARGETDURATION:${Config.HlsChunkDuration}`);
-  playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
-  playlist.push(`#EXT-X-PLAYLIST-TYPE:VOD`);
+    console.log(`[transcoder] constructing live playlist, url ${url}`);
+    const hlsDuration = 1;
 
-  let start = 0;
-  let i = 0;
+    playlist.push(`#EXT-X-TARGETDURATION:${hlsDuration}`);
+    playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
 
-  while (start < videoInfo.totalDuration) {
-    const chunkDuration = Math.min(videoInfo.totalDuration - start, Config.HlsChunkDuration);
-    playlist.push(`#EXTINF:${Config.HlsChunkDuration},`);
-    playlist.push(`/transcoder/${Config.TmpFolder}/${i}.ts`);
-    start += chunkDuration;
-    i++;
-  }
+    const liveUrl = getLivePlaylistUrl(url);
 
-  const headers = {};
+    for (let i = 1; i < Config.MaxDuration; ++i) {
+      playlist.push(`#EXTINF:${hlsDuration},`);
+      playlist.push(liveUrl);
+    }
 
-  if (isNewSession) {
-    headers['set-cookie'] = 'session-id=' + encodeURI(sessionId);
-  }
+    const headers = {};
+    headers['content-type'] = 'application/x-mpegURL';
+    res.writeHead(200, headers);
+  } else { 
+    console.log(`[transcoder] proxyVideo - Serving ${playlistType} - ${url}...`);
 
-  headers['content-type'] = 'application/x-mpegURL';
-  res.writeHead(200, headers);
-} 
+    // TODO can be optimized if loadChunk can return the video duration by parsing the video info
+    const sessionInfo = getSessionInfo(req);
+    let sessionId = null;
 
-playlist.push(`#EXT-X-ENDLIST`);
-res.end(playlist.join('\n'))
+    if (sessionInfo.isNewSession) {
+      sessionId = await createNewSession(url, proxyURL, playlistType, sessionInfo.sessionId);
+    } else {
+      sessionId = sessionInfo.sessionId;
+    }
+
+    const { videoInfo } = getSessionData(sessionId);
+
+    const totalDuration = videoInfo.totalDuration || Config.MaxDuration; 
+    playlist.push(`#EXT-X-TARGETDURATION:${Config.HlsChunkDuration}`);
+    playlist.push(`#EXT-X-MEDIA-SEQUENCE:0`);
+    playlist.push(`#EXT-X-PLAYLIST-TYPE:VOD`);
+
+    let start = 0;
+    let i = 0;
+
+    while (start < videoInfo.totalDuration) {
+      const chunkDuration = Math.min(videoInfo.totalDuration - start, Config.HlsChunkDuration);
+      playlist.push(`#EXTINF:${Config.HlsChunkDuration},`);
+      playlist.push(`/transcoder/${Config.TmpFolder}/${i}.ts`);
+      start += chunkDuration;
+      i++;
+    }
+
+    const headers = {};
+
+    if (sessionInfo.isNewSession) {
+      headers['set-cookie'] = 'session-id=' + encodeURI(sessionId);
+    }
+
+    headers['content-type'] = 'application/x-mpegURL';
+    res.writeHead(200, headers);
+  } 
+
+  playlist.push(`#EXT-X-ENDLIST`);
+  res.end(playlist.join('\n'))
 };
 
 const getSessionInfo = (req): {sessionId: string, isNewSession: boolean } => {
@@ -181,31 +189,107 @@ const getSessionInfo = (req): {sessionId: string, isNewSession: boolean } => {
 
   return {
     sessionId,
-    isNewSession: cache[sessionId] ? false : true,
+    isNewSession: (!sessionId || !getSessionData(sessionId)) ? true : false,
   };
 };
 
-const createNewSession = async (url: string, proxyURL: string, sessionId: string = null): Promise<string> => {
-  const sid = sessionId || String(Math.floor(Math.random()*1000000000));
-  cache.sessions[sid] = {
-    sessionId,
-    proxyURL,
-    url,
-  };
+const getSessionData = (sessionId) => {
+  return cache.sessions[sessionId];
+};
 
+const createNewSession = async (url: string, proxyURL: string, playlistType: PlaylistType, sessionId: string): Promise<string> => {
+  const sid = sessionId || String(Math.floor(Math.random()*1000000000));
   const m3u8File: string =  Config.TmpFolder + '/segment_list.m3u8';
 
   console.log(`[transcoder] new session, ${sessionId}...`);
   await createTmpFolder();
 
-  console.log(`[transcoder] starting ffmpeg...`);
-  await loadChunk(url, 0, 0, proxyURL);
+  let effectiveUrl: string = url;
+
+  if (playlistType === PlaylistType.Torrent) {
+    const { torrentFile } = await prepareTorrent(url, proxyURL); 
+    effectiveUrl = torrentFile; 
+  } 
+
+  await loadChunk(effectiveUrl, 0, 0, proxyURL);
 
   console.log(`[transcoder] waiting for the m3u8 playlist to be created`);
   do { await wait(500) } while(!await fileExists(m3u8File));
 
+  const videoInfo = await loadVideoInfo(effectiveUrl, proxyURL);
+  console.log(`[transcoder] got vod info - totalDuration: ${videoInfo.totalDuration}, url ${url}`);
+
+  cache.sessions[sid] = {
+    sessionId,
+    proxyURL,
+    url: effectiveUrl,
+    videoInfo,
+  };
+
   return sid;
 };
+
+const prepareTorrent = async (url: string, proxyURL: string) => {
+  if (cache.currentTorrent) {
+    console.log(`[transcoder] closing previous server`)
+    cache.currentTorrent.server.close();
+
+    console.log(`[transcoder] closing previous torrent client`)
+    await new Promise((resolve, reject) => cache.currentTorrent.webTorrentClient.destroy((err) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    }));
+
+    cache.currentTorrent = null;
+  }
+
+  console.log(`[transcoder] adding torrent ${url}`);
+
+  let server = null;
+  const port = 9666;
+
+  const WebTorrent = require('webtorrent');
+  const webTorrentClient = new WebTorrent();
+  console.log(`[transcoder] adding torrent for url ${url}`);
+
+  const torrent: any = await new Promise((resolve, reject) => webTorrentClient.add(url, torrent => {
+    console.log(`[transcoder] added torrent ${url} successfully`);
+    server = torrent.createServer();
+    server.listen(port, err => {
+      if (err) {
+        reject(err);
+      } else {
+        console.log(`[transcoder] torrent for url server listening at ${port}`);
+        resolve(torrent);
+      }
+    });
+  }));
+
+  cache.currentTorrent = {
+    webTorrentClient,
+    server, 
+    torrent,
+  };
+
+  const extensions = Config.TorrentVideoFiles;
+  const videoFile = torrent.files.find(torrentFile => extensions.some(ext => torrentFile.name.endsWith(ext)));
+
+  if (!videoFile) {
+    throw new Error(`torrent at url ${url} has no video files`)
+  }
+
+  const index: number = torrent.files.indexOf(videoFile);
+  const outputFile: string = `http://localhost:${port}/${index}/${encodeURIComponent(videoFile.name)}`;
+
+  console.log(`[transcoder] torrent ready for ${url}, videoOutput: ${outputFile}`);
+
+  return {
+    torrentFile: outputFile,
+  };
+}
 
 const parseCookies = (req) => {
   const cookies = {};
@@ -218,29 +302,25 @@ const parseCookies = (req) => {
   return cookies;
 };
 
-const getPlaylistUrl = (url: string, start: number, duration: number, isLive: boolean): string => {
-  if (isLive) {
-    const availableVideoInfo = getVideoInfo(url);
-    let needTranscoding = false;
+const getLivePlaylistUrl = (url: string): string => {
+  const availableVideoInfo = getVideoInfo(url);
+  let needTranscoding = false;
 
-    if (availableVideoInfo) {
-      const { audioCodecs, videoCodecs } = availableVideoInfo;
-      const videoNeedTranscode = (videoCodecs && videoCodecs.some(c => c.indexOf('h264') === -1));
-      const audioNeedTranscode = (audioCodecs && audioCodecs.some(c => c.indexOf('aac') === -1));
-      needTranscoding = videoNeedTranscode || audioNeedTranscode;
-    }
+  if (availableVideoInfo) {
+    const { audioCodecs, videoCodecs } = availableVideoInfo;
+    const videoNeedTranscode = (videoCodecs && videoCodecs.some(c => c.indexOf('h264') === -1));
+    const audioNeedTranscode = (audioCodecs && audioCodecs.some(c => c.indexOf('aac') === -1));
+    needTranscoding = videoNeedTranscode || audioNeedTranscode;
+  }
 
-    if (!needTranscoding) {
-      return url;
-    }
-  } 
+  if (!needTranscoding) {
+    return url;
+  }
 
-  const s: string = isLive ? '-1' : String(start);
-  const d: string = duration ? String(duration) : '0';
   const remoteTranscoderURL: string = Config.RemoteTranscoder;
   const proxyPort: string = remoteTranscoderURL ? Config.ProxyServicePort : '';
 
-  return `${remoteTranscoderURL || ''}/transcoder/transcode/${encodeURIComponent(url)}/${s}/${d}/${proxyPort}`;
+  return `${remoteTranscoderURL || ''}/transcoder/transcode/${encodeURIComponent(url)}/-1/0/${proxyPort}`;
 };
 
 const getRemoteIp = (req): string => {
@@ -291,15 +371,15 @@ const transcode = async (req, res): Promise<void> => {
 };
 
 const serveTsFile = async (req, res) => {
-  console.log(req.headers);
-
   const matches = req.url.match(`/transcoder/${Config.TmpFolder}/([^/]*)`);
   const fileName = matches[1];
   const file = Config.TmpFolder + '/' + fileName;
   const segmentListFile = Config.TmpFolder + '/segment_list.m3u8';
 
   const { sessionId } = getSessionInfo(req);
-  const session = cache.sessions[sessionId];
+  console.log(`[transcoder] serveTsFile - sessionId: ${sessionId} - ${req.url}`);
+
+  const session = getSessionData(sessionId);
   const requestedSegmentNumber = fileName.replace('.ts', '');
   const lastServedSegmentNumber = session.lastServedSegmentNumber;
   const delta = requestedSegmentNumber - lastServedSegmentNumber;
@@ -345,7 +425,8 @@ const serveTsFile = async (req, res) => {
 
     if (await fileExists(file)) {
       console.log(`[transcoder] serveTsFile - cleaning up ${file}`);
-      removeFile(file);
+      console.log(`not enabled`);
+      // removeFile(file);
     }
   });
 };
@@ -367,7 +448,7 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
   }
 
   const ffmpeg = Config.FFMpegPath || 'ffmpeg';
-  const isLive = start === -1;
+  const isLive = Number(start) < -1;
 
   let contentType: string;
   const options = [];
@@ -402,7 +483,7 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
   options.push('-ab', '640k', '-ac', '6');
 
   options.push('-vcodec', 'libx264');
-  options.push('-crf', '18');
+  options.push('-crf', '16');
   options.push('-s', '1280x720');
   options.push('-preset', 'fast');
   options.push('-pix_fmt', 'yuv420p');

@@ -5,7 +5,7 @@ import * as express from 'express';
 import * as Config from './config';
 import { getTemplate } from './templates'
 import { getChannels, getChannelDetails, reloadChannels } from './channels'
-import { getMovieDetail, getMovieCategories, getMovies } from './movies';
+import { getMovieDetail, getMovieStreamUrl, getMovieCategories, getMovies } from './movies';
 
 export const startServer = () => {
   const app = createApp();
@@ -22,6 +22,7 @@ const createApp = () => {
   app.get('/tv-service/templates/:path', handler(getTemplate));
   app.get('/tv-service/movies', handler(getMovies));
   app.get('/tv-service/movies/categories', handler(getMovieCategories));
+  app.get('/tv-service/movies/:movieId/streamUrl', handler(getMovieStreamUrl));
   app.get('/tv-service/movies/:movieId', handler(getMovieDetail));
   app.get('/tv-service/channels', handler(getChannels));
   app.get('/tv-service/channels/:channelName', handler(getChannelDetails));

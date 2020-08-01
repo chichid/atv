@@ -390,6 +390,7 @@ const serveTsFile = async (req, res) => {
   if (typeof lastServedSegmentNumber !== 'undefined' && delta !== 1) {
     console.log(`[transcoder] serveTsFile - detected playback action`);
     const start = Number(requestedSegmentNumber * Config.HlsChunkDuration);
+    await removeFile(segmentListFile);
     await loadChunk(session.url, start, 0, session.proxyURL, requestedSegmentNumber);
   } 
 
@@ -421,15 +422,23 @@ const serveTsFile = async (req, res) => {
     console.log(`[transcoder] serveTsFile - fileStream.pipe error ${err}`);
   }); 
 
-  res.on('close', async () => {
-    await wait(Config.HlsChunkDuration * 10 * 1000);
+  for (let i = 0; i < 10; ++i) {
+    const fileToClean: string = `${Config.TmpFolder}/${requestedSegmentNumber - 3 - i}.ts`;
 
-    if (await fileExists(file)) {
-      console.log(`[transcoder] serveTsFile - cleaning up ${file}`);
-      console.log(`not enabled`);
-      // removeFile(file);
+    if (await fileExists(fileToClean)) {
+      console.log(`[transcoder] serveTsFile - cleaning up ${fileToClean}`);
+      removeFile(fileToClean);
     }
-  });
+  }
+
+  //res.on('close', async () => {
+  //  // await wait(Config.HlsChunkDuration * 10 * 1000);
+
+  //  if (await fileExists(file)) {
+  //    console.log(`[transcoder] serveTsFile - cleaning up ${file}`);
+  //    removeFile(file);
+  //  }
+  //});
 };
 
 const createTmpFolder = async () => {
@@ -452,7 +461,7 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
   const isLive = Number(start) < -1;
 
   let contentType: string;
-  const options = [];
+  const options = ['-n', '-1', ffmpeg];
 
   options.push('-y');
 
@@ -484,8 +493,8 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
   options.push('-ab', '640k', '-ac', '6');
 
   options.push('-vcodec', 'libx264');
-  options.push('-crf', '16');
-  options.push('-s', '1280x720');
+  options.push('-crf', '17');
+  //options.push('-s', '1280x720');
   options.push('-preset', 'fast');
   options.push('-pix_fmt', 'yuv420p');
 
@@ -507,7 +516,7 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
   }
 
   console.log('[transcoder] ffmpeg ' + options.join(' '));
-  const child = spawn(ffmpeg, options);
+  const child = spawn('nice', options);
   const cancel = () => child.kill('SIGINT');
   cache.currentFFMpegProcessCancel = cancel;
 

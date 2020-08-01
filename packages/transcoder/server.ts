@@ -211,7 +211,8 @@ const createNewSession = async (url: string, proxyURL: string, playlistType: Pla
     effectiveUrl = torrentFile; 
   } 
 
-  await loadChunk(effectiveUrl, 0, 0, proxyURL);
+  loadChunk(effectiveUrl, 0, 0, proxyURL);
+  loadVideoInfo(effectiveUrl, proxyURL);
 
   console.log(`[transcoder] waiting for the m3u8 playlist to be created`);
   do { await wait(500) } while(!await fileExists(m3u8File));
@@ -396,7 +397,7 @@ const serveTsFile = async (req, res) => {
 
   let currentFileContent: string = null;
   do {
-    await wait(500); 
+    await wait(1000); 
     currentFileContent = await readFile(segmentListFile);
   } while(currentFileContent.indexOf(fileName) === -1);
 
@@ -497,7 +498,9 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
     options.push('pipe:1');
   } else {
     options.push('-f', 'segment');
-    options.push('-segment_time', Config.HlsChunkDuration);
+    options.push('-copyts', '-avoid_negative_ts', 'make_zero');
+    options.push('-fflags', '+genpts');
+    options.push('-segment_time', Config.HlsChunkDuration - 0.5);
     options.push('-segment_start_number', String(segmentStartNumber));
     options.push('-segment_list', Config.TmpFolder + '/segment_list.m3u8');
     options.push(Config.TmpFolder + '/%1d.ts');

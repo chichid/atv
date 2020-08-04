@@ -1,5 +1,6 @@
 import * as Config from './config';
 import { get } from 'common/utils';
+import * as TorrentSearchApi from 'torrent-search-api';
 import { 
   MovieHeader, SourcePayload, VodPayload, 
   MovieDetail, MovieCategory, TmdbMovieDetailPayload, 
@@ -159,8 +160,7 @@ const findMovieStreamUrl = async (movieTitle: string, year: number): Promise<str
     `/${vodStream.stream_id}.${vodStream.container_extension}`,
   ];
 
-  const streamUrlParts: string[] = [
-    Config.TranscoderUrl,
+  const streamUrlParts: string[] = [ Config.TranscoderUrl,
     `/transcoder/vod/`,
     encodeURIComponent(streamUrl.join('')),
     `/${Config.ProxyServicePort}`,
@@ -169,8 +169,44 @@ const findMovieStreamUrl = async (movieTitle: string, year: number): Promise<str
   return streamUrlParts.join('');
 };
 
-const findMovieMagnetUrl = async (movieTitle: string, year: number): Promise<string> => {
-  return '';
+const findMovieMagnetUrl  = async (title: string, year: number): Promise<string> => {
+  // TODO enhance the query
+  const query = title;
+  const movieTitle: string = query.toLowerCase();
+
+  TorrentSearchApi.enableProvider('torrent9');
+
+  const searchTorrent = async (q) => {
+    const searchResults = await TorrentSearchApi.search(q, 'All', 5);
+    return searchResults.filter(result => 
+      result.title && result.title.toLowerCase().indexOf(movieTitle) !== -1
+    );
+  }
+
+  let torrents = await searchTorrent(movieTitle + ' 1080');
+
+  if (torrents.length === 0) {
+    console.log(`[transcoder] movie search query: ${query}, high quality not found`);
+    torrents = await searchTorrent(movieTitle);
+  } else {
+    console.log(`[transcoder] movie search query: ${query}, found high quality torrent ${torrents.length}` + torrents.length);
+  }
+
+  if (torrents.length === 0) {
+    console.log(`[transcoder] movie search query: ${query}, no results found`);
+    return null;
+  } 
+
+  const magnetUrl: string = await TorrentSearchApi.getMagnet(torrents[0]);
+
+  const streamUrlParts: string[] = [
+    Config.TranscoderUrl,
+    `/transcoder/torrent/`,
+    encodeURIComponent(magnetUrl),
+    `/${Config.ProxyServicePort}`,
+  ];
+  
+  return streamUrlParts.join('');
 }
 
 const fetchTmdbMovieCategories = async (): Promise<MovieCategory[]> => {

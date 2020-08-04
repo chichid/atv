@@ -256,7 +256,11 @@ const prepareTorrent = async (url: string, proxyURL: string) => {
   const webTorrentClient = new WebTorrent();
   console.log(`[transcoder] adding torrent for url ${url}`);
 
-  const torrent: any = await new Promise((resolve, reject) => webTorrentClient.add(url, torrent => {
+  const options = {
+    path: Config.TmpFolder,
+  };
+
+  const torrent: any = await new Promise((resolve, reject) => webTorrentClient.add(url, options, torrent => {
     console.log(`[transcoder] added torrent ${url} successfully`);
     server = torrent.createServer();
     server.listen(port, err => {
@@ -461,8 +465,9 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
   const isLive = Number(start) < -1;
 
   let contentType: string;
-  const options = ['-n', '-1', ffmpeg];
+  const options = [/*'nice', '-n', '-1',*/ ffmpeg];
 
+  options.push('-threads', 2);
   options.push('-y');
 
   if (!Config.DebugLogging) {
@@ -516,7 +521,7 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
   }
 
   console.log('[transcoder] ffmpeg ' + options.join(' '));
-  const child = spawn('nice', options);
+  const child = spawn(options[0], options.slice(1));
   const cancel = () => child.kill('SIGINT');
   cache.currentFFMpegProcessCancel = cancel;
 

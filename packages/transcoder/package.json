@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "scripts": {
     "start": "node ./dist/index.js",
-    "build": "copyfiles -e '{node_modules,dist,tmp}/**/*' '**/*' dist && tsc dist/*.ts --rootDir ./dist",
+    "build": "copyfiles -e '{node_modules,dist,tmp}/**/*' * dist && tsc -p dist",
     "watch": "nodemon --ignore tmp/* -e json,ts,xml,js ./index.ts"
   },
   "dependencies": {

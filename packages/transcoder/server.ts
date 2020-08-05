@@ -2,6 +2,7 @@ import { createWriteStream } from 'fs';
 import * as http from 'http';
 import { spawn } from 'child_process';
 import { Readable, Writable } from 'stream';
+import { Worker } from 'worker_threads';
 import * as Config from './config';
 import { wait, readFile, removeFile, fileStat, fileStream, fileExists, mkdir, rmdir, get } from 'common/utils';
 
@@ -207,15 +208,13 @@ const createNewSession = async (url: string, proxyURL: string, playlistType: Pla
   let effectiveUrl: string = url;
 
   if (playlistType === PlaylistType.Torrent) {
-    const { torrentFile } = await prepareTorrent(url, proxyURL); 
-    effectiveUrl = torrentFile; 
+    effectiveUrl  = await prepareTorrent(url); 
   } 
 
   loadChunk(effectiveUrl, 0, 0, proxyURL);
-  loadVideoInfo(effectiveUrl, proxyURL);
 
   console.log(`[transcoder] waiting for the m3u8 playlist to be created`);
-  do { await wait(500) } while(!await fileExists(m3u8File));
+  do { await wait(1000) } while(!(await fileExists(m3u8File)));
 
   const videoInfo = await loadVideoInfo(effectiveUrl, proxyURL);
   console.log(`[transcoder] got vod info - totalDuration: ${videoInfo.totalDuration}, url ${url}`);
@@ -230,70 +229,32 @@ const createNewSession = async (url: string, proxyURL: string, playlistType: Pla
   return sid;
 };
 
-const prepareTorrent = async (url: string, proxyURL: string) => {
-  if (cache.currentTorrent) {
-    console.log(`[transcoder] closing previous server`)
-    cache.currentTorrent.server.close();
+const prepareTorrent = async (url: string): Promise<string> => {
+  // TODO close previous worker if any
+  let workerPath: string = null;
 
-    console.log(`[transcoder] closing previous torrent client`)
-    await new Promise((resolve, reject) => cache.currentTorrent.webTorrentClient.destroy((err) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve();
-      }
-    }));
-
-    cache.currentTorrent = null;
+  try {
+    const jsWorker = require(__dirname + '/magnet-worker.js');
+    workerPath = __dirname + '/magnet-worker.js';
+  } catch(e) {
+    workerPath = './magnet-worker.import.js';
   }
 
-  console.log(`[transcoder] adding torrent ${url}`);
+  const worker = new Worker(workerPath, {
+    workerData: {
+      url,
+    },
+  });
 
-  let server = null;
-  const port = 9666;
-
-  const WebTorrent = require('webtorrent');
-  const webTorrentClient = new WebTorrent();
-  console.log(`[transcoder] adding torrent for url ${url}`);
-
-  const options = {
-    path: Config.TmpFolder,
-  };
-
-  const torrent: any = await new Promise((resolve, reject) => webTorrentClient.add(url, options, torrent => {
-    console.log(`[transcoder] added torrent ${url} successfully`);
-    server = torrent.createServer();
-    server.listen(port, err => {
-      if (err) {
-        reject(err);
-      } else {
-        console.log(`[transcoder] torrent for url server listening at ${port}`);
-        resolve(torrent);
-      }
-    });
+  return new Promise((resolve, reject) => worker.on('message', ({streamUrl, err}) => {
+    if (err) {
+      console.log(`[transcoder] got magnet-worker error message ${streamUrl}`);
+      reject(err);
+    } {
+      console.log(`[transcoder] got magnet-worker stream url ${streamUrl}`);
+      resolve(streamUrl);
+    }
   }));
-
-  cache.currentTorrent = {
-    webTorrentClient,
-    server, 
-    torrent,
-  };
-
-  const extensions = Config.TorrentVideoFiles;
-  const videoFile = torrent.files.find(torrentFile => extensions.some(ext => torrentFile.name.endsWith(ext)));
-
-  if (!videoFile) {
-    throw new Error(`torrent at url ${url} has no video files`)
-  }
-
-  const index: number = torrent.files.indexOf(videoFile);
-  const outputFile: string = `http://localhost:${port}/${index}/${encodeURIComponent(videoFile.name)}`;
-
-  console.log(`[transcoder] torrent ready for ${url}, videoOutput: ${outputFile}`);
-
-  return {
-    torrentFile: outputFile,
-  };
 }
 
 const parseCookies = (req) => {
@@ -467,7 +428,7 @@ const loadChunk = async (input: string, start: number, duration: number, proxy: 
   let contentType: string;
   const options = [/*'nice', '-n', '-1',*/ ffmpeg];
 
-  options.push('-threads', 2);
+  options.push('-threads', 1);
   options.push('-y');
 
   if (!Config.DebugLogging) {

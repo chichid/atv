@@ -10,7 +10,7 @@
   "dependencies": {
     "async-helper": "^1.0.3",
     "common": "file:../common",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "handlebars": "^4.7.6",
     "handlebars-async": "^1.0.0",
     "torrent-search-api": "^2.1.3"
